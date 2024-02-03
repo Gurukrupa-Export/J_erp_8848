@@ -1,0 +1,272 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "SCON.#####",
+ "creation": "2024-01-30 19:30:32.000548",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "details_tab",
+  "company",
+  "column_break_2culq",
+  "department",
+  "column_break_g0kkz",
+  "manufacturer",
+  "column_break_ae5r8",
+  "date",
+  "column_break_v3jso",
+  "employee",
+  "column_break_6oxul",
+  "stock_entry",
+  "section_break_6lpva",
+  "source_warehouse",
+  "column_break_aw0qk",
+  "target_warehouse",
+  "section_break_ovuvp",
+  "metal_converter_tab",
+  "source_item",
+  "source_qty",
+  "source_alloy_check",
+  "source_alloy",
+  "source_alloy_qty",
+  "column_break_bncqn",
+  "target_item",
+  "target_qty",
+  "target_alloy_check",
+  "target_alloy",
+  "target_alloy_qty",
+  "diamond_converter_tab",
+  "gemstone_converter_tab",
+  "to_metal_touch",
+  "to_purity",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "default": "Today",
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Link",
+   "label": "Department",
+   "options": "Department"
+  },
+  {
+   "fieldname": "manufacturer",
+   "fieldtype": "Link",
+   "label": "Manufacturer",
+   "options": "Manufacturer"
+  },
+  {
+   "fieldname": "section_break_6lpva",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "source_warehouse",
+   "fieldtype": "Link",
+   "label": "Source Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "column_break_aw0qk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "target_warehouse",
+   "fieldtype": "Link",
+   "label": "Target Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "section_break_ovuvp",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "metal_converter_tab",
+   "fieldtype": "Tab Break",
+   "label": "Metal Converter"
+  },
+  {
+   "fieldname": "source_item",
+   "fieldtype": "Link",
+   "label": "Source Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "source_qty",
+   "fieldtype": "Float",
+   "label": "Source Qty"
+  },
+  {
+   "depends_on": "eval:doc.source_alloy_check",
+   "fieldname": "source_alloy",
+   "fieldtype": "Link",
+   "label": "Source Alloy",
+   "options": "Item"
+  },
+  {
+   "depends_on": "eval:doc.source_alloy_check",
+   "fieldname": "source_alloy_qty",
+   "fieldtype": "Data",
+   "label": "Source Alloy Qty",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_bncqn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.source_qty",
+   "fieldname": "target_item",
+   "fieldtype": "Link",
+   "label": "Target Item",
+   "options": "Item"
+  },
+  {
+   "depends_on": "eval:doc.target_item",
+   "fieldname": "target_qty",
+   "fieldtype": "Float",
+   "label": "Target Qty",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.target_alloy_check",
+   "fieldname": "target_alloy",
+   "fieldtype": "Link",
+   "label": "Target Alloy",
+   "options": "Item"
+  },
+  {
+   "depends_on": "eval:doc.target_alloy_check",
+   "fieldname": "target_alloy_qty",
+   "fieldtype": "Float",
+   "label": "Target Alloy Qty",
+   "read_only": 1
+  },
+  {
+   "fieldname": "diamond_converter_tab",
+   "fieldtype": "Tab Break",
+   "label": "Diamond Converter"
+  },
+  {
+   "fieldname": "gemstone_converter_tab",
+   "fieldtype": "Tab Break",
+   "label": "Gemstone Converter"
+  },
+  {
+   "fieldname": "to_metal_touch",
+   "fieldtype": "Link",
+   "label": "To Metal Touch",
+   "options": "Attribute Value"
+  },
+  {
+   "fieldname": "to_purity",
+   "fieldtype": "Link",
+   "label": "To Purity",
+   "options": "Attribute Value"
+  },
+  {
+   "fieldname": "column_break_2culq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_ae5r8",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_g0kkz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_v3jso",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee"
+  },
+  {
+   "default": "0",
+   "fieldname": "source_alloy_check",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Source Alloy Check"
+  },
+  {
+   "default": "0",
+   "fieldname": "target_alloy_check",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Target Alloy Check"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Sales Conversion",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_6oxul",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "stock_entry",
+   "fieldtype": "Link",
+   "label": "Stock Entry",
+   "options": "Stock Entry"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [
+  {
+   "link_doctype": "Stock Entry",
+   "link_fieldname": "custom_sales_conversion"
+  }
+ ],
+ "modified": "2024-02-01 15:59:45.112375",
+ "modified_by": "Administrator",
+ "module": "Jewellery Erpnext",
+ "name": "Sales Conversion",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

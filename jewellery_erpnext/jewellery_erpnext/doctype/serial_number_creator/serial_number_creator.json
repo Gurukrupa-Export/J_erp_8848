@@ -1,0 +1,161 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "SNC-.#####",
+ "creation": "2024-01-15 17:29:48.589094",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "manufacturing_operation",
+  "manufacturing_work_order",
+  "parent_manufacturing_order",
+  "company",
+  "column_break_ofkba",
+  "manufacturer",
+  "department",
+  "for_fg",
+  "design_id_bom",
+  "total_weight",
+  "section_break_a8aud",
+  "type",
+  "fg_details",
+  "sfg_details",
+  "source_table",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "type",
+   "fieldtype": "Select",
+   "label": "Type",
+   "options": "\nManufacturing\nRaw Material Interchange\nRepairing"
+  },
+  {
+   "fieldname": "fg_details",
+   "fieldtype": "Table",
+   "label": "FG Details",
+   "options": "SNC FG Details"
+  },
+  {
+   "fieldname": "sfg_details",
+   "fieldtype": "Table",
+   "hidden": 1,
+   "label": "SFG Details",
+   "options": "SNC SFG Details"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Serial Number Creator",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "source_table",
+   "fieldtype": "Table",
+   "hidden": 1,
+   "label": "Source Table",
+   "options": "SNC Source Table"
+  },
+  {
+   "fieldname": "manufacturing_work_order",
+   "fieldtype": "Link",
+   "label": "Manufacturing Work Order",
+   "options": "Manufacturing Work Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "parent_manufacturing_order",
+   "fieldtype": "Link",
+   "label": "Parent Manufacturing Order",
+   "options": "Parent Manufacturing Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_ofkba",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "manufacturer",
+   "fieldtype": "Link",
+   "label": "Manufacturer",
+   "options": "Manufacturer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Link",
+   "label": "Department",
+   "options": "Department",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "for_fg",
+   "fieldtype": "Check",
+   "label": "For Fg",
+   "read_only": 1
+  },
+  {
+   "fieldname": "design_id_bom",
+   "fieldtype": "Link",
+   "label": "BOM",
+   "options": "BOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_weight",
+   "fieldtype": "Float",
+   "hidden": 1,
+   "label": "Total Weight"
+  },
+  {
+   "fieldname": "section_break_a8aud",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "manufacturing_operation",
+   "fieldtype": "Data",
+   "label": "Manufacturing Operation",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2024-02-02 14:12:23.911905",
+ "modified_by": "Administrator",
+ "module": "Jewellery Erpnext",
+ "name": "Serial Number Creator",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

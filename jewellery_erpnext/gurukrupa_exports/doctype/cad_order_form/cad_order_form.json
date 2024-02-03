@@ -1,0 +1,337 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "ORD/C/.#####",
+ "creation": "2022-05-11 22:26:19.574092",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "department",
+  "column_break_zuipg",
+  "branch",
+  "salesman_name",
+  "section_break_aofbu",
+  "customer_code",
+  "order_date",
+  "delivery_date",
+  "estimated_duedate",
+  "system_due_date",
+  "project",
+  "parcel_place",
+  "column_break_4",
+  "po_no",
+  "order_type",
+  "due_days",
+  "diamond_quality",
+  "service_type",
+  "section_break_12",
+  "order_details",
+  "section_break_24",
+  "remarks",
+  "amended_from",
+  "design_attribute_tab",
+  "design_attributes",
+  "creativity_tab",
+  "stepping",
+  "fusion",
+  "drops",
+  "coin",
+  "column_break_jazjr",
+  "gold_wire",
+  "gold_ball",
+  "flows",
+  "nagas",
+  "territories_tab",
+  "india",
+  "india_states",
+  "column_break_anxf6",
+  "usa",
+  "usa_states"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "order_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Order Date",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "customer_code",
+   "fieldtype": "Link",
+   "label": "Customer Name",
+   "options": "Customer",
+   "reqd": 1
+  },
+  {
+   "fieldname": "due_days",
+   "fieldtype": "Int",
+   "label": "Due Days",
+   "reqd": 1
+  },
+  {
+   "fieldname": "delivery_date",
+   "fieldtype": "Date",
+   "label": "Delivery Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "estimated_duedate",
+   "fieldtype": "Date",
+   "hidden": 1,
+   "label": "Estimated Due Date"
+  },
+  {
+   "fieldname": "system_due_date",
+   "fieldtype": "Date",
+   "label": "System Due Date"
+  },
+  {
+   "fieldname": "order_type",
+   "fieldtype": "Select",
+   "label": "Order Type",
+   "options": "\nSales\nStock Order",
+   "reqd": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "label": "Branch",
+   "options": "Branch",
+   "reqd": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "po_no",
+   "fieldtype": "Data",
+   "label": "Customer PO No"
+  },
+  {
+   "fieldname": "service_type",
+   "fieldtype": "Table MultiSelect",
+   "label": "Service Type",
+   "options": "Service Type 2",
+   "reqd": 1
+  },
+  {
+   "fieldname": "parcel_place",
+   "fieldtype": "Table MultiSelect",
+   "label": "Shipping Territory",
+   "options": "Territory Multi Select",
+   "reqd": 1
+  },
+  {
+   "fieldname": "diamond_quality",
+   "fieldtype": "Link",
+   "label": "Diamond Quality",
+   "options": "Attribute Value",
+   "reqd": 1
+  },
+  {
+   "fieldname": "salesman_name",
+   "fieldtype": "Link",
+   "label": "Sales Person",
+   "options": "Sales Person",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_12",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "order_details",
+   "fieldtype": "Table",
+   "label": "Order Details",
+   "options": "CAD Order Form Detail"
+  },
+  {
+   "fieldname": "section_break_24",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "CAD Order Form",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Link",
+   "label": "Department",
+   "options": "Department",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_aofbu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_zuipg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "territories_tab",
+   "fieldtype": "Tab Break",
+   "label": "Territories"
+  },
+  {
+   "fieldname": "creativity_tab",
+   "fieldtype": "Tab Break",
+   "label": "Creativity"
+  },
+  {
+   "default": "0",
+   "fieldname": "india",
+   "fieldtype": "Check",
+   "label": "INDIA"
+  },
+  {
+   "default": "0",
+   "fieldname": "usa",
+   "fieldtype": "Check",
+   "label": "USA"
+  },
+  {
+   "fieldname": "column_break_anxf6",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "india_states",
+   "fieldtype": "Table MultiSelect",
+   "label": "States",
+   "options": "Territory Multi Select"
+  },
+  {
+   "fieldname": "usa_states",
+   "fieldtype": "Select",
+   "label": "States",
+   "options": "\nUSA"
+  },
+  {
+   "default": "0",
+   "fieldname": "stepping",
+   "fieldtype": "Check",
+   "label": "Stepping"
+  },
+  {
+   "default": "0",
+   "fieldname": "fusion",
+   "fieldtype": "Check",
+   "label": "Fusion"
+  },
+  {
+   "default": "0",
+   "fieldname": "drops",
+   "fieldtype": "Check",
+   "label": "Drops"
+  },
+  {
+   "default": "0",
+   "fieldname": "coin",
+   "fieldtype": "Check",
+   "label": "Coin"
+  },
+  {
+   "default": "0",
+   "fieldname": "gold_wire",
+   "fieldtype": "Check",
+   "label": "Gold Wire"
+  },
+  {
+   "default": "0",
+   "fieldname": "gold_ball",
+   "fieldtype": "Check",
+   "label": "Gold Ball"
+  },
+  {
+   "default": "0",
+   "fieldname": "flows",
+   "fieldtype": "Check",
+   "label": "Flows"
+  },
+  {
+   "default": "0",
+   "fieldname": "nagas",
+   "fieldtype": "Check",
+   "label": "Nakshi"
+  },
+  {
+   "fieldname": "column_break_jazjr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "design_attribute_tab",
+   "fieldtype": "Tab Break",
+   "label": "Design Attribute"
+  },
+  {
+   "fieldname": "design_attributes",
+   "fieldtype": "Table",
+   "label": "Design Attributes",
+   "options": "Design Attributes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [
+  {
+   "link_doctype": "CAD Order",
+   "link_fieldname": "cad_order_form"
+  }
+ ],
+ "modified": "2023-07-29 17:24:50.540777",
+ "modified_by": "Administrator",
+ "module": "Gurukrupa Exports",
+ "name": "CAD Order Form",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "track_seen": 1,
+ "track_views": 1
+}
