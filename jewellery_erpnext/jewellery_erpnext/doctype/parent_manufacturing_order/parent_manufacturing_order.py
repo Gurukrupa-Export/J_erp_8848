@@ -172,6 +172,8 @@ class ParentManufacturingOrder(Document):
 									"Warehouse", {"department": self.other_material_department}, "name"
 								)
 								or deafault_warehouse,
+								"is_customer_item": "0",
+								"sub_setting_type": None,
 								"pcs": row.qty,
 							}
 						)
@@ -211,7 +213,7 @@ class ParentManufacturingOrder(Document):
 							"item_code": i["item_code"],
 							"qty": i["qty"],
 							"warehouse": i["warehouse"],
-							"custom_is_customer_item": i.get("is_customer_item", None),
+							"custom_is_customer_item": i.get("is_customer_item", 0),
 							"custom_sub_setting_type": i.get("sub_setting_type", None),
 							"pcs": i.get("pcs", None),
 						},
