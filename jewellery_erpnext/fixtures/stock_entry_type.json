@@ -3,6 +3,22 @@
   "add_to_transit": 0,
   "docstatus": 0,
   "doctype": "Stock Entry Type",
+  "modified": "2023-12-20 17:49:40.211656",
+  "name": "Repack - Diamond Sieve Size",
+  "purpose": "Repack"
+ },
+ {
+  "add_to_transit": 0,
+  "docstatus": 0,
+  "doctype": "Stock Entry Type",
+  "modified": "2024-01-23 09:46:55.132728",
+  "name": "Material Issue  - Consumables",
+  "purpose": "Material Issue"
+ },
+ {
+  "add_to_transit": 0,
+  "docstatus": 0,
+  "doctype": "Stock Entry Type",
   "modified": "2023-12-12 11:03:20.415870",
   "name": "Metal Conversion Repack",
   "purpose": "Repack"
