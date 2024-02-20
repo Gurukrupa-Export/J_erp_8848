@@ -6,14 +6,14 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "default_bom_rm",
-  "bom_qty",
-  "bom_pcs",
   "row_material",
-  "id",
   "qty",
   "pcs",
   "uom",
+  "id",
+  "default_bom_rm",
+  "bom_qty",
+  "bom_pcs",
   "sub_setting_type",
   "is_customer_item",
   "serial_no"
@@ -22,6 +22,7 @@
   {
    "fieldname": "default_bom_rm",
    "fieldtype": "Link",
+   "hidden": 1,
    "in_list_view": 1,
    "label": "Default BOM RM",
    "options": "Item",
@@ -82,6 +83,7 @@
   {
    "fieldname": "bom_qty",
    "fieldtype": "Float",
+   "hidden": 1,
    "in_list_view": 1,
    "label": "BOM Qty",
    "read_only": 1
@@ -89,6 +91,7 @@
   {
    "fieldname": "bom_pcs",
    "fieldtype": "Float",
+   "hidden": 1,
    "in_list_view": 1,
    "label": "BOM PCS",
    "read_only": 1
@@ -104,7 +107,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-01-31 20:44:11.235119",
+ "modified": "2024-02-16 17:41:39.548055",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "SNC FG Details",

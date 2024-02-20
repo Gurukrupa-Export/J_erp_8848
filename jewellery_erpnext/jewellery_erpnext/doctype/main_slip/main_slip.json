@@ -13,6 +13,7 @@
   "company",
   "manufacturer",
   "warehouse",
+  "raw_material_warehouse",
   "type_abbr",
   "column_break_lbsmh",
   "color_abbr",
@@ -173,12 +174,6 @@
    "options": "Manufacturer"
   },
   {
-   "fieldname": "naming_series",
-   "fieldtype": "Select",
-   "label": "Naming Series",
-   "options": ".dep_abbr.-.type_abbr.-.metal_touch.-.metal_purity.-.#####\n.dep_abbr.-.type_abbr.-.metal_touch.-.metal_purity.-.color_abbr.-.#####"
-  },
-  {
    "fetch_from": "operation.department",
    "fieldname": "department",
    "fieldtype": "Link",
@@ -337,7 +332,7 @@
   {
    "fieldname": "warehouse",
    "fieldtype": "Link",
-   "label": "Warehouse",
+   "label": "Work Station Warehouse",
    "options": "Warehouse",
    "read_only": 1
   },
@@ -364,6 +359,19 @@
    "fieldtype": "Data",
    "label": "Allowed Colours",
    "length": 3
+  },
+  {
+   "fieldname": "raw_material_warehouse",
+   "fieldtype": "Link",
+   "label": "Raw Material Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "\nMSL.#####\n.dep_abbr.-.type_abbr.-.metal_touch.-.metal_purity.-.#####\n.dep_abbr.-.type_abbr.-.metal_touch.-.metal_purity.-.color_abbr.-.#####"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -378,7 +386,7 @@
    "link_fieldname": "main_slip"
   }
  ],
- "modified": "2024-01-23 13:04:41.732786",
+ "modified": "2024-02-14 13:37:50.118104",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Main Slip",

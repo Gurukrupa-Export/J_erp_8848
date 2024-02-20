@@ -169,7 +169,9 @@ def make_in_transit_stock_entry(source_name, in_transit_warehouse, pmo=None, mnf
 		"Warehouse", {"default_in_transit_warehouse": in_transit_warehouse}, "department"
 	)
 	ste_doc = make_stock_entry(source_name)
-	ste_doc.add_to_transit = 1
+	if not ste_doc.employee:
+		ste_doc.add_to_transit = 1
+
 	ste_doc.to_warehouse = in_transit_warehouse
 	ste_doc.to_department = to_department
 

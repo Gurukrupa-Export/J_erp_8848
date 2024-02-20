@@ -10,11 +10,8 @@
  "field_order": [
   "customer",
   "setting_type",
-  "metal_type",
   "column_break_3",
-  "making_charge_type",
-  "metal_touch",
-  "metal_purity",
+  "metal_type",
   "section_break_7",
   "subcategory",
   "section_break_9",
@@ -40,29 +37,6 @@
   {
    "fieldname": "column_break_3",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "making_charge_type",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Making Charge Type",
-   "options": "Attribute Value",
-   "reqd": 1
-  },
-  {
-   "fieldname": "metal_touch",
-   "fieldtype": "Link",
-   "label": "Metal Touch",
-   "options": "Attribute Value",
-   "reqd": 1
-  },
-  {
-   "fieldname": "metal_purity",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Metal Purity",
-   "options": "Attribute Value",
-   "reqd": 1
   },
   {
    "fieldname": "section_break_7",
@@ -96,7 +70,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-04-21 18:26:58.858535",
+ "modified": "2024-02-14 12:46:30.717112",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Making Charge Price",

@@ -19,6 +19,7 @@
   "amount",
   "making_rate",
   "making_amount",
+  "difference",
   "column_break_6",
   "metal_colour",
   "qty",
@@ -166,12 +167,17 @@
    "fieldname": "making_rate",
    "fieldtype": "Currency",
    "label": "Making Rate"
+  },
+  {
+   "fieldname": "difference",
+   "fieldtype": "Currency",
+   "label": "Difference"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2023-12-29 13:19:21.280368",
+ "modified": "2024-02-02 17:51:01.674529",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "BOM Finding Detail",

@@ -3,9 +3,10 @@
 
 import frappe
 from frappe import _
-from frappe.utils import get_link_to_form
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
+from frappe.utils import get_link_to_form
+
 
 class SketchOrderForm(Document):
 	def on_submit(self):
@@ -39,9 +40,10 @@ def create_sketch_order(self):
 
 	if doclist:
 		msg = _("The following {0} were created: {1}").format(
-				frappe.bold(_("Sketch Orders")), "<br>" + ", ".join(doclist)
-			)
+			frappe.bold(_("Sketch Orders")), "<br>" + ", ".join(doclist)
+		)
 		frappe.msgprint(msg)
+
 
 def delete_auto_created_sketch_order(self):
 	for row in frappe.get_all("Sketch Order", filters={"sketch_order_form": self.name}):
@@ -55,37 +57,72 @@ def make_sketch_order(doctype, source_name, parent_doc=None, target_doc=None):
 		target.sketch_order_form_index = source.idx
 		set_fields_from_parent(source, target)
 
-	def set_fields_from_parent(source, target, parent = parent_doc):
+	def set_fields_from_parent(source, target, parent=parent_doc):
 		target.company = parent.company
 		target.remark = parent.remarks
-		target.design_attributes = parent.design_attributes
-		target.stepping = parent.stepping
-		target.fusion = parent.fusion
-		target.drops = parent.drops
-		target.coin = parent.coin
-		target.gold_wire = parent.gold_wire
-		target.gold_ball = parent.gold_ball
-		target.flows = parent.flows
-		target.nagas = parent.nagas
+
+		# new code start
+		target.age_group = parent.age_group
+		target.alphabetnumber = parent.alphabetnumber
+		target.animalbirds = parent.animalbirds
+		target.collection_1 = parent.collection_1
+		target.design_style = parent.design_style
+		target.gender = parent.gender
+		target.lines_rows = parent.lines_rows
+		target.language = parent.language
+		target.occasion = parent.occasion
+		target.religious = parent.religious
+		target.shapes = parent.shapes
+		target.zodiac = parent.zodiac
+		target.rhodium = parent.rhodium
+		# nwe code end
+
+		# target.stepping = parent.stepping
+		# target.fusion = parent.fusion
+		# target.drops = parent.drops
+		# target.coin = parent.coin
+		# target.gold_wire = parent.gold_wire
+		# target.gold_ball = parent.gold_ball
+		# target.flows = parent.flows
+		# target.nagas = parent.nagas
+
 		target.india = parent.india
 		target.india_states = parent.india_states
 		target.usa = parent.usa
 		target.usa_states = parent.usa_states
 		if parent_doc.design_by == "Concept by Designer":
-			fields = ["market", "age", "gender", "function", "concept_type", "nature",
-  						"setting_style", "animal", "god", "temple", "birds", "shape","creativity_type", 
-					"stepping", "fusion", "drops", "coin", "gold_wire", "gold_ball", "flows", "nagas"]
+			fields = [
+				"market",
+				"age",
+				"gender",
+				"function",
+				"concept_type",
+				"nature",
+				"setting_style",
+				"animal",
+				"god",
+				"temple",
+				"birds",
+				"shape",
+				"creativity_type",
+				"stepping",
+				"fusion",
+				"drops",
+				"coin",
+				"gold_wire",
+				"gold_ball",
+				"flows",
+				"nagas",
+			]
 			for field in fields:
 				target.set(field, parent_doc.get(field))
 
 	doc = get_mapped_doc(
 		doctype,
 		source_name,
-		{
-			doctype: {
-				"doctype": "Sketch Order" 
-			}
-		},target_doc, set_missing_values
+		{doctype: {"doctype": "Sketch Order"}},
+		target_doc,
+		set_missing_values,
 	)
 
 	doc.save()

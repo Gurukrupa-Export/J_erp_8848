@@ -38,9 +38,7 @@
   "section_break_8",
   "season",
   "column_break_10",
-  "collection",
   "column_break_12",
-  "design_style",
   "section_break_25",
   "tag__design_id",
   "item_code",
@@ -60,24 +58,8 @@
   "gold_target",
   "diamond_target",
   "budget",
-  "section_break_7xz6a",
-  "navratna",
   "section_break_82",
   "gemstone_type1",
-  "column_break_43",
-  "gemstone_type2",
-  "column_break_45",
-  "gemstone_type3",
-  "column_break_47",
-  "gemstone_type4",
-  "column_break_49",
-  "gemstone_type5",
-  "column_break_51",
-  "gemstone_type6",
-  "column_break_53",
-  "gemstone_type7",
-  "column_break_55",
-  "gemstone_type8",
   "section_break_q9yyc",
   "design_image",
   "image",
@@ -109,23 +91,27 @@
   "section_break_43",
   "final_sketch_approval_cmo",
   "design_attribute_tab",
-  "design_attributes",
-  "creativity_tab",
-  "stepping",
-  "fusion",
-  "drops",
-  "coin",
-  "column_break_77",
-  "gold_wire",
-  "gold_ball",
-  "flows",
-  "nagas",
+  "age_group",
+  "alphabetnumber",
+  "animalbirds",
+  "collection_1",
+  "design_style",
+  "gender",
+  "lines_rows",
+  "column_break_a3fv",
+  "language",
+  "occasion",
+  "rhodium",
+  "religious",
+  "shapes",
+  "zodiac",
   "territories_tab",
   "india",
   "india_states",
   "column_break_zasix",
   "usa",
-  "usa_states"
+  "usa_states",
+  "delivery_days"
  ],
  "fields": [
   {
@@ -228,7 +214,8 @@
   },
   {
    "fieldname": "section_break_8",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "hidden": 1
   },
   {
    "fieldname": "season",
@@ -243,23 +230,14 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "collection",
-   "fieldtype": "Table MultiSelect",
-   "hidden": 1,
-   "label": "Collection",
-   "options": "Sketch Order Collection"
-  },
-  {
    "fieldname": "column_break_12",
    "fieldtype": "Column Break"
   },
   {
    "fieldname": "design_style",
    "fieldtype": "Table MultiSelect",
-   "hidden": 1,
    "label": "Design Style",
-   "options": "Sketch Order Design Style",
-   "read_only": 1
+   "options": "Design Attribute - Multiselect"
   },
   {
    "fieldname": "section_break_25",
@@ -302,7 +280,6 @@
   },
   {
    "depends_on": "eval:((doc.design_type==\"Similar\"))",
-   "fetch_from": "sketch_order_form_detail.reference_designid",
    "fieldname": "reference_designid",
    "fieldtype": "Link",
    "label": "Reference Design ID",
@@ -311,7 +288,6 @@
   },
   {
    "depends_on": "eval:((doc.design_type==\"Similar\"))",
-   "fetch_from": "sketch_order_form_detail.reference_tagid",
    "fieldname": "reference_tagid",
    "fieldtype": "Link",
    "label": "Reference Tag ID",
@@ -397,14 +373,16 @@
    "fieldname": "setting_type",
    "fieldtype": "Link",
    "label": "Setting Type",
-   "options": "Attribute Value"
+   "options": "Attribute Value",
+   "read_only": 1
   },
   {
    "fetch_from": "sketch_order_form_detail.sub_setting_type2",
    "fieldname": "sub_setting_type2",
    "fieldtype": "Link",
    "label": "Sub Setting Type2",
-   "options": "Attribute Value"
+   "options": "Attribute Value",
+   "read_only": 1
   },
   {
    "fetch_from": "sketch_order_form_detail.gold_target",
@@ -430,7 +408,8 @@
   {
    "fieldname": "qty",
    "fieldtype": "Int",
-   "label": "No of Designs"
+   "label": "No of Designs",
+   "read_only": 1
   },
   {
    "fetch_from": "sketch_order_form_detail.diamond_target",
@@ -444,89 +423,13 @@
    "fieldname": "delivery_date",
    "fieldtype": "Date",
    "in_list_view": 1,
-   "label": "Delivery Date"
+   "label": "Delivery Date",
+   "read_only": 1
   },
   {
    "fieldname": "gemstone_type1",
    "fieldtype": "Link",
    "label": "Gemstone Type1",
-   "options": "Attribute Value",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_43",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "gemstone_type2",
-   "fieldtype": "Link",
-   "label": "Gemstone Type2",
-   "options": "Attribute Value",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_45",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "gemstone_type3",
-   "fieldtype": "Link",
-   "label": "Gemstone Type3",
-   "options": "Attribute Value",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_47",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "gemstone_type4",
-   "fieldtype": "Link",
-   "label": "Gemstone Type4",
-   "options": "Attribute Value",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_49",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "gemstone_type5",
-   "fieldtype": "Link",
-   "label": "Gemstone Type5",
-   "options": "Attribute Value",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_51",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "gemstone_type6",
-   "fieldtype": "Link",
-   "label": "Gemstone Type6",
-   "options": "Attribute Value",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_53",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "gemstone_type7",
-   "fieldtype": "Link",
-   "label": "Gemstone Type7",
-   "options": "Attribute Value",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_55",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "gemstone_type8",
-   "fieldtype": "Link",
-   "label": "Gemstone Type8",
    "options": "Attribute Value",
    "read_only": 1
   },
@@ -557,7 +460,7 @@
    "permlevel": 1
   },
   {
-   "depends_on": "eval:(!in_list(['Unassigned','On Hold'], doc.workflow_state))",
+   "depends_on": "eval:(!in_list(['Unassigned','On Hold','Assigned','On Hold - Assigned'], doc.workflow_state))",
    "fieldname": "section_break_28",
    "fieldtype": "Section Break"
   },
@@ -569,7 +472,7 @@
    "permlevel": 1
   },
   {
-   "depends_on": "eval:(!in_list(['Unassigned','Assigned','On Hold', 'On Hold - Assigned', 'Final Assigned', 'On Hold - Final Assigned'], doc.workflow_state))",
+   "depends_on": "eval:(!in_list(['Unassigned','Assigned','On Hold', 'On Hold - Assigned','Rough Sketch Approval (HOD)','On Hold - Rough Sketch Approval'], doc.workflow_state))",
    "fieldname": "section_break_30",
    "fieldtype": "Section Break"
   },
@@ -581,7 +484,7 @@
    "permlevel": 1
   },
   {
-   "depends_on": "eval:(!in_list(['Unassigned','Assigned','On Hold', 'On Hold - Assigned', 'Final Assigned', 'On Hold - Final Assigned','Rough Sketch Approval (HOD)','On Hold - Rough Sketch Approval'], doc.workflow_state))",
+   "depends_on": "eval:(!in_list(['Unassigned','Assigned','On Hold', 'On Hold - Assigned','Rough Sketch Approval (HOD)','On Hold - Rough Sketch Approval','Final Sketch Approval (HOD)','Final Sketch Approval (HOD)','Customer Approval'], doc.workflow_state))",
    "fieldname": "section_break_43",
    "fieldtype": "Section Break"
   },
@@ -603,66 +506,6 @@
    "fieldname": "remark",
    "fieldtype": "Text",
    "label": "Remarks",
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "stepping",
-   "fieldtype": "Check",
-   "label": "Stepping",
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "fusion",
-   "fieldtype": "Check",
-   "label": "Fusion",
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "drops",
-   "fieldtype": "Check",
-   "label": "Drops",
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "coin",
-   "fieldtype": "Check",
-   "label": "Coin",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_77",
-   "fieldtype": "Column Break"
-  },
-  {
-   "default": "0",
-   "fieldname": "gold_wire",
-   "fieldtype": "Check",
-   "label": "Gold Wire (dat)",
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "gold_ball",
-   "fieldtype": "Check",
-   "label": "Gold Ball",
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "flows",
-   "fieldtype": "Check",
-   "label": "Flows",
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "nagas",
-   "fieldtype": "Check",
-   "label": "Nagas",
    "read_only": 1
   },
   {
@@ -691,13 +534,15 @@
    "fieldname": "branch",
    "fieldtype": "Link",
    "label": "Branch",
-   "options": "Branch"
+   "options": "Branch",
+   "read_only": 1
   },
   {
    "fieldname": "company",
    "fieldtype": "Link",
    "label": "Company Name",
-   "options": "Company"
+   "options": "Company",
+   "read_only": 1
   },
   {
    "fetch_from": "sketch_order_form.department",
@@ -705,7 +550,8 @@
    "fieldname": "department",
    "fieldtype": "Link",
    "label": "Department",
-   "options": "Department"
+   "options": "Department",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_o5mdg",
@@ -742,38 +588,18 @@
    "fieldname": "sub_setting_type1",
    "fieldtype": "Link",
    "label": "Sub Setting Type1",
-   "options": "Attribute Value"
+   "options": "Attribute Value",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_mclrz",
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "section_break_7xz6a",
-   "fieldtype": "Section Break"
-  },
-  {
-   "default": "0",
-   "fieldname": "navratna",
-   "fieldtype": "Check",
-   "label": "Navratna",
-   "read_only": 1
-  },
-  {
    "fieldname": "est_delivery_date",
    "fieldtype": "Date",
    "label": "Est. Delivery Date",
    "mandatory_depends_on": "eval:!doc.__islocal"
-  },
-  {
-   "fieldname": "section_break_y4y2c",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "design_attributes",
-   "fieldtype": "Table",
-   "label": "Design Attributes",
-   "options": "Design Attributes"
   },
   {
    "fieldname": "details_tab",
@@ -796,7 +622,6 @@
    "read_only": 1
   },
   {
-   "fetch_from": "sketch_order_form.delivery_days",
    "fieldname": "due_days",
    "fieldtype": "Int",
    "label": "Due Days",
@@ -808,28 +633,24 @@
    "label": "Territories"
   },
   {
-   "fetch_from": "sketch_order_form.delivery_days",
    "fieldname": "delivery_days",
    "fieldtype": "Data",
    "label": "Delivery Days",
    "read_only": 1
   },
   {
-   "fieldname": "creativity_tab",
-   "fieldtype": "Tab Break",
-   "label": "Creativity"
-  },
-  {
    "default": "0",
    "fieldname": "india",
    "fieldtype": "Check",
-   "label": "INDIA"
+   "label": "INDIA",
+   "read_only": 1
   },
   {
    "fieldname": "india_states",
    "fieldtype": "Table MultiSelect",
    "label": "States",
-   "options": "Territory Multi Select"
+   "options": "Territory Multi Select",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_zasix",
@@ -839,23 +660,109 @@
    "default": "0",
    "fieldname": "usa",
    "fieldtype": "Check",
-   "label": "USA"
+   "label": "USA",
+   "read_only": 1
   },
   {
    "fieldname": "usa_states",
    "fieldtype": "Select",
    "label": "States",
-   "options": "\nUSA"
+   "options": "\nUSA",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_ng98u",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "age_group",
+   "fieldtype": "Table MultiSelect",
+   "label": "Age Group",
+   "options": "Design Attribute - Multiselect",
+   "reqd": 1
+  },
+  {
+   "fieldname": "alphabetnumber",
+   "fieldtype": "Table MultiSelect",
+   "label": "Alphabet/Number",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "animalbirds",
+   "fieldtype": "Table MultiSelect",
+   "label": "Animal/Birds",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Table MultiSelect",
+   "label": "Gender",
+   "options": "Design Attribute - Multiselect",
+   "reqd": 1
+  },
+  {
+   "fieldname": "lines_rows",
+   "fieldtype": "Table MultiSelect",
+   "label": "Lines & Rows",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "column_break_a3fv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "language",
+   "fieldtype": "Table MultiSelect",
+   "label": "Language",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "occasion",
+   "fieldtype": "Table MultiSelect",
+   "label": "Occasion",
+   "options": "Design Attribute - Multiselect",
+   "reqd": 1
+  },
+  {
+   "fieldname": "rhodium",
+   "fieldtype": "Table MultiSelect",
+   "label": "Rhodium",
+   "options": "Design Attribute - Multiselect",
+   "reqd": 1
+  },
+  {
+   "fieldname": "religious",
+   "fieldtype": "Table MultiSelect",
+   "label": "Religious",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "shapes",
+   "fieldtype": "Table MultiSelect",
+   "label": "Shapes",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "zodiac",
+   "fieldtype": "Table MultiSelect",
+   "label": "Zodiac",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "section_break_y4y2c",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "collection_1",
+   "fieldtype": "Table MultiSelect",
+   "label": "Collection",
+   "options": "Design Attribute - Multiselect"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2023-07-29 17:12:32.122311",
+ "modified": "2024-02-13 18:25:22.794668",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Sketch Order",

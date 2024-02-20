@@ -7,7 +7,7 @@ frappe.ui.form.on("Manufacturing Operation", {
 		if (
 			frm.doc.is_last_operation &&
 			frm.doc.for_fg &&
-			in_list(["Not Started", "WIP"], frm.doc.status)
+			in_list(["Not Started", "WIP"], frm.doc.status) //"Finished"
 		) {
 			frm.add_custom_button(__("Finish"), async () => {
 				await frappe.call({

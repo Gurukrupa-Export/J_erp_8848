@@ -306,13 +306,17 @@ frappe.ui.form.on("Stock Entry", {
 			frm.trigger("get_items_from_customer_goods");
 			return;
 		}
-		if (in_list(["Material Transfer to Department"], frm.doc.stock_entry_type)) {
+		if (
+			in_list(["Material Transfer to Department"], frm.doc.stock_entry_type) &&
+			frm.doc.auto_created === 0
+		) {
 			frm.set_value("add_to_transit", "1");
 			frm.set_df_property("add_to_transit", "read_only", 1);
 		}
 		if (
 			in_list(["Material Transfer to Department"], frm.doc.stock_entry_type) &&
-			frm.doc._customer
+			frm.doc._customer &&
+			frm.doc.auto_created === 0
 		) {
 			frm.set_value("inventory_type", "Customer Goods");
 			frm.set_value("add_to_transit", "1");

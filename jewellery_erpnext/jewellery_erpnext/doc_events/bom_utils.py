@@ -3,9 +3,7 @@ from frappe.utils import flt
 
 
 def calculate_gst_rate(self):
-	gold_gst_rate = frappe.db.get_value(
-		"Jewellery Settings", "Jewellery Settings", "gold_gst_rate"
-	)
+	gold_gst_rate = frappe.db.get_value("Jewellery Settings", "Jewellery Settings", "gold_gst_rate")
 	divide_by = 100 + int(gold_gst_rate)
 	self.gold_rate = self.gold_rate_with_gst * 100 / divide_by
 
@@ -24,12 +22,12 @@ def set_bom_rate(self):
 	}
 	# remove None values
 	fields = {k: v for k, v in fields.items() if v is not None}
-	bom_fields = {
-		k.replace("rate", "amount"): v for k, v in fields.items() if v is not None
-	}
+	bom_fields = {k.replace("rate", "amount"): v for k, v in fields.items() if v is not None}
 	# update the self object
-	self.update(bom_fields)
+	self.db_set(bom_fields)
 
+	del bom_fields["modified"]
+	del bom_fields["modified_by"]
 	# Update Quotation in which current BOM is present
 	frappe.db.set_value("Quotation Item", {"quotation_bom": self.name}, fields)
 
@@ -42,23 +40,28 @@ def set_bom_rate(self):
 	)
 
 	# commit the changes
-	frappe.db.commit()
+	# frappe.db.commit()
 
 
 def get_gold_rate(self):
 	# Get the metal purity from the self object or default to 0
 
 	# Get the gold GST rate from the Jewellery Settings doctype
-	gold_gst_rate = frappe.db.get_value(
-		"Jewellery Settings", "Jewellery Settings", "gold_gst_rate"
-	)
+	gold_gst_rate = frappe.db.get_value("Jewellery Settings", "Jewellery Settings", "gold_gst_rate")
 
 	# Initialize the amount variable
 	amount = 0
 
 	# Set rates in metal_detail and finding_detail child tables
 	for item in self.metal_detail + self.finding_detail:
-		metal_purity = item.purity_percentage or 0
+		item.quantity = flt(item.quantity, self.doc_pricision)
+		metal_purity = frappe.db.get_value(
+			"Metal Criteria", {"parent": self.customer, "metal_touch": item.metal_touch}, "metal_purity"
+		)
+		company_metal_purity = item.purity_percentage or 0
+		if not metal_purity:
+			# frappe.throw("Customer Metal Criteria is missing")
+			metal_purity = company_metal_purity
 		# Check if item is a customer item
 		if item.is_customer_item:
 			# Set rate and amount to 0 if it's a customer item
@@ -66,12 +69,17 @@ def get_gold_rate(self):
 			item.amount = 0
 		else:
 			# Calculate the amount using the gold rate, metal purity and GST rate
-			item.rate = (
-				flt(self.gold_rate_with_gst)
-				* flt(metal_purity)
-				/ (100 + int(gold_gst_rate))
-			)
+			item.rate = flt(self.gold_rate_with_gst) * flt(metal_purity) / (100 + int(gold_gst_rate))
 			item.amount = flt(item.quantity) * item.rate
+
+			if company_metal_purity != metal_purity:
+				company_rate = (
+					flt(self.gold_rate_with_gst) * flt(company_metal_purity) / (100 + int(gold_gst_rate))
+				)
+				company_amount = flt(item.quantity) * company_rate
+				item.difference = item.amount - company_amount
+			else:
+				item.difference = 0
 		# Add the current item's amount to the total amount
 		amount += item.amount
 
@@ -84,22 +92,23 @@ def get_diamond_rate(self):
 	customer = self.customer
 
 	# Get the diamond price list type for the customer
-	cust_diamond_price_list_type = frappe.db.get_value(
-		"Customer", customer, "diamond_price_list"
-	)
+	cust_diamond_price_list_type = frappe.db.get_value("Customer", customer, "diamond_price_list")
 
 	# Initialize the diamond amount variable
 	diamond_amount = 0
 	# create a dict having sieve size range with avg wt for rate acc to range
 	ss_range = {}
 	for diamond in self.diamond_detail:
+		actual_qty = diamond.quantity
+		diamond.quantity = flt(diamond.quantity, self.doc_pricision)
+		diamond.difference = actual_qty - diamond.quantity
 		if not diamond.sieve_size_range:
 			continue
 		det = ss_range.get(diamond.sieve_size_range) or {}
 		# det['pcs'] = flt(det.get("pcs")) + diamond.pcs
-		det['pcs'] = (flt(det.get("pcs")) + flt(diamond.get("pcs"))) or 1
-		det['quantity'] = flt(flt(det.get("quantity")) + diamond.quantity, 3)
-		det["std_wt"] = flt(flt(det['quantity'],2) / det['pcs'],3)
+		det["pcs"] = (flt(det.get("pcs")) + flt(diamond.get("pcs"))) or 1
+		det["quantity"] = flt(flt(det.get("quantity")) + diamond.quantity, 3)
+		det["std_wt"] = flt(flt(det["quantity"], 2) / det["pcs"], 3)
 		ss_range[diamond.sieve_size_range] = det
 
 	# Iterate through the diamond_detail
@@ -138,8 +147,8 @@ def _calculate_diamond_amount(self, diamond, cust_diamond_price_list_type, range
 	if price_list_type == "Weight (in cts)":
 		filters.update(
 			{
-				"from_weight": ["<=", range_det.get('std_wt')],
-				"to_weight": [">=", range_det.get('std_wt')],
+				"from_weight": ["<=", range_det.get("std_wt")],
+				"to_weight": [">=", range_det.get("std_wt")],
 			}
 		)
 	elif price_list_type == "Sieve Size Range":
@@ -173,16 +182,21 @@ def _calculate_diamond_amount(self, diamond, cust_diamond_price_list_type, range
 
 	# Set the rate and total rate for the diamond
 	if price_list_type == "Weight (in cts)":
-		diamond.std_wt = range_det.get('std_wt')
-		range_det['rate'] = rate # just in case if need to calculate amount after round off quantity(weight)
+		diamond.std_wt = range_det.get("std_wt")
+		range_det[
+			"rate"
+		] = rate  # just in case if need to calculate amount after round off quantity(weight)
 	diamond.total_diamond_rate = rate
-	diamond.diamond_rate_for_specified_quantity = int(rate) * diamond.quantity # amount
+	diamond.diamond_rate_for_specified_quantity = int(rate) * diamond.quantity  # amount
 	return int(rate) * diamond.quantity
 
 
 def get_gemstone_rate(self):
 	gemstone_amount = 0
 	for stone in self.gemstone_detail:
+		actual_qty = stone.quantity
+		stone.quantity = flt(stone.quantity, self.doc_pricision)
+		stone.difference = actual_qty - stone.quantity
 		# Calculate the weight per piece
 		stone.pcs = stone.pcs or 1
 		gemstone_weight_per_pcs = stone.quantity / stone.pcs
@@ -246,7 +260,7 @@ def get_making_charges(self):
 			metal.making_amount = metal.making_rate * metal.quantity
 
 	for finding in self.finding_detail:
-		if finding.is_customer_item:
+		if finding.is_customer_item and finding.get("making_rate"):
 			finding.making_amount = finding.making_rate * finding.quantity
 
 	item_details = frappe.db.get_value(
@@ -255,71 +269,100 @@ def get_making_charges(self):
 	sub_category, setting_type = item_details.get("item_subcategory"), item_details.get(
 		"setting_type"
 	)
-	return get_metal_and_finding_making_rate(self, sub_category,setting_type)
+	return get_metal_and_finding_making_rate(self, sub_category, setting_type)
 
-def get_metal_and_finding_making_rate(self, sub_category,setting_type):
+
+def get_metal_and_finding_making_rate(self, sub_category, setting_type):
 	# Get Making Charge From Making Charge Price Master for mentioned Combinations
 	self.set_additional_rate = False
-	for row in self.metal_detail  + self.finding_detail:
-		child_table = 'tabMaking Charge Price Item Subcategory' if row.parentfield == "metal_detail" else 'tabMaking Charge Price Finding Subcategory'
-		
+	for row in self.metal_detail + self.finding_detail:
+		child_table = (
+			"tabMaking Charge Price Item Subcategory"
+			if row.parentfield == "metal_detail"
+			else "tabMaking Charge Price Finding Subcategory"
+		)
+
 		making_charge_details = frappe.db.sql(
 			f"""
-			SELECT 
+			SELECT
 				mcp.metal_purity, subcat.rate_per_gm, subcat.rate_per_pc, subcat.rate_per_gm_threshold,subcat.wastage
 			FROM `tabMaking Charge Price` mcp
 				LEFT JOIN `{child_table}` subcat
 			ON subcat.parent = mcp.name
-			WHERE 
+			WHERE
 				mcp.customer = '{self.customer}'
-				AND IF (NOT EXISTS(select name from `{child_table}` where parent = mcp.name and subcategory = '{sub_category}'),
-					   subcat.subcategory is null or subcat.subcategory = '', subcat.subcategory = '{sub_category}')
+				AND IF (NOT EXISTS(select name from `{child_table}` where parent = mcp.name and subcategory = '{sub_category if not row.get('finding_type') else row.get('finding_type')}'),
+					   subcat.subcategory is null or subcat.subcategory = '', subcat.subcategory = '{sub_category if not row.get('finding_type') else row.get('finding_type')}')
 				AND mcp.setting_type = '{setting_type}'
-				AND mcp.metal_purity = '{row.metal_purity}'
 				AND mcp.metal_type = '{row.metal_type}'
+				LIMIT 1
 			""",
 			as_dict=True,
 		)
-	
+		# AND mcp.metal_purity = '{row.metal_purity}'
+		if not making_charge_details and not row.parentfield == "metal_detail":
+			making_charge_details = frappe.db.sql(
+				f"""
+				SELECT
+					mcp.metal_purity, subcat.rate_per_gm, subcat.rate_per_pc, subcat.rate_per_gm_threshold,subcat.wastage, subcat.subcategory
+				FROM `tabMaking Charge Price` mcp
+					LEFT JOIN `tabMaking Charge Price Item Subcategory` subcat
+				ON subcat.parent = mcp.name
+				WHERE
+					mcp.customer = '{self.customer}'
+					AND IF (NOT EXISTS(select name from `tabMaking Charge Price Item Subcategory` where parent = mcp.name and subcategory = '{sub_category}'),
+						subcat.subcategory is null or subcat.subcategory = '', subcat.subcategory = '{sub_category}')
+					AND mcp.setting_type = '{setting_type}'
+					AND mcp.metal_type = '{row.metal_type}'
+				LIMIT 1
+				""",
+				as_dict=True,
+			)
+			# AND mcp.metal_purity = '{row.metal_purity}'
+
 		_set_total_making_charges(self, row, making_charge_details or [])
 
 	amount = sum(flt(metal.making_amount) for metal in self.metal_detail)
 	amount += sum(flt(metal.making_amount) for metal in self.finding_detail)
-	
+
 	return amount
 
 
 def _set_total_making_charges(self, metal, making_charge_details):
-	charges_details = {row.metal_purity:row for row in making_charge_details}
+	charges_details = {row.metal_purity: row for row in making_charge_details}
 	# Calculate the making charges for each metal and finding
-	making_charges = charges_details.get(metal.metal_purity) or {}
-	if not metal.is_customer_item:
-		# Set the rate per gram
-		metal.making_rate = flt(making_charges.get("rate_per_gm"))
+	# making_charges = charges_details.get(metal.metal_purity) or {}
+	if len(making_charge_details) > 0:
+		making_charges = making_charge_details[0]
+		if not metal.is_customer_item:
+			# Set the rate per gram
+			metal.making_rate = flt(making_charges.get("rate_per_gm"))
 
-		# set additional_net_weigth
-		additional_net_weight = 0
-		if not self.set_additional_rate and metal.parentfield == "metal_detail":
-			if frappe.db.get_value("Customer", self.customer,'compute_making_charges_on') == "Diamond Inclusive" and flt(metal.metal_purity) == flt(self.metal_purity):
-				if not self.total_diamond_weight_per_gram:
-					self.total_diamond_weight_per_gram = (flt(self.total_diamond_weight) / 5,3)
-				metal.additional_net_weight = self.total_diamond_weight_per_gram
-				additional_net_weight = metal.additional_net_weight
-				self.set_additional_rate = True
-		# Calculate the making charges
-		if self.metal_and_finding_weight < (making_charges.get("rate_per_gm_threshold") or 0):
-			metal_making_charges = making_charges.get("rate_per_pc")
-		else:
-			metal_making_charges = metal.making_rate * (metal.quantity + additional_net_weight)
+			# set additional_net_weigth
+			additional_net_weight = 0
+			if not self.set_additional_rate and metal.parentfield == "metal_detail":
+				if frappe.db.get_value(
+					"Customer", self.customer, "compute_making_charges_on"
+				) == "Diamond Inclusive" and flt(metal.metal_purity) == flt(self.metal_purity):
+					if not self.total_diamond_weight_per_gram:
+						self.total_diamond_weight_per_gram = (flt(self.total_diamond_weight) / 5, 3)
+					metal.additional_net_weight = self.total_diamond_weight_per_gram
+					additional_net_weight = metal.additional_net_weight
+					self.set_additional_rate = True
+			# Calculate the making charges
+			if self.metal_and_finding_weight < (making_charges.get("rate_per_gm_threshold") or 0):
+				metal_making_charges = making_charges.get("rate_per_pc")
+			else:
+				metal_making_charges = metal.making_rate * (metal.quantity + additional_net_weight)
 
-		# Set the making amount on the metal or finding
-		metal.making_amount = metal_making_charges
+			# Set the making amount on the metal or finding
+			metal.making_amount = metal_making_charges
 
-		# Set wastage rate
-		metal.wastage_rate = flt(making_charges.get("wastage"))
+			# Set wastage rate
+			metal.wastage_rate = flt(making_charges.get("wastage"))
 
-		# Add the wastage percentage to the making charges
-		metal.wastage_amount = metal.wastage_rate * metal.amount / 100
+			# Add the wastage percentage to the making charges
+			metal.wastage_amount = metal.wastage_rate * metal.amount / 100
 
 
 def get_doctype_name(self):

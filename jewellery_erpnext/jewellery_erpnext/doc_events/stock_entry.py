@@ -72,6 +72,10 @@ def validate_main_slip_warehouse(doc):
 		if not main_slip:
 			return
 		warehouse = frappe.db.get_value("Main Slip", main_slip, "warehouse")
+
+		if doc.auto_created == 0:
+			warehouse = frappe.db.get_value("Main Slip", main_slip, "raw_material_warehouse")
+
 		if (row.main_slip and row.s_warehouse != warehouse) or (
 			row.to_main_slip and row.t_warehouse != warehouse
 		):
@@ -90,6 +94,7 @@ def validate_metal_properties(doc):
 	for row in doc.items:
 		item_template = frappe.db.get_value("Item", row.item_code, "variant_of")
 		main_slip = row.main_slip or row.to_main_slip
+
 		ms = frappe.db.get_value(
 			"Main Slip",
 			main_slip,
@@ -118,67 +123,27 @@ def validate_metal_properties(doc):
 			["attribute", "attribute_value"],
 			as_dict=1,
 		)
-		item_det = {row.attribute: row.attribute_value for row in attribute_det}
-		if mwo.multicolour == 0:
-			if main_slip:
-				if ms.get("for_subcontracting"):
-					continue
-				if (
-					ms.metal_touch != item_det.get("Metal Touch")
-					or ms.metal_purity != item_det.get("Metal Purity")
-					or (ms.metal_colour != item_det.get("Metal Colour") and ms.check_color)
-				):
-					frappe.throw(f"Row #{row.idx}: Metal properties do not match with the selected main slip")
-			if mwo:
-				# frappe.throw(str([mwo.metal_touch != item_det.get("Metal Touch"), mwo.metal_purity != item_det.get("Metal Purity"), (mwo.metal_colour != item_det.get("Metal Colour"))]))
-				if mwo.metal_touch != item_det.get("Metal Touch") or mwo.metal_purity != item_det.get(
-					"Metal Purity"
-				):
-					frappe.throw(
-						f"Row #{row.idx}: Metal properties do not match with the selected Manufacturing Work Order"
-					)
 
-		if mwo.multicolour == 1 and doc.stock_entry_type == "Material Transfer to Employee":
-			if not main_slip:
-				frappe.throw("Select Main Slip")
-			if ms.multicolour == 0:
+		item_det = {row.attribute: row.attribute_value for row in attribute_det}
+		# if mwo.multicolour == 0:
+		if main_slip:
+
+			if ms.get("for_subcontracting"):
+				continue
+			if (
+				ms.metal_touch != item_det.get("Metal Touch")
+				or ms.metal_purity != item_det.get("Metal Purity")
+				or (ms.metal_colour != item_det.get("Metal Colour") and ms.check_color)
+			):
+				frappe.throw(f"Row #{row.idx}: Metal properties do not match with the selected main slip")
+		if mwo:
+			# frappe.throw(str([mwo.metal_touch != item_det.get("Metal Touch"), mwo.metal_purity != item_det.get("Metal Purity"), (mwo.metal_colour != item_det.get("Metal Colour"))]))
+			if mwo.metal_touch != item_det.get("Metal Touch") or mwo.metal_purity != item_det.get(
+				"Metal Purity"
+			):
 				frappe.throw(
-					f"Select Multicolour Main Slip </br><b>Metal Properties are: (MT:{mwo.metal_type}, MTC:{mwo.metal_touch}, MP:{mwo.metal_purity}, MC:{mwo.allowed_colours})</b>"
+					f"Row #{row.idx}: Metal properties do not match with the selected Manufacturing Work Order"
 				)
-			allowed_colors = "".join(sorted(map(str.upper, mwo.allowed_colours)))
-			colour_code = {"P": "Pink", "Y": "Yellow", "W": "White"}
-			color_matched = False  # Flag to check if at least one color matches
-			for char in allowed_colors:
-				if char not in colour_code:
-					frappe.throw(
-						f"Invalid color code <b>{char}</b> in MWO: <b>{row.manufacturing_work_order}</b>"
-					)
-				if ms.check_color and colour_code[char] == item_det.get("Metal Colour"):
-					color_matched = True  # Set the flag to True if color matches and exit loop
-					break
-			# Throw an error only if no color matches
-			if ms.check_color and not color_matched:
-				frappe.throw(
-					f"<b>Row #{row.idx}</b></br>Metal properties in MWO: <b>{doc.manufacturing_work_order}</b> do not match the main slip. </br><b>Metal Properties are: (MT:{mwo.metal_type}, MTC:{mwo.metal_touch}, MP:{mwo.metal_purity}, MC:{allowed_colors})</b>"
-				)
-		else:
-			if main_slip:
-				if ms.get("for_subcontracting"):
-					continue
-				if (
-					ms.metal_touch != item_det.get("Metal Touch")
-					or ms.metal_purity != item_det.get("Metal Purity")
-					or (ms.metal_colour != item_det.get("Metal Colour") and ms.check_color)
-				):
-					frappe.throw(f"Row #{row.idx}: Metal properties do not match with the selected main slip")
-			if mwo:
-				# frappe.throw(str([mwo.metal_touch != item_det.get("Metal Touch"), mwo.metal_purity != item_det.get("Metal Purity"), (mwo.metal_colour != item_det.get("Metal Colour"))]))
-				if mwo.metal_touch != item_det.get("Metal Touch") or mwo.metal_purity != item_det.get(
-					"Metal Purity"
-				):
-					frappe.throw(
-						f"Row #{row.idx}: Metal properties do not match with the selected Manufacturing Work Order"
-					)
 
 
 def on_cancel(self, method=None):

@@ -22,6 +22,38 @@ class SerialNumberCreator(Document):
 		calulate_id_wise_sum_up(self)
 		to_prepare_data_for_make_mnf_stock_entry(self)
 
+	@frappe.whitelist()
+	def get_serial_summary(self):
+		se = frappe.get_all("Stock Entry", {"custom_serial_number_creator": self.name}, pluck="name")
+		data = frappe.db.sql(
+			f"""select sn.purchase_document_no,sn.serial_no,bom.name
+			from `tabStock Entry` as se
+			    join `tabSerial No` as sn
+				join `tabBOM` as bom
+			where se.name=sn.purchase_document_no
+			and se.custom_serial_number_creator = '{self.name}'
+			and bom.custom_serial_number_creator = '{self.name}' """,
+			as_dict=1,
+		)
+
+		return frappe.render_template(
+			"jewellery_erpnext/jewellery_erpnext/doctype/serial_number_creator/serial_summery.html",
+			{"data": data},
+		)
+
+	@frappe.whitelist()
+	def get_bom_summary(self):
+		if self.design_id_bom:
+			bom_data = frappe.get_doc("BOM", self.design_id_bom)
+			item_records = []
+			for bom_row in bom_data.items:
+				item_record = {"item_code": bom_row.item_code, "qty": bom_row.qty, "uom": bom_row.uom}
+				item_records.append(item_record)
+			return frappe.render_template(
+				"jewellery_erpnext/jewellery_erpnext/doctype/serial_number_creator/bom_summery.html",
+				{"data": item_records},
+			)
+
 
 def to_prepare_data_for_make_mnf_stock_entry(self):
 	id_wise_data_split = {}
@@ -62,7 +94,6 @@ def get_operation_details(data, docname, mwo, pmo, company, mnf, dpt, for_fg, de
 	)
 	if exist_snc_doc:
 		frappe.throw(f"Document Already Created...! {exist_snc_doc[0]['name']}")
-
 	snc_doc = frappe.new_doc("Serial Number Creator")
 	mnf_op_doc = frappe.get_doc("Manufacturing Operation", docname)
 	data_dict = json.loads(data)
@@ -70,73 +101,20 @@ def get_operation_details(data, docname, mwo, pmo, company, mnf, dpt, for_fg, de
 	bom_id = data_dict[1]
 	mnf_qty = data_dict[2]
 	total_qty = data_dict[3]
-	bom_doc = frappe.get_doc("BOM", bom_id)
-	matched_items = []
-	unmatched_items = []
 	for mnf_id in range(1, mnf_qty + 1):
-		for bom_item in bom_doc.items:
-			matched = False
-			for data_entry in stock_data:
-				if bom_item.item_code == data_entry["item_code"]:
-					# Combine information for matched items
-					_qty = round(data_entry["qty"] / mnf_qty, 4)
-					combined_item = {
-						"default_bom_rm": bom_item.item_code,
-						"bom_qty": bom_item.qty,
-						"row_material": data_entry["item_code"],
-						"id": mnf_id,
-						"batch_no": data_entry["batch_no"],
-						"qty": data_entry["qty"],
-						"uom": data_entry["uom"],
-						"gross_wt": data_entry["gross_wt"],
-					}
-					matched_items.append(combined_item)
-					matched = True
-					break
-			if not matched:
-				unmatched_items.append({"default_bom_rm": bom_item.item_code, "bom_qty": bom_item.qty})
-	for item in matched_items:
-		snc_doc.append(
-			"fg_details",
-			{
-				"default_bom_rm": item["default_bom_rm"],
-				"bom_qty": item["bom_qty"],
-				"row_material": item["row_material"],
-				"id": item["id"],
-				"batch_no": item["batch_no"],
-				"qty": item["qty"],
-				"uom": item["uom"],
-				"gross_wt": item["gross_wt"],
-			},
-		)
-	# frappe.throw(f"{unmatched_items}Matched= {matched_items}")
-	for item in unmatched_items:
-		snc_doc.append(
-			"fg_details",
-			{
-				"default_bom_rm": item.get("default_bom_rm", ""),
-				"bom_qty": item.get("bom_qty", 0),
-			},
-		)
-
-	for data_entry in stock_data:
-		snc_doc.append(
-			"source_table",
-			{
-				"row_material": data_entry.get("item_code", ""),
-				"qty": data_entry.get("qty", 0),
-				"uom": data_entry.get("uom", ""),
-				# # 'default_bom_rm': bom_item.item_code,
-				# # 'bom_qty': bom_item.qty,
-				# 'row_material': data_entry['item_code'],
-				# # 'id': mnf_id,
-				# # 'batch_no': data_entry['batch_no'],
-				# 'qty': data_entry['qty'],
-				# 'uom': data_entry['uom'],
-				# # 'gross_wt': data_entry['gross_wt'],
-			},
-		)
-
+		for data_entry in stock_data:
+			_qty = round(data_entry["qty"] / mnf_qty, 4)
+			snc_doc.append(
+				"fg_details",
+				{
+					"row_material": data_entry["item_code"],
+					"id": mnf_id,
+					"batch_no": data_entry["batch_no"],
+					"qty": data_entry["qty"],
+					"uom": data_entry["uom"],
+					"gross_wt": data_entry["gross_wt"],
+				},
+			)
 	snc_doc.type = "Manufacturing"
 	snc_doc.manufacturing_operation = mnf_op_doc.name
 	snc_doc.manufacturing_work_order = mwo

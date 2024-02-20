@@ -18,10 +18,10 @@ class ParentManufacturingOrder(Document):
 		get_gemstone_details(self)
 
 	def validate(self):
+		update_bom_based_on_diamond_quality(self)
 		pass
 
 	def on_update(self):
-
 		pass
 
 	def on_submit(self):
@@ -32,6 +32,8 @@ class ParentManufacturingOrder(Document):
 		gemstone_details_set_mandatory_field(self)
 		for idx in range(0, int(self.qty)):
 			self.create_material_requests()
+
+		self.submit_bom()
 
 	def on_cancel(self):
 		update_existing(
@@ -47,6 +49,10 @@ class ParentManufacturingOrder(Document):
 			f"manufacturing_order_qty - {self.qty}",
 		)
 
+	def submit_bom(self):
+		bom = frappe.get_doc("BOM", self.master_bom)
+		bom.submit()
+
 	def update_estimated_delivery_date_in_prev_docs(self):
 		frappe.db.set_value(
 			"Manufacturing Plan",
@@ -60,6 +66,9 @@ class ParentManufacturingOrder(Document):
 		mnf_abb = frappe.get_value("Manufacturer", self.manufacturer, "custom_abbreviation")
 		if not bom:
 			frappe.throw("BOM is missing")
+		check_bom_type = frappe.get_value("BOM", bom, "bom_type")
+		if check_bom_type != "Manufacturing Process":
+			frappe.throw(f"Master BOM <b>{bom}</b> BOM Type must be a Sales Order")
 		rm_item_bom = frappe.get_all("BOM Item", {"parent": bom}, ["parent", "item_code", "qty"])
 		deafault_department = frappe.db.get_value(
 			"Manufacturing Setting", {"company": self.company}, "default_department"
@@ -81,6 +90,7 @@ class ParentManufacturingOrder(Document):
 		gemstone_items = []
 		finding_items = []
 		other_items = []
+
 		for bom_table in bom_tables:
 			# Get bom table's
 			if bom_table == "BOM Metal Detail":
@@ -207,17 +217,22 @@ class ParentManufacturingOrder(Document):
 					mr_doc.inventory_type = "Customer Goods"
 
 				for i in val:
-					mr_doc.append(
-						"items",
-						{
-							"item_code": i["item_code"],
-							"qty": i["qty"],
-							"warehouse": i["warehouse"],
-							"custom_is_customer_item": i.get("is_customer_item", 0),
-							"custom_sub_setting_type": i.get("sub_setting_type", None),
-							"pcs": i.get("pcs", None),
-						},
-					)
+					if i["qty"] > 0:
+						mr_doc.append(
+							"items",
+							{
+								"item_code": i["item_code"],
+								"qty": i["qty"],
+								"warehouse": i["warehouse"],
+								"custom_is_customer_item": i.get("is_customer_item", 0),
+								"custom_sub_setting_type": i.get("sub_setting_type", None),
+								"pcs": i.get("pcs", None),
+							},
+						)
+					else:
+						frappe.throw(
+							f"Please Check BOM Table:<b>{item_type.upper()}</b>, <b>{i['item_code']}</b> is {i['qty']} Not Allowed."
+						)
 				counter += 1
 				mr_doc.save()
 		frappe.msgprint("Material Request Created !!")
@@ -236,8 +251,9 @@ class ParentManufacturingOrder(Document):
 			f"""select se.manufacturing_work_order, se.manufacturing_operation, sed.parent, sed.item_code,sed.item_name, sed.qty, sed.uom,
 					   			ifnull(sum(if(sed.uom='cts',sed.qty*0.2, sed.qty)),0) as gross_wt
 			   				from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name where
-							se.docstatus = 1 and se.manufacturing_work_order in ('{"', '".join(mwo)}') and sed.t_warehouse = '{target_wh}'
-							group by sed.manufacturing_operation,  sed.item_code, sed.qty, sed.uom """,
+							se.docstatus = 1 and se.manufacturing_work_order in ('{"', '".join(mwo)}') and se.manufacturing_work_order <> "" #and sed.t_warehouse = '{target_wh}'
+							group by sed.manufacturing_operation,  sed.item_code, sed.qty, sed.uom
+							order by se.creation""",
 			as_dict=1,
 		)
 		total_qty = 0
@@ -265,6 +281,27 @@ class ParentManufacturingOrder(Document):
 			"jewellery_erpnext/jewellery_erpnext/doctype/parent_manufacturing_order/stock_entry_details.html",
 			{"data": data, "total_qty": total_qty},
 		)
+
+
+def update_bom_based_on_diamond_quality(self):
+	bom = frappe.get_doc("BOM", self.master_bom)
+	if self.diamond_grade:
+		for row in bom.diamond_detail:
+			row.diamond_grade = self.diamond_grade
+	for pmo_row in self.gemstone_table:
+		for b_row in bom.gemstone_detail:
+			if (
+				pmo_row.gemstone_type == b_row.gemstone_type
+				and pmo_row.cut_or_cab == b_row.cut_or_cab
+				and pmo_row.stone_shape == b_row.stone_shape
+				and pmo_row.pcs == b_row.pcs
+				and pmo_row.gemstone_size == b_row.gemstone_size
+			):
+				b_row.gemstone_size = pmo_row.gemstone_size
+				b_row.gemstone_code = pmo_row.gemstone_code
+				b_row.gemstone_pr = pmo_row.gemstone_pr
+				b_row.per_pc_or_per_carat = pmo_row.per_pc_or_per_carat
+	bom.save()
 
 
 def get_item_type(item_code):
@@ -365,7 +402,7 @@ def make_manufacturing_order(source_doc, row):
 	)
 	doc.qty = row.qty_per_manufacturing_order
 	doc.rowname = row.name
-	doc.master_bom = row.bom
+	doc.master_bom = row.manufacturing_bom
 	doc.save()
 
 	diamond_grade = frappe.db.get_value(

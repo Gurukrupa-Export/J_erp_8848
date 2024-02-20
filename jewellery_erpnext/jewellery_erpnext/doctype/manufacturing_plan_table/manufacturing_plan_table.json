@@ -9,6 +9,7 @@
   "sales_order",
   "docname",
   "item_code",
+  "manufacturing_bom",
   "bom",
   "mould_no",
   "delivery_date",
@@ -157,7 +158,8 @@
    "fieldname": "bom",
    "fieldtype": "Link",
    "label": "BOM",
-   "options": "BOM"
+   "options": "BOM",
+   "read_only": 1
   },
   {
    "depends_on": "eval: doc.subcontracting",
@@ -220,12 +222,19 @@
    "label": "Customer Good",
    "options": "\nYes\nNo",
    "read_only": 1
+  },
+  {
+   "fieldname": "manufacturing_bom",
+   "fieldtype": "Link",
+   "label": "Manufacturing BOM",
+   "options": "BOM",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-01-23 16:25:09.866532",
+ "modified": "2024-02-07 15:29:25.724484",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Plan Table",

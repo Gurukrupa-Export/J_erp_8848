@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "ORD/C/.#####",
+ "autoname": "C/ORD/.#####",
  "creation": "2022-05-11 22:26:19.574092",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -307,7 +307,7 @@
    "link_fieldname": "cad_order_form"
   }
  ],
- "modified": "2023-07-29 17:24:50.540777",
+ "modified": "2024-02-12 11:20:05.421085",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "CAD Order Form",

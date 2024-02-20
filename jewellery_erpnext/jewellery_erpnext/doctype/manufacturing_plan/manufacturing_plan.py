@@ -6,6 +6,7 @@ import json
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.model.mapper import get_mapped_doc
 from frappe.utils import cint
 
 from jewellery_erpnext.jewellery_erpnext.doc_events.purchase_order import make_subcontracting_order
@@ -27,6 +28,8 @@ class ManufacturingPlan(Document):
 			create_manufacturing_order(self, row)
 			if row.subcontracting:
 				create_subcontracting_order(self, row)
+			if row.manufacturing_bom is None:
+				frappe.throw(f"Row:{row.idx} Manufacturing Bom Missing")
 
 	def on_cancel(self):
 		for row in self.manufacturing_plan_table:
@@ -39,6 +42,7 @@ class ManufacturingPlan(Document):
 
 	def validate(self):
 		self.validate_qty()
+		create_new_bom(self)
 
 	def validate_qty(self):
 		total = 0
@@ -94,15 +98,63 @@ class ManufacturingPlan(Document):
 			so_bom = item_row.get("bom")
 			item_code = item_row.get("item_code")
 			item_master_bom = frappe.get_value("Item", item_code, "master_bom")
-			item_row["manufacturing_order_qty"] = item_row.get("pending_qty")
-			item_row["qty_per_manufacturing_order"] = 1
 			if so_bom or item_master_bom:
-				item_row["bom"] = so_bom or item_master_bom
+				check_bom_type = frappe.get_value("BOM", so_bom or item_master_bom, "bom_type")
+				if check_bom_type == "Sales Order":
+					item_row["manufacturing_order_qty"] = item_row.get("pending_qty")
+					item_row["qty_per_manufacturing_order"] = 1
+					item_row["bom"] = so_bom or item_master_bom
+					self.append("manufacturing_plan_table", item_row)
+				else:
+					frappe.throw(
+						f"{so_bom or item_master_bom} should be BOM Type <b>Sales Order</b> allowed in Manufacturing Process"
+					)
 			else:
 				frappe.throw(
 					f"Sales Order BOM Not Found.</br>Please Set Master BOM for <b>{item_code}</b> into Item Master"
 				)
-			self.append("manufacturing_plan_table", item_row)
+
+
+def create_new_bom(self):
+	"""
+	This Function Creates Manufacturing Process Type BOM from Sales Bom
+	"""
+	for row in self.manufacturing_plan_table:
+		if not row.manufacturing_bom and frappe.db.exists("BOM", row.bom):
+			bom_type = frappe.get_value("BOM", {"name": row.bom}, "bom_type")
+			if bom_type == "Sales Order":
+				manufacturing_bom_name = create_manufacturing_process_bom(self, row)
+				if manufacturing_bom_name:
+					row.manufacturing_bom = manufacturing_bom_name
+			else:
+				frappe.throw(f"Manufactuing Bom Creation Error: {row.bom} BOM Type Must be a Sales Order.")
+
+
+def create_manufacturing_process_bom(self, row):
+	doc = get_mapped_doc(
+		"BOM",
+		row.bom,
+		{
+			"BOM": {
+				"doctype": "BOM",
+			}
+		},
+		ignore_permissions=True,
+	)
+	doc.is_default = 0
+	doc.is_active = 0
+	doc.bom_type = "Manufacturing Process"
+	doc.save(ignore_permissions=True)
+	return doc.name
+
+
+def cancel_bom(self):
+	for row in self.manufacturing_plan_table:
+		if row.manufacturing_bom:
+			bom = frappe.get_doc("BOM", row.manufacturing_bom)
+			row.manufacturing_bom = ""
+			bom.docstatus = 2
+			bom.save()
 
 
 def create_manufacturing_order(doc, row):

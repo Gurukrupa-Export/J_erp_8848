@@ -29,28 +29,28 @@
   "section_break_1",
   "concept_image",
   "image_preview",
-  "setting_type",
   "concept_type",
-  "design_attributes",
-  "colour_stone",
-  "section_break13",
-  "creativity_type",
-  "stepping",
-  "fusion",
-  "drops",
-  "coin",
-  "column_break_19",
-  "gold_wire",
-  "gold_ball",
-  "flows",
-  "nagas",
-  "section_break_9",
+  "age_group",
+  "alphabetnumber",
+  "animalbirds",
+  "design_style",
+  "collection_1",
+  "gender",
+  "lines_rows",
+  "column_break_phwb",
+  "language",
+  "occasion",
+  "rhodium",
+  "religious",
+  "shapes",
+  "zodiac",
   "territories_tab",
   "india",
   "india_states",
   "column_break_cibey",
   "usa",
   "usa_states",
+  "section_break_9",
   "amended_from"
  ],
  "fields": [
@@ -109,11 +109,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "po_no",
-   "fieldtype": "Data",
-   "label": "Customer PO Number"
-  },
-  {
    "fieldname": "order_type",
    "fieldtype": "Select",
    "label": "Order Type",
@@ -143,111 +138,23 @@
    "fieldname": "concept_image",
    "fieldtype": "Attach Image",
    "hidden": 1,
-   "label": "Concept Image"
+   "label": "Concept Image",
+   "options": "concept_image"
   },
   {
    "fieldname": "image_preview",
    "fieldtype": "Image",
    "hidden": 1,
-   "label": "Image Preview",
-   "options": "concept_image"
+   "label": "Image Preview"
   },
   {
    "fieldname": "section_break_14",
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "setting_type",
-   "fieldtype": "Table",
-   "hidden": 1,
-   "label": "Setting Type",
-   "options": "Sketch Order Form Setting Type"
-  },
-  {
    "fieldname": "concept_type",
    "fieldtype": "Tab Break",
-   "label": "Concept",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
-  },
-  {
-   "fieldname": "colour_stone",
-   "fieldtype": "Table",
-   "hidden": 1,
-   "label": "Gemstone Type",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'",
-   "options": "Sketch Order Form Color Stone"
-  },
-  {
-   "depends_on": "eval:(doc.design_by == 'Concept by Designer')",
-   "fieldname": "section_break13",
-   "fieldtype": "Section Break",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
-  },
-  {
-   "fieldname": "creativity_type",
-   "fieldtype": "Tab Break",
-   "label": "Creativity",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
-  },
-  {
-   "default": "0",
-   "fieldname": "stepping",
-   "fieldtype": "Check",
-   "label": "Stepping",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
-  },
-  {
-   "default": "0",
-   "fieldname": "fusion",
-   "fieldtype": "Check",
-   "label": "Fusion",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
-  },
-  {
-   "default": "0",
-   "fieldname": "drops",
-   "fieldtype": "Check",
-   "label": "Drops",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
-  },
-  {
-   "default": "0",
-   "fieldname": "coin",
-   "fieldtype": "Check",
-   "label": "Coin",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
-  },
-  {
-   "fieldname": "column_break_19",
-   "fieldtype": "Column Break",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
-  },
-  {
-   "default": "0",
-   "fieldname": "gold_wire",
-   "fieldtype": "Check",
-   "label": "Gold Wire (dat)",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
-  },
-  {
-   "default": "0",
-   "fieldname": "gold_ball",
-   "fieldtype": "Check",
-   "label": "Gold Ball",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
-  },
-  {
-   "default": "0",
-   "fieldname": "flows",
-   "fieldtype": "Check",
-   "label": "Flows",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
-  },
-  {
-   "default": "0",
-   "fieldname": "nagas",
-   "fieldtype": "Check",
-   "label": "Nagas",
+   "label": "Design Attributes",
    "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
   },
   {
@@ -326,16 +233,102 @@
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "design_attributes",
-   "fieldtype": "Table",
-   "label": "Design Attributes",
-   "options": "Design Attributes"
-  },
-  {
    "fieldname": "due_days",
    "fieldtype": "Int",
    "label": "Due Days",
    "reqd": 1
+  },
+  {
+   "fieldname": "column_break_phwb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "age_group",
+   "fieldtype": "Table MultiSelect",
+   "label": "Age Group",
+   "options": "Design Attribute - Multiselect",
+   "reqd": 1
+  },
+  {
+   "fieldname": "alphabetnumber",
+   "fieldtype": "Table MultiSelect",
+   "label": "Alphabet/Number",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "animalbirds",
+   "fieldtype": "Table MultiSelect",
+   "label": "Animal/Birds",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "design_style",
+   "fieldtype": "Table MultiSelect",
+   "label": "Design Style",
+   "options": "Design Attribute - Multiselect",
+   "reqd": 1
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Table MultiSelect",
+   "label": "Gender",
+   "options": "Design Attribute - Multiselect",
+   "reqd": 1
+  },
+  {
+   "fieldname": "lines_rows",
+   "fieldtype": "Table MultiSelect",
+   "label": "Lines & Rows",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "language",
+   "fieldtype": "Table MultiSelect",
+   "label": "Language",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "occasion",
+   "fieldtype": "Table MultiSelect",
+   "label": "Occasion",
+   "options": "Design Attribute - Multiselect",
+   "reqd": 1
+  },
+  {
+   "fieldname": "rhodium",
+   "fieldtype": "Table MultiSelect",
+   "label": "Rhodium",
+   "options": "Design Attribute - Multiselect",
+   "reqd": 1
+  },
+  {
+   "fieldname": "religious",
+   "fieldtype": "Table MultiSelect",
+   "label": "Religious",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "shapes",
+   "fieldtype": "Table MultiSelect",
+   "label": "Shapes",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "zodiac",
+   "fieldtype": "Table MultiSelect",
+   "label": "Zodiac",
+   "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "po_no",
+   "fieldtype": "Data",
+   "label": "Customer PO Number"
+  },
+  {
+   "fieldname": "collection_1",
+   "fieldtype": "Table MultiSelect",
+   "label": "Collection",
+   "options": "Design Attribute - Multiselect"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -346,7 +339,7 @@
    "link_fieldname": "sketch_order_form"
   }
  ],
- "modified": "2023-07-29 12:54:04.104402",
+ "modified": "2024-02-09 16:33:50.406094",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Sketch Order Form",
