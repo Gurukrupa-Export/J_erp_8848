@@ -1,45 +1,31 @@
 frappe.ui.form.on("Quotation", {
-	// removed as per their requirement
-	// refresh(frm) {
-	// 	frm.add_custom_button(
-	// 		__("CAD Order"),
-	// 		function () {
-	// 			erpnext.utils.map_current_doc({
-	// 				method: "jewellery_erpnext.gurukrupa_exports.doctype.cad_order.cad_order.make_quotation",
-	// 				source_doctype: "CAD Order",
-	// 				target: frm,
-	// 				setters: [
-	// 					{
-	// 						label: "CAD Order Form",
-	// 						fieldname: "cad_order_form",
-	// 						fieldtype: "Link",
-	// 						options: "CAD Order Form",
-	// 					},
-	// 					{
-	// 						label: "Customer",
-	// 						fieldname: "customer_code",
-	// 						fieldtype: "Link",
-	// 						options: "Customer",
-	// 						reqd: 1,
-	// 						default: frm.doc.party_name || undefined,
-	// 					},
-	// 					{
-	// 						label: "Order Type",
-	// 						fieldname: "order_type",
-	// 						fieldtype: "Select",
-	// 						options: ["Sales", "Stock Order"],
-	// 						reqd: 1,
-	// 						default: frm.doc.order_type || undefined,
-	// 					},
-	// 				],
-	// 				get_query_filters: {
-	// 					item: ["is", "set"],
-	// 					docstatus: 1,
-	// 				},
-	// 			});
-	// 		},
-	// 		__("Get Items From")
-	// 	);
+	refresh(frm) {
+		frm.add_custom_button(
+			__("Purchase Order"),
+			function () {
+				erpnext.utils.map_current_doc({
+					method: "jewellery_erpnext.jewellery_erpnext.doc_events.purchase_order.make_quotation",
+					source_doctype: "Purchase Order",
+					target: frm,
+					setters: [
+						{
+							label: "Supplier",
+							fieldname: "supplier",
+							fieldtype: "Link",
+							options: "Supplier",
+							read_only: 1,
+							default: frm.doc.company,
+						},
+					],
+					get_query_filters: {
+						purchase_type: ["=", "FG Purchase"],
+						docstatus: 1,
+					},
+				});
+			},
+			__("Get Items From")
+		);
+	},
 	// 	frm.add_custom_button(
 	// 		__("Serial No and Design Code Order"),
 	// 		function () {
@@ -956,6 +942,7 @@ frappe.ui.form.on("Quotation Item", {
 					fieldtype: "Table",
 					label: "Metal Detail",
 					cannot_add_rows: true,
+					cannot_delete_rows: true,
 					data: metal_data,
 					get_data: () => {
 						return metal_data;
@@ -967,6 +954,7 @@ frappe.ui.form.on("Quotation Item", {
 					fieldtype: "Table",
 					label: "Finding Detail",
 					cannot_add_rows: true,
+					cannot_delete_rows: true,
 					data: finding_data,
 					get_data: () => {
 						return finding_data;
@@ -978,6 +966,7 @@ frappe.ui.form.on("Quotation Item", {
 					fieldtype: "Table",
 					label: "Diamond Detail",
 					cannot_add_rows: true,
+					cannot_delete_rows: true,
 					data: diamond_data,
 					get_data: () => {
 						return diamond_data;
@@ -989,6 +978,7 @@ frappe.ui.form.on("Quotation Item", {
 					fieldtype: "Table",
 					label: "Gemstone Detail",
 					cannot_add_rows: true,
+					cannot_delete_rows: true,
 					data: gemstone_data,
 					get_data: () => {
 						return gemstone_data;
@@ -1000,6 +990,7 @@ frappe.ui.form.on("Quotation Item", {
 					fieldtype: "Table",
 					label: "Other Detail",
 					cannot_add_rows: true,
+					cannot_delete_rows: true,
 					data: other_data,
 					get_data: () => {
 						return other_data;

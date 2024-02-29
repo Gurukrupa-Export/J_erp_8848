@@ -3,9 +3,9 @@
 
 frappe.ui.form.on("Metal Conversions", {
 	validate(frm) {
-		if (frm.doc.multiple_metal_converter == 0) {
-			calculate_metal(frm);
-		}
+		// if (frm.doc.multiple_metal_converter == 0) {
+		// 	calculate_metal(frm);
+		// }
 		// validate_alloy(frm);
 	},
 	refresh(frm) {
@@ -88,10 +88,6 @@ frappe.ui.form.on("Metal Conversions", {
 	},
 	target_item(frm) {
 		// Calculate Metal
-		frm.set_value("source_alloy", null);
-		frm.set_value("target_alloy", null);
-		frm.set_value("source_alloy_check", "0");
-		frm.set_value("target_alloy_check", "0");
 		calculate_metal(frm);
 	},
 	calculate(frm) {
@@ -242,22 +238,22 @@ function calculate_metal(frm) {
 					frm.refresh_field("target_qty");
 
 					if (r.message[1] < 0) {
+						clear_alloy(frm);
 						frm.set_value("target_alloy_check", 1);
-						frm.refresh_field("target_alloy_check");
 						frm.set_value("target_alloy_qty", Math.abs(r.message[1]));
+						frm.refresh_field("target_alloy_check");
 						frm.refresh_field("target_alloy_qty");
 						// frm.save();
 					} else if (r.message[1] > 0) {
+						clear_alloy(frm);
 						frm.set_value("source_alloy_check", 1);
-						frm.refresh_field("source_alloy_check");
 						frm.set_value("source_alloy_qty", r.message[1]);
+
+						frm.refresh_field("source_alloy_check");
 						frm.refresh_field("source_alloy_qty");
 						// frm.save();
 					} else {
-						frm.set_value("target_alloy_check", 0);
-						frm.refresh_field("target_alloy_check");
-						frm.set_value("source_alloy_check", 0);
-						frm.refresh_field("source_alloy_check");
+						clear_alloy(frm);
 						frappe.show_alert(
 							{
 								message: __(
@@ -272,6 +268,21 @@ function calculate_metal(frm) {
 			},
 		});
 	}
+}
+function clear_alloy(frm) {
+	frm.set_value("source_alloy_check", "0");
+	frm.set_value("source_alloy", null);
+	frm.set_value("source_alloy_qty", null);
+	frm.set_value("target_alloy_check", "0");
+	frm.set_value("target_alloy", null);
+	frm.set_value("target_alloy_qty", null);
+
+	frm.refresh_field("source_alloy_check");
+	frm.refresh_field("source_alloy");
+	frm.refresh_field("source_alloy_qty");
+	frm.refresh_field("target_alloy_check");
+	frm.refresh_field("target_alloy");
+	frm.refresh_field("target_alloy_qty");
 }
 function calculate_Multiple_conversion(frm) {
 	frappe.call({

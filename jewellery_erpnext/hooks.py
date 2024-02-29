@@ -76,6 +76,7 @@ doc_events = {
 		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.item.validate",
 		"before_save": "jewellery_erpnext.jewellery_erpnext.doc_events.item.before_save",
 		"on_trash": "jewellery_erpnext.jewellery_erpnext.doc_events.item.on_trash",
+		"before_insert": "jewellery_erpnext.jewellery_erpnext.doc_events.item.before_insert",
 	},
 	"Item Attribute": {
 		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.item_attribute.validate"
@@ -103,11 +104,16 @@ doc_events = {
 	},
 	"Warehouse": {"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.warehouse.validate"},
 	"Purchase Order": {
-		"on_cancel": "jewellery_erpnext.jewellery_erpnext.doc_events.purchase_order.on_cancel"
+		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.purchase_order.validate",
+		"on_cancel": "jewellery_erpnext.jewellery_erpnext.doc_events.purchase_order.on_cancel",
 	},
 	"Sales Invoice": {
 		"before_validate": "jewellery_erpnext.jewellery_erpnext.doc_events.sales_invoice.before_validate"
 	},
+    "Serial No": {
+		"on_update": "jewellery_erpnext.jewellery_erpnext.doc_events.serial_no.update_table"
+	},
+    
 }
 
 override_whitelisted_methods = {

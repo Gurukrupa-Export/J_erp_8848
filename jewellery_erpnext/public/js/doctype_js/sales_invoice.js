@@ -832,6 +832,7 @@ frappe.ui.form.on("Sales Invoice Item", {
 					fieldtype: "Table",
 					label: "Metal Detail",
 					cannot_add_rows: true,
+					cannot_delete_rows: true,
 					data: metal_data,
 					get_data: () => {
 						return metal_data;
@@ -842,6 +843,7 @@ frappe.ui.form.on("Sales Invoice Item", {
 					fieldname: "finding_detail",
 					fieldtype: "Table",
 					label: "Finding Detail",
+					cannot_delete_rows: true,
 					cannot_add_rows: true,
 					data: finding_data,
 					get_data: () => {
@@ -854,6 +856,7 @@ frappe.ui.form.on("Sales Invoice Item", {
 					fieldtype: "Table",
 					label: "Diamond Detail",
 					cannot_add_rows: true,
+					cannot_delete_rows: true,
 					data: diamond_data,
 					get_data: () => {
 						return diamond_data;
@@ -865,6 +868,7 @@ frappe.ui.form.on("Sales Invoice Item", {
 					fieldtype: "Table",
 					label: "Gemstone Detail",
 					cannot_add_rows: true,
+					cannot_delete_rows: true,
 					data: gemstone_data,
 					get_data: () => {
 						return gemstone_data;
@@ -876,6 +880,7 @@ frappe.ui.form.on("Sales Invoice Item", {
 					fieldtype: "Table",
 					label: "Other Detail",
 					cannot_add_rows: true,
+					cannot_delete_rows: true,
 					data: other_data,
 					get_data: () => {
 						return other_data;

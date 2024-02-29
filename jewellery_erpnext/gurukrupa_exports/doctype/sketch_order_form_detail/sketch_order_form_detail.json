@@ -37,10 +37,10 @@
         "budget",
         "section_break_33",
         "gemstone_type1",
-        "column_break_35",
         "column_break_37",
-        "column_break_39",
+        "gemstone_size",
         "section_break_vu76v",
+        "column_break_39",
         "column_break_43",
         "column_break_45",
         "column_break_47",
@@ -175,7 +175,6 @@
             "fetch_from": "tag__design_id.sketch_image",
             "fieldname": "sketch_image",
             "fieldtype": "Attach Image",
-            "hidden": 1,
             "label": "Sketch Image"
         },
         {
@@ -298,10 +297,6 @@
             "options": "Attribute Value"
         },
         {
-            "fieldname": "column_break_35",
-            "fieldtype": "Column Break"
-        },
-        {
             "fieldname": "column_break_37",
             "fieldtype": "Column Break"
         },
@@ -396,6 +391,12 @@
         {
             "fieldname": "section_break_sbwbp",
             "fieldtype": "Section Break"
+        },
+        {
+            "fieldname": "gemstone_size",
+            "fieldtype": "Link",
+            "label": "Gemstone Size",
+            "options": "Attribute Value"
         }
     ],
     "hide_toolbar": 1,

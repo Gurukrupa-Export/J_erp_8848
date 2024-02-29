@@ -85,6 +85,26 @@ function set_html(frm) {
 	} else {
 		frm.get_field("stock_entry_details").$wrapper.html("");
 	}
+	frappe.call({
+		method: "get_stock_summary",
+		doc: frm.doc,
+		args: {
+			docname: frm.doc.name,
+		},
+		callback: function (r) {
+			frm.get_field("stock_summery").$wrapper.html(r.message);
+		},
+	});
+	frappe.call({
+		method: "get_stock_entry",
+		doc: frm.doc,
+		args: {
+			docname: frm.doc.name,
+		},
+		callback: function (r) {
+			frm.get_field("stock_entry").$wrapper.html(r.message);
+		},
+	});
 	// if (frm.doc.is_last_operation) {
 
 	// }

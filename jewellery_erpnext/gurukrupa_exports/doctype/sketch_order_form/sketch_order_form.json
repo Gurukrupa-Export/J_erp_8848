@@ -138,14 +138,14 @@
    "fieldname": "concept_image",
    "fieldtype": "Attach Image",
    "hidden": 1,
-   "label": "Concept Image",
-   "options": "concept_image"
+   "label": "Concept Image"
   },
   {
    "fieldname": "image_preview",
    "fieldtype": "Image",
    "hidden": 1,
-   "label": "Image Preview"
+   "label": "Image Preview",
+   "options": "concept_image"
   },
   {
    "fieldname": "section_break_14",

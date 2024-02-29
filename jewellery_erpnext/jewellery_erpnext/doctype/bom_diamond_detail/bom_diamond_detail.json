@@ -17,6 +17,7 @@
   "size_in_mm",
   "is_customer_item",
   "total_diamond_rate",
+  "fg_purchase_rate",
   "column_break_8",
   "size_type",
   "pcs",
@@ -29,7 +30,8 @@
   "stock_uom",
   "item_variant",
   "quality",
-  "diamond_rate_for_specified_quantity"
+  "diamond_rate_for_specified_quantity",
+  "fg_purchase_amount"
  ],
  "fields": [
   {
@@ -202,12 +204,22 @@
    "fieldtype": "Float",
    "label": "Difference",
    "read_only": 1
+  },
+  {
+   "fieldname": "fg_purchase_rate",
+   "fieldtype": "Currency",
+   "label": "FG Purchase Rate"
+  },
+  {
+   "fieldname": "fg_purchase_amount",
+   "fieldtype": "Currency",
+   "label": "FG Purchase Amount"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-02-06 16:35:57.801682",
+ "modified": "2024-02-19 18:37:43.632071",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "BOM Diamond Detail",

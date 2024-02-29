@@ -2,6 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
+ "autoname": "format:GSP-.######",
  "creation": "2022-07-25 19:09:11.229961",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -15,6 +16,7 @@
   "stone_shape",
   "gemstone_quality",
   "gemstone_size",
+  "supplier_fg_purchase_rate",
   "column_break_8",
   "price_list_type",
   "from_weight",
@@ -134,14 +136,21 @@
    "fieldname": "effective_from",
    "fieldtype": "Date",
    "label": "Effective From"
+  },
+  {
+   "fieldname": "supplier_fg_purchase_rate",
+   "fieldtype": "Currency",
+   "label": "Supplier FG Purchase Rate",
+   "precision": "3"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-03-15 22:57:06.769126",
+ "modified": "2024-02-19 17:36:13.890151",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Gemstone Price List",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {

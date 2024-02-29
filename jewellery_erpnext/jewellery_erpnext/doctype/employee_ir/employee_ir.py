@@ -107,7 +107,13 @@ class EmployeeIR(Document):
 			status = "WIP"
 			if not cancel:
 				status = "Finished"
-				create_operation_for_next_op(row.manufacturing_operation, employee_ir=self.name)
+				new_opration = create_operation_for_next_op(row.manufacturing_operation, employee_ir=self.name)
+				frappe.db.set_value(
+					"Manufacturing Work Order",
+					row.manufacturing_work_order,
+					"manufacturing_operation",
+					new_opration,
+				)
 				difference_wt = flt(row.received_gross_wt, precision) - flt(row.gross_wt, precision)
 				create_stock_entry(self, row, flt(difference_wt, 3))
 				# res = get_material_wt(self, row.manufacturing_operation)
@@ -117,7 +123,7 @@ class EmployeeIR(Document):
 					frappe.delete_doc("Manufacturing Operation", op, ignore_permissions=1)
 					if self.is_qc_reqd:
 						status = "QC Pending"
-				# need to handle cancellation
+				# need to how  handle cancellation
 				# mfg_operation = frappe.db.exists("Manufacturing Operation", {"employee_ir": self.name})
 			res["status"] = status
 			# gross_wt = get_value("Stock Entry Detail", {'manufacturing_operation': row.manufacturing_operation, "employee":self.employee}, 'sum(if(uom="cts",qty*0.2,qty))', 0)
@@ -280,6 +286,7 @@ def create_operation_for_next_op(docname, target_doc=None, employee_ir=None):
 	target_doc.time_taken = None
 	target_doc.save()
 	target_doc.db_set("employee", None)
+	return target_doc.name
 
 
 @frappe.whitelist()
@@ -417,6 +424,7 @@ def create_stock_entry(doc, row, difference_wt=0):
 	for stock_entry in stock_entries:
 		existing_doc = frappe.get_doc("Stock Entry", stock_entry)
 		se_doc = frappe.copy_doc(existing_doc)
+		se_doc.to_warehouse = ""
 		se_doc.outgoing_stock_entry = ""
 		for child in se_doc.items:
 			if child.item_code in loss.keys():

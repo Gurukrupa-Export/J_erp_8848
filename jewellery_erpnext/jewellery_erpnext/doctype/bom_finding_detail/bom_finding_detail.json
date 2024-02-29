@@ -20,7 +20,10 @@
   "making_rate",
   "making_amount",
   "difference",
+  "fg_purchase_rate",
+  "fg_purchase_amount",
   "column_break_6",
+  "not_finding_rate",
   "metal_colour",
   "qty",
   "quantity",
@@ -172,12 +175,30 @@
    "fieldname": "difference",
    "fieldtype": "Currency",
    "label": "Difference"
+  },
+  {
+   "fieldname": "fg_purchase_rate",
+   "fieldtype": "Currency",
+   "label": "FG Purchase Rate"
+  },
+  {
+   "fieldname": "fg_purchase_amount",
+   "fieldtype": "Currency",
+   "label": "FG Purchase Amount",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "not_finding_rate",
+   "fieldtype": "Check",
+   "label": "Not Finding Rate",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-02-02 17:51:01.674529",
+ "modified": "2024-02-26 14:56:56.254870",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "BOM Finding Detail",

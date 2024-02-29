@@ -125,17 +125,35 @@ def validate_metal_properties(doc):
 		)
 
 		item_det = {row.attribute: row.attribute_value for row in attribute_det}
-		# if mwo.multicolour == 0:
 		if main_slip:
 
 			if ms.get("for_subcontracting"):
 				continue
-			if (
-				ms.metal_touch != item_det.get("Metal Touch")
-				or ms.metal_purity != item_det.get("Metal Purity")
-				or (ms.metal_colour != item_det.get("Metal Colour") and ms.check_color)
-			):
-				frappe.throw(f"Row #{row.idx}: Metal properties do not match with the selected main slip")
+			if ms.metal_colour:
+				if (
+					ms.metal_touch != item_det.get("Metal Touch")
+					or ms.metal_purity != item_det.get("Metal Purity")
+					or (ms.metal_colour != item_det.get("Metal Colour") and ms.check_color)
+				):
+					frappe.throw(f"Row #{row.idx}: Metal properties do not match with the selected main slip")
+			if ms.allowed_colours:
+				if mwo.multicolour == 1:
+					allowed_colors = "".join(sorted(map(str.upper, mwo.allowed_colours)))
+					colour_code = {"P": "Pink", "Y": "Yellow", "W": "White"}
+					color_matched = False  # Flag to check if at least one color matches
+					for char in allowed_colors:
+						if char not in colour_code:
+							frappe.throw(
+								f"Invalid color code <b>{char}</b> in MWO: <b>{row.manufacturing_work_order}</b>"
+							)
+						if ms.check_color and colour_code[char] == item_det.get("Metal Colour"):
+							color_matched = True  # Set the flag to True if color matches and exit loop
+							break
+					# Throw an error only if no color matches
+					if ms.check_color and not color_matched:
+						frappe.throw(
+							f"<b>Row #{row.idx}</b></br>Metal properties in MWO: <b>{doc.manufacturing_work_order}</b> do not match the main slip. </br><b>Metal Properties are: (MT:{mwo.metal_type}, MTC:{mwo.metal_touch}, MP:{mwo.metal_purity}, MC:{allowed_colors})</b>"
+						)
 		if mwo:
 			# frappe.throw(str([mwo.metal_touch != item_det.get("Metal Touch"), mwo.metal_purity != item_det.get("Metal Purity"), (mwo.metal_colour != item_det.get("Metal Colour"))]))
 			if mwo.metal_touch != item_det.get("Metal Touch") or mwo.metal_purity != item_det.get(

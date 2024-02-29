@@ -247,18 +247,68 @@ class ParentManufacturingOrder(Document):
 		mwo = frappe.get_all(
 			"Manufacturing Work Order", {"manufacturing_order": self.name}, pluck="name"
 		)
+		mwo_last_operation = []
+		for mwo_id in mwo:
+			operation = frappe.db.get_value(
+				"Manufacturing Work Order",
+				filters={"name": mwo_id},
+				fieldname="manufacturing_operation",
+				order_by="modified desc",
+			)
+			if operation is not None:
+				mwo_last_operation.append(operation)
+		mwo_operations = "','".join(mwo_last_operation)
 		data = frappe.db.sql(
-			f"""select se.manufacturing_work_order, se.manufacturing_operation, sed.parent, sed.item_code,sed.item_name, sed.qty, sed.uom,
-					   			ifnull(sum(if(sed.uom='cts',sed.qty*0.2, sed.qty)),0) as gross_wt
-			   				from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name where
-							se.docstatus = 1 and se.manufacturing_work_order in ('{"', '".join(mwo)}') and se.manufacturing_work_order <> "" #and sed.t_warehouse = '{target_wh}'
-							group by sed.manufacturing_operation,  sed.item_code, sed.qty, sed.uom
-							order by se.creation""",
-			as_dict=1,
+			f"""SELECT
+					se.manufacturing_work_order,
+					se.manufacturing_operation,
+					sed.parent,
+					sed.item_code,
+					sed.item_name,
+					sed.inventory_type,
+					sed.pcs,
+					sed.batch_no,
+					sed.qty,
+					sed.uom
+				FROM
+					`tabStock Entry Detail` sed
+				LEFT JOIN
+					(
+						SELECT
+							MAX(se.modified) AS max_modified,
+							se.manufacturing_operation
+						FROM
+							`tabStock Entry` se
+						WHERE
+							se.docstatus = 1
+						GROUP BY
+							se.manufacturing_operation
+					) max_se ON sed.manufacturing_operation = max_se.manufacturing_operation
+				LEFT JOIN
+					`tabStock Entry` se ON sed.parent = se.name
+										AND se.modified = max_se.max_modified
+				WHERE
+					se.docstatus = 1
+					AND sed.manufacturing_operation IN ('{mwo_operations}')""",
+			as_dict=True,
 		)
+		# frappe.throw(f"{data}<br>")
+		# data = frappe.db.sql(
+		# 	f"""select se.manufacturing_work_order, se.manufacturing_operation, sed.parent, sed.item_code,sed.item_name, sed.qty, sed.uom
+		# 	   				from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name where
+		# 					se.docstatus = 1 and
+		# 					sed.manufacturing_operation in ('{"', '".join(mwo_last_operation)}')
+		# 					group by se.manufacturing_operation, sed.item_code, sed.qty, sed.uom
+		# 					order by sed.creation
+		# 					""",
+		# 	as_dict=1,
+		# )
 		total_qty = 0
 		for row in data:
-			total_qty += row.get("gross_wt", 0)
+			if row.uom == "cts":
+				total_qty += row.get("qty", 0) * 0.2
+			else:
+				total_qty += row.get("qty", 0)
 		total_qty = round(total_qty, 4)
 		return frappe.render_template(
 			"jewellery_erpnext/jewellery_erpnext/doctype/parent_manufacturing_order/stock_summery.html",
@@ -407,7 +457,7 @@ def make_manufacturing_order(source_doc, row):
 
 	diamond_grade = frappe.db.get_value(
 		"Customer Diamond Grade",
-		{"diamond_quality": doc.diamond_quality, "parent": doc.customer},
+		{"diamond_quality": doc.diamond_quality, "parent": so_doc.get("ref_customer") or doc.customer},
 		"diamond_grade_1",
 	)
 	doc.db_set("diamond_grade", diamond_grade)

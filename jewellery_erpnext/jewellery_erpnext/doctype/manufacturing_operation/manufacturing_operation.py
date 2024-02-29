@@ -214,6 +214,69 @@ class ManufacturingOperation(Document):
 		mnf_qty = self.qty
 		return data, bom_id, mnf_qty, total_qty
 
+	@frappe.whitelist()
+	def get_stock_entry(self):
+		data = frappe.db.sql(
+			f"""select se.manufacturing_work_order, se.manufacturing_operation, se.department,se.to_department,
+						se.employee,se.stock_entry_type,sed.parent, sed.item_code,sed.item_name, sed.qty, sed.uom
+						from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name where
+						se.docstatus = 1 and sed.manufacturing_operation = ('{self.name}') ORDER BY se.modified DESC""",
+			as_dict=1,
+		)
+		total_qty = len([item["qty"] for item in data])
+		return frappe.render_template(
+			"jewellery_erpnext/jewellery_erpnext/doctype/manufacturing_operation/stock_entry.html",
+			{"data": data, "total_qty": total_qty},
+		)
+
+	@frappe.whitelist()
+	def get_stock_summary(self):
+		data = frappe.db.sql(
+			f"""SELECT
+					se.manufacturing_work_order,
+					se.manufacturing_operation,
+					sed.parent,
+					sed.item_code,
+					sed.item_name,
+					sed.inventory_type,
+					sed.pcs,
+					sed.batch_no,
+					sed.qty,
+					sed.uom
+				FROM
+					`tabStock Entry Detail` sed
+				LEFT JOIN
+					(
+						SELECT
+							MAX(se.modified) AS max_modified,
+							se.manufacturing_operation
+						FROM
+							`tabStock Entry` se
+						WHERE
+							se.docstatus = 1
+						GROUP BY
+							se.manufacturing_operation
+					) max_se ON sed.manufacturing_operation = max_se.manufacturing_operation
+				LEFT JOIN
+					`tabStock Entry` se ON sed.parent = se.name
+										AND se.modified = max_se.max_modified
+				WHERE
+					se.docstatus = 1
+					AND sed.manufacturing_operation IN ('{self.name}')""",
+			as_dict=True,
+		)
+		total_qty = 0
+		for row in data:
+			if row.uom == "cts":
+				total_qty += row.get("qty", 0) * 0.2
+			else:
+				total_qty += row.get("qty", 0)
+		total_qty = round(total_qty, 4)
+		return frappe.render_template(
+			"jewellery_erpnext/jewellery_erpnext/doctype/manufacturing_operation/stock_summery.html",
+			{"data": data, "total_qty": total_qty},
+		)
+
 	def set_wop_weight_details(doc):
 		get_wop_weight = frappe.db.get_value(
 			"Manufacturing Operation",

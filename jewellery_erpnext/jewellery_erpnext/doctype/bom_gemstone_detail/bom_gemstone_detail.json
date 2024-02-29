@@ -15,6 +15,7 @@
   "gemstone_grade",
   "is_customer_item",
   "total_gemstone_rate",
+  "fg_purchase_rate",
   "column_break_8",
   "gemstone_size",
   "gemstone_code",
@@ -25,7 +26,8 @@
   "difference",
   "stock_uom",
   "item_variant",
-  "gemstone_rate_for_specified_quantity"
+  "gemstone_rate_for_specified_quantity",
+  "fg_purchase_amount"
  ],
  "fields": [
   {
@@ -166,12 +168,23 @@
    "fieldtype": "Float",
    "label": "Difference",
    "read_only": 1
+  },
+  {
+   "fieldname": "fg_purchase_rate",
+   "fieldtype": "Currency",
+   "label": "FG Purchase RAte"
+  },
+  {
+   "fieldname": "fg_purchase_amount",
+   "fieldtype": "Currency",
+   "label": "FG Purchase Amount",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-02-02 18:06:36.540939",
+ "modified": "2024-02-22 15:01:48.960851",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "BOM Gemstone Detail",

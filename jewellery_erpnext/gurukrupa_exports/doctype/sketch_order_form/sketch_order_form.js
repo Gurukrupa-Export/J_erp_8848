@@ -17,10 +17,25 @@ frappe.ui.form.on("Sketch Order Form", {
 				},
 			};
 		});
+		frm.set_query("sub_setting_type2", "order_details", function (doc, cdt, cdn) {
+			let d = locals[cdt][cdn];
+			return {
+				filters: {
+					parent_attribute_value: d.setting_type,
+				},
+			};
+		});
 		frm.set_query("tag__design_id", "order_details", function (doc, cdt, cdn) {
 			return {
 				filters: {
 					is_design_code: 1,
+				},
+			};
+		});
+		frm.set_query("branch", () => {
+			return {
+				filters: {
+					company: frm.doc.company,
 				},
 			};
 		});
@@ -51,6 +66,27 @@ frappe.ui.form.on("Sketch Order Form", {
 
 	concept_image: function (frm) {
 		refresh_field("image_preview");
+	},
+	customer_code: function (frm) {
+		frappe.call({
+			method: "jewellery_erpnext.gurukrupa_exports.doctype.sketch_order_form.sketch_order_form.get_customer_orderType",
+			args: {
+				customer_code: frm.doc.customer_code,
+			},
+			callback: function (r) {
+				if (!r.exc) {
+					console.log(r.message);
+					var arrayLength = r.message.length;
+					if (arrayLength === 1) {
+						frm.set_value("order_type", r.message[0].order_type);
+						frm.set_df_property("order_type", "read_only", 1);
+					} else {
+						frm.set_value("order_type", "");
+						frm.set_df_property("order_type", "read_only", 0);
+					}
+				}
+			},
+		});
 	},
 });
 
@@ -135,12 +171,14 @@ frappe.ui.form.on("Sketch Order Form Detail", {
 		frappe.model.set_value(row.doctype, row.name, "gold_target", "");
 		frappe.model.set_value(row.doctype, row.name, "diamond_target", "");
 		frappe.model.set_value(row.doctype, row.name, "product_size", "");
-		frappe.model.set_value(row.doctype, row.name, "", "");
+		// frappe.model.set_value(row.doctype, row.name, "", "");
 		frappe.model.set_value(row.doctype, row.name, "reference_tagdesignid", "");
 		frappe.model.set_value(row.doctype, row.name, "design_image", "");
 		frappe.model.set_value(row.doctype, row.name, "image", "");
 		frappe.model.set_value(row.doctype, row.name, "tag__design_id", "");
 		frappe.model.set_value(row.doctype, row.name, "item_code", "");
+		frappe.model.set_value(row.doctype, row.name, "gemstone_type1", "");
+		frappe.model.set_value(row.doctype, row.name, "gemstone_size", "");
 	},
 });
 
@@ -193,6 +231,7 @@ function set_item_attribute_filters_in_sketch_order_form_detail_fields(frm) {
 		["gemstone_type6", "Gemstone Type6"],
 		["gemstone_type7", "Gemstone Type7"],
 		["gemstone_type8", "Gemstone Type8"],
+		["gemstone_size", "Gemstone Size"],
 	];
 	set_filters_on_child_table_fields(frm, fields, "order_details");
 }

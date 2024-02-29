@@ -163,7 +163,8 @@
    "depends_on": "eval:doc.g_loss_item",
    "fieldname": "g_loss_qty",
    "fieldtype": "Float",
-   "label": "Loss Qty"
+   "label": "Loss Qty",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_ynarw",
@@ -180,8 +181,7 @@
    "depends_on": "eval:doc.g_target_item",
    "fieldname": "g_target_qty",
    "fieldtype": "Float",
-   "label": "Target Qty",
-   "read_only": 1
+   "label": "Target Qty"
   },
   {
    "fieldname": "amended_from",
@@ -245,7 +245,7 @@
    "link_fieldname": "custom_gemstone_conversion"
   }
  ],
- "modified": "2024-02-08 20:38:18.772850",
+ "modified": "2024-02-20 18:41:01.340507",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Gemstone Conversion",

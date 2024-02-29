@@ -15,8 +15,14 @@ class GemstoneConversion(Document):
 			frappe.throw("Source Qty greater then batch available qty")
 
 	def validate(self):
-		if self.g_target_qty < 0:
-			frappe.throw("Loss Qty not allowed greater than Source Qty")
+		if self.g_loss_qty < 0:
+			frappe.throw("Target Qty not allowed greater than Source Qty")
+		if self.g_target_qty > self.batch_avail_qty:
+			frappe.throw("Target Qty not allowed greater than Batch Available Qty")
+		if self.g_source_qty > self.batch_avail_qty:
+			frappe.throw(
+				f"Conversion failed batch available qty not meet. </br><b>(Batch Qty = {self.batch_avail_qty})</b><br>select another batch."
+			)
 		if self.g_source_qty == 0 or self.g_target_qty == 0:
 			frappe.throw("Source Qty or Target Qty not allowed Zero to post transaction")
 		if self.g_source_qty < 0:

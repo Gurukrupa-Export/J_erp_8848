@@ -28,6 +28,8 @@
   "making_amount",
   "stock_uom",
   "item_variant",
+  "fg_purchase_rate",
+  "fg_purchase_amount",
   "section_break_13",
   "cam_weight",
   "wax_weight",
@@ -242,12 +244,23 @@
    "fieldtype": "Check",
    "label": "Custom Wastage Rate",
    "read_only": 1
+  },
+  {
+   "fieldname": "fg_purchase_rate",
+   "fieldtype": "Currency",
+   "label": "FG Purchase Rate"
+  },
+  {
+   "fieldname": "fg_purchase_amount",
+   "fieldtype": "Currency",
+   "label": "FG Purchase Amount",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-02-14 12:23:47.661116",
+ "modified": "2024-02-20 15:24:27.645246",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "BOM Metal Detail",

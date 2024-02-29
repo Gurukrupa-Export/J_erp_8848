@@ -8,8 +8,8 @@ from frappe.model.document import Document
 class MetalConversions(Document):
 	def on_submit(self):
 		if self.multiple_metal_converter == 0:
-			make_metal_stock_entry(self)
 			self.get_alloy_bailance()
+			make_metal_stock_entry(self)
 		if self.multiple_metal_converter == 1:
 			if self.mc_source_table == []:
 				frappe.throw("Source Item Missing")
@@ -17,7 +17,7 @@ class MetalConversions(Document):
 				frappe.throw("Target Item or Target Qty Missing")
 			if self.alloy_qty <= 0 or self.alloy == None:
 				frappe.throw("Alloy Item or Alloy Qty Missing")
-
+			self.get_alloy_bailance()
 			make_multiple_metal_stock_entry(self)
 
 		if self.multiple_metal_converter == 0:
@@ -25,7 +25,8 @@ class MetalConversions(Document):
 				frappe.throw("Source Qty or Target Qty not allowed Zero to post transaction")
 
 	def validate(self):
-		pass
+		if not self.batch:
+			frappe.throw("Batch Missing")
 
 	@frappe.whitelist()
 	def clear_fields(self):
@@ -214,21 +215,42 @@ class MetalConversions(Document):
 
 	@frappe.whitelist()
 	def get_alloy_bailance(self):
-		if self.source_alloy == "":
-			frappe.throw("Alloy Missing")
-		alloy_qty = frappe.get_value(
-			"Bin", {"warehouse": self.source_warehouse, "item_code": self.source_alloy}, "actual_qty"
-		)
-
-		if alloy_qty:
-			if self.source_alloy_qty > alloy_qty:
-				frappe.throw(
-					f"<b>Alloy {self.source_alloy}</b> Bailance qty is {alloy_qty} Respective <b>{self.source_warehouse}</b> Warehouse."
+		if self.multiple_metal_converter == 0:
+			_alloy_qty = self.source_alloy_qty or self.target_alloy_qty
+			if _alloy_qty:
+				_alloy = self.source_alloy or self.target_alloy
+				if not _alloy:
+					frappe.throw("Alloy Missing")
+				alloy_qty_bail = frappe.get_value(
+					"Bin", {"warehouse": self.source_warehouse, "item_code": _alloy}, "actual_qty"
 				)
+
+				if alloy_qty_bail:
+					if _alloy_qty > alloy_qty_bail:
+						frappe.throw(
+							f"Alloy <b>{_alloy}</b> Bailance qty is {alloy_qty_bail}</br>We need {_alloy_qty} Respective <b>{self.source_warehouse}</b> Warehouse."
+						)
+				else:
+					frappe.throw(
+						f"Alloy <b>{_alloy}</b> Stock Not Available Respective <b>{self.source_warehouse}</b> Warehouse."
+					)
 		else:
-			frappe.throw(
-				f"<b>Alloy {self.source_alloy}</b> Bailance Not Available Respective <b>{self.source_warehouse}</b> Warehouse."
-			)
+			if self.alloy_qty:
+				if not self.alloy:
+					frappe.throw("Alloy Missing")
+				actual_qty = frappe.get_value(
+					"Bin", {"warehouse": self.source_warehouse, "item_code": self.alloy}, "actual_qty"
+				)
+
+				if actual_qty:
+					if self.alloy_qty > actual_qty:
+						frappe.throw(
+							f"Alloy <b>{self.alloy}</b> Bailance qty is {actual_qty}</br>We need {self.alloy_qty} Respective <b>{self.source_warehouse}</b> Warehouse."
+						)
+				else:
+					frappe.throw(
+						f"Alloy <b>{self.alloy}</b> Stock Not Available Respective <b>{self.source_warehouse}</b> Warehouse."
+					)
 
 	@frappe.whitelist()
 	def get_mc_table_purity(self, item_code, qty):
@@ -283,7 +305,18 @@ def make_metal_stock_entry(self):
 			"s_warehouse": source_wh,
 		}
 	)
-	if self.source_alloy:
+	target_item.append(
+		{
+			"item_code": self.target_item,
+			"qty": self.target_qty,
+			"inventory_type": inventory_type,
+			"department": self.department,
+			"employee": self.employee,
+			"manufacturer": self.manufacturer,
+			"t_warehouse": target_wh,
+		}
+	)
+	if self.source_alloy and self.source_alloy_qty > 0:
 		source_item.append(
 			{
 				"item_code": self.source_alloy,
@@ -296,18 +329,7 @@ def make_metal_stock_entry(self):
 				"s_warehouse": source_wh,
 			}
 		)
-	target_item.append(
-		{
-			"item_code": self.target_item,
-			"qty": self.target_qty,
-			"inventory_type": inventory_type,
-			"department": self.department,
-			"employee": self.employee,
-			"manufacturer": self.manufacturer,
-			"t_warehouse": target_wh,
-		}
-	)
-	if self.target_alloy:
+	if self.target_alloy and self.target_alloy_qty > 0:
 		target_item.append(
 			{
 				"item_code": self.target_alloy,
@@ -398,20 +420,6 @@ def make_multiple_metal_stock_entry(self):
 	if len(inventory_types_source) > 1:
 		frappe.throw("Inventory types in <b>Source Table</b> are not consistent. Please check.")
 
-	if self.alloy_check == 0:
-		source_item.append(
-			{
-				"item_code": self.alloy,
-				"qty": self.alloy_qty,
-				"inventory_type": se.inventory_type,
-				"batch_no": None,
-				"department": self.department,
-				"employee": self.employee,
-				"manufacturer": self.manufacturer,
-				"s_warehouse": source_wh,
-			}
-		)
-
 	target_item.append(
 		{
 			"item_code": self.m_target_item,
@@ -423,18 +431,32 @@ def make_multiple_metal_stock_entry(self):
 			"t_warehouse": source_wh,
 		}
 	)
-	if self.alloy_check == 1:
-		target_item.append(
-			{
-				"item_code": self.alloy,
-				"qty": self.alloy_qty,
-				"inventory_type": se.inventory_type,
-				"department": self.department,
-				"employee": self.employee,
-				"manufacturer": self.manufacturer,
-				"t_warehouse": source_wh,
-			}
-		)
+	if self.alloy and self.alloy_qty > 0:
+		if self.alloy_check == 0:
+			source_item.append(
+				{
+					"item_code": self.alloy,
+					"qty": self.alloy_qty,
+					"inventory_type": se.inventory_type,
+					"batch_no": None,
+					"department": self.department,
+					"employee": self.employee,
+					"manufacturer": self.manufacturer,
+					"s_warehouse": source_wh,
+				}
+			)
+		if self.alloy_check == 1:
+			target_item.append(
+				{
+					"item_code": self.alloy,
+					"qty": self.alloy_qty,
+					"inventory_type": se.inventory_type,
+					"department": self.department,
+					"employee": self.employee,
+					"manufacturer": self.manufacturer,
+					"t_warehouse": source_wh,
+				}
+			)
 	for row in source_item:
 		se.append(
 			"items",
@@ -464,7 +486,7 @@ def make_multiple_metal_stock_entry(self):
 		)
 
 	se.save()
-	# se.submit()
+	se.submit()
 	self.stock_entry = se.name
 
 

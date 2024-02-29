@@ -15,6 +15,7 @@
   "delivery_date",
   "estimated_delivery_date",
   "manufacturing_end_date",
+  "customer",
   "column_break_p3gkl",
   "pending_qty",
   "manufacturing_order_qty",
@@ -22,6 +23,7 @@
   "qty_per_manufacturing_order",
   "subcontracting",
   "supplier",
+  "purchase_type",
   "produced_qty",
   "order_form_date",
   "diamond_quality",
@@ -229,12 +231,26 @@
    "label": "Manufacturing BOM",
    "options": "BOM",
    "read_only": 1
+  },
+  {
+   "fieldname": "purchase_type",
+   "fieldtype": "Link",
+   "label": "Purchase Type",
+   "mandatory_depends_on": "eval: doc.subcontracting == 1",
+   "options": "Purchase Type"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-02-07 15:29:25.724484",
+ "modified": "2024-02-22 19:07:07.562750",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Plan Table",

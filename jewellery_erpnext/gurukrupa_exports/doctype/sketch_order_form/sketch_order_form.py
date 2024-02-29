@@ -14,6 +14,7 @@ class SketchOrderForm(Document):
 
 	def on_cancel(self):
 		delete_auto_created_sketch_order(self)
+		frappe.db.set_value("Sketch Order Form", self.name, "workflow_state", "Cancelled")
 
 	def validate(self):
 		self.validate_category_subcaegory()
@@ -127,3 +128,12 @@ def make_sketch_order(doctype, source_name, parent_doc=None, target_doc=None):
 
 	doc.save()
 	return doc.name
+
+
+@frappe.whitelist()
+def get_customer_orderType(customer_code):
+	order_type = frappe.db.sql(
+		f""" select order_type from `tabOrder Type` where parent= '{customer_code}' """, as_dict=1
+	)
+
+	return order_type

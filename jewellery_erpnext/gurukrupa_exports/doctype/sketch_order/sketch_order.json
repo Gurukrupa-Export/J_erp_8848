@@ -60,6 +60,8 @@
   "budget",
   "section_break_82",
   "gemstone_type1",
+  "column_break_7dbz",
+  "gemstone_size",
   "section_break_q9yyc",
   "design_image",
   "image",
@@ -214,8 +216,7 @@
   },
   {
    "fieldname": "section_break_8",
-   "fieldtype": "Section Break",
-   "hidden": 1
+   "fieldtype": "Section Break"
   },
   {
    "fieldname": "season",
@@ -757,12 +758,24 @@
    "fieldtype": "Table MultiSelect",
    "label": "Collection",
    "options": "Design Attribute - Multiselect"
-  }
+  },
+  {
+    "fetch_from": "sketch_order_form_detail.gemstone_size",
+    "fieldname": "gemstone_size",
+    "fieldtype": "Link",
+    "label": "Gemstone Size",
+    "options": "Attribute Value",
+    "read_only": 1
+   },
+   {
+    "fieldname": "column_break_7dbz",
+    "fieldtype": "Column Break"
+   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2024-02-13 18:25:22.794668",
+ "modified": "2024-02-20 12:19:42.002556",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Sketch Order",

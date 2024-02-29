@@ -2,7 +2,10 @@
 # For license information, please see license.txt
 
 import frappe
+from frappe.desk.reportview import get_filters_cond, get_match_cond
 from frappe.model.document import Document
+from frappe.query_builder.functions import CombineDatetime, CurDate, Sum
+from frappe.utils import nowdate, unique
 
 
 class DiamondConversion(Document):
@@ -121,11 +124,6 @@ def make_diamond_stock_entry(self):
 	se.save()
 	se.submit()
 	self.stock_entry = se.name
-
-
-from frappe.desk.reportview import get_filters_cond, get_match_cond
-from frappe.query_builder.functions import CombineDatetime, CurDate, Sum
-from frappe.utils import nowdate, unique
 
 
 @frappe.whitelist()

@@ -39,6 +39,18 @@ def set_bom_rate(self):
 		{"bom_rate": self.total_bom_amount},
 	)
 
+	self.making_fg_purchase = 0
+	for row in self.metal_detail + self.finding_detail:
+		self.making_fg_purchase += row.fg_purchase_amount if row.fg_purchase_amount else 0
+
+	self.diamond_fg_purchase = 0
+	for row in self.diamond_detail:
+		self.diamond_fg_purchase += row.fg_purchase_amount
+
+	self.gemstone_fg_purchase = 0
+	for row in self.gemstone_detail:
+		self.gemstone_fg_purchase += row.fg_purchase_amount
+
 	# commit the changes
 	# frappe.db.commit()
 
@@ -163,7 +175,7 @@ def _calculate_diamond_amount(self, diamond, cust_diamond_price_list_type, range
 	diamond_price_list = frappe.get_list(
 		"Diamond Price List",
 		filters=filters,
-		fields=["rate", "handling_rate"],
+		fields=["rate", "handling_rate", "supplier_fg_purchase_rate"],
 		order_by="effective_from desc",
 		limit=1,
 	)
@@ -188,6 +200,11 @@ def _calculate_diamond_amount(self, diamond, cust_diamond_price_list_type, range
 		] = rate  # just in case if need to calculate amount after round off quantity(weight)
 	diamond.total_diamond_rate = rate
 	diamond.diamond_rate_for_specified_quantity = int(rate) * diamond.quantity  # amount
+
+	# FG Rate
+	diamond.fg_purchase_rate = diamond_price_list[0].get("supplier_fg_purchase_rate")
+	diamond.fg_purchase_amount = diamond.fg_purchase_rate * diamond.quantity
+
 	return int(rate) * diamond.quantity
 
 
@@ -225,7 +242,7 @@ def get_gemstone_rate(self):
 		gemstone_price_list = frappe.get_list(
 			"Gemstone Price List",
 			filters=filters,
-			fields=["rate", "handling_rate"],
+			fields=["rate", "handling_rate", "supplier_fg_purchase_rate"],
 			order_by="effective_from desc",
 			limit=1,
 		)
@@ -245,6 +262,9 @@ def get_gemstone_rate(self):
 		stone.total_gemstone_rate = rate
 		stone.gemstone_rate_for_specified_quantity = int(rate) * stone.quantity
 		gemstone_amount += int(rate) * stone.quantity
+
+		stone.fg_purchase_rate = gemstone_price_list[0].get("supplier_fg_purchase_rate")
+		stone.fg_purchase_amount = stone.quantity * stone.fg_purchase_rate
 	return gemstone_amount
 
 
@@ -285,7 +305,7 @@ def get_metal_and_finding_making_rate(self, sub_category, setting_type):
 		making_charge_details = frappe.db.sql(
 			f"""
 			SELECT
-				mcp.metal_purity, subcat.rate_per_gm, subcat.rate_per_pc, subcat.rate_per_gm_threshold,subcat.wastage
+				mcp.metal_purity, subcat.rate_per_gm, subcat.rate_per_pc, subcat.rate_per_gm_threshold,subcat.wastage, subcat.supplier_fg_purchase_rate
 			FROM `tabMaking Charge Price` mcp
 				LEFT JOIN `{child_table}` subcat
 			ON subcat.parent = mcp.name
@@ -304,7 +324,7 @@ def get_metal_and_finding_making_rate(self, sub_category, setting_type):
 			making_charge_details = frappe.db.sql(
 				f"""
 				SELECT
-					mcp.metal_purity, subcat.rate_per_gm, subcat.rate_per_pc, subcat.rate_per_gm_threshold,subcat.wastage, subcat.subcategory
+					mcp.metal_purity, subcat.rate_per_gm, subcat.rate_per_pc, subcat.rate_per_gm_threshold,subcat.wastage, subcat.subcategory, subcat.supplier_fg_purchase_rate
 				FROM `tabMaking Charge Price` mcp
 					LEFT JOIN `tabMaking Charge Price Item Subcategory` subcat
 				ON subcat.parent = mcp.name
@@ -363,6 +383,11 @@ def _set_total_making_charges(self, metal, making_charge_details):
 
 			# Add the wastage percentage to the making charges
 			metal.wastage_amount = metal.wastage_rate * metal.amount / 100
+
+			# set FG Purcahse rate and amount
+
+			metal.fg_purchase_rate = flt(making_charges.get("supplier_fg_purchase_rate"))
+			metal.fg_purchase_amount = metal.fg_purchase_rate * (metal.quantity + additional_net_weight)
 
 
 def get_doctype_name(self):

@@ -124,10 +124,14 @@ def _set_bom_items_by_child_tables(self):
 	bom_items.update({row.item_variant: row.quantity for row in self.finding_detail if row.quantity})
 
 	if bom_items:
+		defualt_item = frappe.db.get_value("Jewellery Settings", "Jewellery Settings", "defualt_item")
 		items = frappe.get_all("Jewellery System Item", {"parent": "Jewellery Settings"}, "item_code")
 		item_list = [row.get("item_code") for row in items]
 		to_remove = [
-			d for d in self.items if frappe.db.get_value("Item", d.item_code, "variant_of") in item_list
+			d
+			for d in self.items
+			if (self.bom_type not in ["Template", "Quotation"] and d.item_code == defualt_item)
+			or frappe.db.get_value("Item", d.item_code, "variant_of") in item_list
 		]
 		for d in to_remove:
 			self.remove(d)
@@ -442,6 +446,8 @@ def update_totals(parent_doctype, parent_doctype_name):
 	)
 	gold_gst_rate = frappe.db.get_value("Jewellery Settings", "Jewellery Settings", "gold_gst_rate")
 
+	self.db_set("gold_bom_amount", 0)
+	self.db_set("making_fg_purchase", 0)
 	for row in self.metal_detail + self.finding_detail:
 		metal_purity = frappe.db.get_value(
 			"Metal Criteria", {"parent": self.customer, "metal_touch": row.metal_touch}, "metal_purity"
@@ -451,9 +457,13 @@ def update_totals(parent_doctype, parent_doctype_name):
 			metal_purity = company_metal_purity
 
 		row.db_set("amount", (flt(row.quantity) * row.rate))
-
+		row.db_set("fg_purchase_amount", (flt(row.quantity) * row.fg_purchase_rate))
 		row.db_set("making_amount", (row.making_rate * row.quantity))
 		row.db_set("wastage_amount", (row.wastage_rate * row.amount / 100))
+
+		self.db_set("gold_bom_amount", (self.gold_bom_amount + row.amount))
+		self.db_set("making_fg_purchase", (self.making_fg_purchase + row.fg_purchase_amount))
+
 		if company_metal_purity != metal_purity:
 			company_rate = (
 				flt(self.gold_rate_with_gst) * flt(company_metal_purity) / (100 + int(gold_gst_rate))
@@ -463,8 +473,16 @@ def update_totals(parent_doctype, parent_doctype_name):
 		else:
 			row.db_set("difference", 0)
 
+	self.db_set("diamond_bom_amount", 0)
 	for row in self.diamond_detail:
 		row.db_set("diamond_rate_for_specified_quantity", (row.total_diamond_rate * row.quantity))
+		self.db_set(
+			"diamond_bom_amount", (self.diamond_bom_amount + row.diamond_rate_for_specified_quantity)
+		)
 
+	self.db_set("gemstone_bom_amount", 0)
 	for row in self.gemstone_detail:
 		row.db_set("gemstone_rate_for_specified_quantity", (row.total_gemstone_rate * row.quantity))
+		self.db_set(
+			"gemstone_bom_amount", (self.gemstone_bom_amount + row.gemstone_rate_for_specified_quantity)
+		)

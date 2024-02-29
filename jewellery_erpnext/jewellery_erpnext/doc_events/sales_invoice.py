@@ -19,6 +19,7 @@ def before_validate(self, method):
 	# if duplicate_row:
 	#     self.append("invoice_item", duplicate_row)
 
+	update_income_account(self)
 	update_si_data(self)
 	update_payment_terms(self)
 
@@ -181,3 +182,12 @@ def update_payment_terms(self):
 		self.payment_schedule = []
 		self.due_date = max(due_date_list)
 		self.extend("payment_schedule", item_to_append)
+
+
+def update_income_account(self):
+	income_account = frappe.db.get_value(
+		"Account", {"company": self.company, "custom_sales_type": self.sales_type}, "name"
+	)
+	if income_account:
+		for row in self.items:
+			row.income_account = income_account

@@ -12,7 +12,8 @@
   "rate_per_diamond",
   "column_break_4",
   "wastage",
-  "rate_per_gm_threshold"
+  "rate_per_gm_threshold",
+  "supplier_fg_purchase_rate"
  ],
  "fields": [
   {
@@ -58,12 +59,17 @@
    "in_list_view": 1,
    "in_preview": 1,
    "label": "Rate per gm Threshold"
+  },
+  {
+   "fieldname": "supplier_fg_purchase_rate",
+   "fieldtype": "Currency",
+   "label": "Supplier FG Purchase Rate"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2023-04-24 12:30:08.482408",
+ "modified": "2024-02-19 18:21:27.794671",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Making Charge Price Finding Subcategory",

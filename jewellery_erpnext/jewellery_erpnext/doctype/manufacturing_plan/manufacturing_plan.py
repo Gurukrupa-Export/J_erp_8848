@@ -81,7 +81,7 @@ class ManufacturingPlan(Document):
 		sales_orders = [row.sales_order for row in self.sales_order]
 		items = frappe.db.sql(
 			f"""
-						select 	soi.name as docname, soi.parent as sales_order, soi.item_code as item_code, soi.bom as bom, itm.mould as mould_no,
+						select 	soi.name as docname, soi.parent as sales_order, soi.item_code as item_code, soi.bom as bom, itm.mould as mould_no, soi.diamond_quality,
 								soi.custom_customer_sample as customer_sample,
 								soi.custom_customer_voucher_no as customer_voucher_no,
 								soi.custom_customer_gold as customer_gold,
@@ -104,6 +104,7 @@ class ManufacturingPlan(Document):
 					item_row["manufacturing_order_qty"] = item_row.get("pending_qty")
 					item_row["qty_per_manufacturing_order"] = 1
 					item_row["bom"] = so_bom or item_master_bom
+					item_row["customer"] = frappe.db.get_value("Sales Order", item_row["sales_order"], "customer")
 					self.append("manufacturing_plan_table", item_row)
 				else:
 					frappe.throw(
@@ -189,7 +190,7 @@ def get_sales_order(source_name, target_doc=None):
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
 def get_pending_ppo_sales_order(doctype, txt, searchfield, start, page_len, filters):
-	conditions = " and soi.qty > soi.manufacturing_order_qty"
+	conditions = " and soi.qty > soi.manufacturing_order_qty and soi.order_form_type <> 'Repair Order' and so.custom_repair_order_form is null"
 	if txt:
 		conditions += " and so.name like '%%" + txt + "%%' "
 	if customer := filters.get("customer"):
@@ -221,3 +222,40 @@ def get_pending_ppo_sales_order(doctype, txt, searchfield, start, page_len, filt
 	)
 
 	return so_data
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def get_repair_pending_ppo_sales_order(doctype, txt, searchfield, start, page_len, filters):
+	conditions = " and soi.qty > soi.manufacturing_order_qty and soi.order_form_type='Repair Order' and so.custom_repair_order_form <> '' "
+	if txt:
+		conditions += " and so.name like '%%" + txt + "%%' "
+	if customer := filters.get("customer"):
+		conditions += f" and so.customer = '{customer}'"
+	if company := filters.get("company"):
+		conditions += f" and so.company = '{company}'"
+	if branch := filters.get("branch"):
+		conditions += f" and so.branch = '{branch}'"
+	if txn_date := filters.get("transaction_date"):
+		conditions += f" and so.transaction_date = '{txn_date}'"
+	so_data = frappe.db.sql(
+		f"""
+		select
+			distinct so.name, so.transaction_date,
+			so.company, so.customer
+		from
+			`tabSales Order` so, `tabSales Order Item` soi
+		where
+			so.name = soi.parent
+			and so.docstatus = 1
+			{conditions}
+		order by so.transaction_date Desc
+		limit %(page_len)s offset %(start)s """,
+		{
+			"page_len": page_len,
+			"start": start,
+		},
+		as_dict=1,
+	)
+
+	return so_data
+
