@@ -69,7 +69,9 @@ class DepartmentIR(Document):
 
 			# in_transit_wh = frappe.db.get_value("Manufacturing Setting", {"company": self.company},"in_transit")
 			in_transit_wh = frappe.db.get_value(
-				"Warehouse", {"department": self.current_department}, "default_in_transit_warehouse"
+				"Warehouse",
+				{"department": self.current_department, "warehouse_type": "Manufacturing"},
+				"default_in_transit_warehouse",
 			)
 			# changes
 			values["gross_wt"] = get_value(
@@ -79,7 +81,7 @@ class DepartmentIR(Document):
 					"s_warehouse": in_transit_wh,
 					"docstatus": 1,
 				},
-				'sum(if(uom="cts",qty*0.2,qty))',
+				'sum(if(uom="Carat",qty*0.2,qty))',
 				0,
 			)
 			res = get_material_wt(self, row.manufacturing_operation)
@@ -165,18 +167,24 @@ def update_stock_entry_dimensions(doc, row, manufacturing_operation, for_employe
 def create_stock_entry_for_issue(doc, row, manufacturing_operation):
 
 	in_transit_wh = frappe.get_value(
-		"Warehouse", {"department": doc.next_department}, "default_in_transit_warehouse"
+		"Warehouse",
+		{"department": doc.next_department, "warehouse_type": "Manufacturing"},
+		"default_in_transit_warehouse",
 	)
 
-	department_wh = frappe.get_value("Warehouse", {"department": doc.current_department})
+	department_wh = frappe.get_value(
+		"Warehouse", {"department": doc.current_department, "warehouse_type": "Manufacturing"}
+	)
 	if not department_wh:
 		frappe.throw(_(f"Please set warhouse for department {doc.current_department}"))
 
 	send_in_transit_wh = frappe.get_value(
-		"Warehouse", {"department": doc.current_department}, "default_in_transit_warehouse"
+		"Warehouse",
+		{"department": doc.current_department, "warehouse_type": "Manufacturing"},
+		"default_in_transit_warehouse",
 	)
 
-	## make filters to fetch the stock entry created against warehouse and operations
+	## make filter to fetch the stock entry created against warehouse and operations
 	fetch_manual_stock_entries = frappe.db.sql(
 		f""" SELECT se.name FROM `tabStock Entry` se LEFT JOIN `tabStock Entry Detail` sed ON se.name = sed.parent
 									 WHERE sed.t_warehouse = '{send_in_transit_wh}'
@@ -188,22 +196,31 @@ def create_stock_entry_for_issue(doc, row, manufacturing_operation):
 		pluck="name",
 	)
 
-	stock_entries = frappe.get_all(
-		"Stock Entry Detail",
-		{
-			"t_warehouse": department_wh,
-			"manufacturing_operation": row.manufacturing_operation,
-			"to_department": doc.current_department,
-			"docstatus": 1,
-		},
-		pluck="parent",
-		group_by="parent",
+	stock_entries = frappe.db.sql(
+		f"""select se.name from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name
+			       where se.auto_created = 1 and se.docstatus=1 and sed.manufacturing_operation = '{row.manufacturing_operation}' and
+				   sed.t_warehouse = '{department_wh}'
+				   and sed.to_department = '{doc.current_department}' group by se.name order by se.posting_date""",
+		as_dict=1,
+		pluck=1,
 	)
 
+	non_automated_entries = []
 	if not stock_entries:
+		non_automated_entries = frappe.db.sql(
+			f"""select se.name from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name
+				where se.auto_created = 0 and se.docstatus=1 and sed.manufacturing_operation = '{row.manufacturing_operation}' and
+				sed.t_warehouse = '{department_wh}'
+				and sed.to_department = '{doc.current_department}' group by se.name order by se.posting_date""",
+			as_dict=1,
+			pluck=1,
+		)
+
 		prev_mfg_operation = get_previous_operation(row.manufacturing_operation)
 		in_transit_wh = frappe.get_value(
-			"Warehouse", {"department": doc.next_department}, "default_in_transit_warehouse"
+			"Warehouse",
+			{"department": doc.next_department, "warehouse_type": "Manufacturing"},
+			"default_in_transit_warehouse",
 		)
 		stock_entries = frappe.get_all(
 			"Stock Entry Detail",
@@ -222,7 +239,7 @@ def create_stock_entry_for_issue(doc, row, manufacturing_operation):
 		end_transit(doc, send_in_transit_wh, department_wh, manufacturing_operation, stock_entry)
 		start_transit(doc, in_transit_wh, department_wh, manufacturing_operation, stock_entry)
 
-	for stock_entry in stock_entries:
+	for stock_entry in stock_entries + non_automated_entries:
 		start_transit(doc, in_transit_wh, department_wh, manufacturing_operation, stock_entry)
 
 
@@ -244,6 +261,8 @@ def start_transit(doc, in_transit_wh, department_wh, manufacturing_operation, st
 		child.to_employee = None
 		child.subcontractor = None
 		child.to_subcontractor = None
+		child.use_serial_batch_fields = True
+		child.serial_and_batch_bundle = None
 
 	se_doc.to_main_slip = None
 	se_doc.main_slip = None
@@ -284,6 +303,8 @@ def end_transit(doc, in_transit_wh, department_wh, manufacturing_operation, stoc
 		child.against_stock_entry = stock_entry
 		child.stock_entry = stock_entry
 		child.ste_detail = existing_doc.items[i].name
+		child.use_serial_batch_fields = True
+		child.serial_and_batch_bundle = None
 
 	se_doc.to_main_slip = None
 	se_doc.outgoing_stock_entry = stock_entry
@@ -336,12 +357,16 @@ def fetch_and_update(doc, row, manufacturing_operation):
 def create_stock_entry(doc, row):
 
 	in_transit_wh = frappe.db.get_value(
-		"Warehouse", {"department": doc.current_department}, "default_in_transit_warehouse"
+		"Warehouse",
+		{"department": doc.current_department, "warehouse_type": "Manufacturing"},
+		"default_in_transit_warehouse",
 	)
 	if not in_transit_wh:
 		frappe.throw(_(f"Please set transit warhouse for Current Department {doc.current_department}"))
 
-	department_wh = frappe.get_value("Warehouse", {"department": doc.current_department})
+	department_wh = frappe.get_value(
+		"Warehouse", {"department": doc.current_department, "warehouse_type": "Manufacturing"}
+	)
 	if not department_wh:
 		frappe.throw(_(f"Please set warhouse for department {doc.current_department}"))
 
@@ -362,6 +387,7 @@ def create_stock_entry(doc, row):
 		existing_doc = frappe.get_doc("Stock Entry", stock_entry)
 		se_doc = frappe.copy_doc(existing_doc)
 		se_doc.stock_entry_type = "Material Transfer to Department"
+		se_doc.branch = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "branch")
 		# for child in se_doc.items:
 		for i, child in enumerate(se_doc.items):
 			child.s_warehouse = in_transit_wh
@@ -373,6 +399,8 @@ def create_stock_entry(doc, row):
 			child.against_stock_entry = stock_entry
 			child.stock_entry = stock_entry
 			child.ste_detail = existing_doc.items[i].name
+			child.use_serial_batch_fields = True
+			child.serial_and_batch_bundle = None
 		se_doc.department = doc.previous_department
 		se_doc.to_department = doc.current_department
 		se_doc.auto_created = True
@@ -386,6 +414,7 @@ def create_operation_for_next_dept(ir_name, mwo, docname, next_department, targe
 	def set_missing_value(source, target):
 		target.previous_operation = source.operation
 		target.prev_gross_wt = source.received_gross_wt or source.gross_wt or source.prev_gross_wt
+		target.previous_mop = source.name
 
 	target_doc = get_mapped_doc(
 		"Manufacturing Operation",
@@ -399,19 +428,32 @@ def create_operation_for_next_dept(ir_name, mwo, docname, next_department, targe
 					"department",
 					"start_time",
 					"for_subcontracting",
-					"subcontractor" "finish_time",
-					"time_taken",
+					"subcontractor",
+					"finish_time",
 					"department_issue_id",
 					"department_receive_id",
 					"department_ir_status",
 					"operation",
 					"previous_operation",
+					"start_time",
+					"finish_time",
+					"time_taken",
+					"started_time",
+					"current_time",
+					"on_hold",
+					"total_minutes",
+					"time_logs",
 				],
 			}
 		},
 		target_doc,
 		set_missing_value,
 	)
+	target_doc.department_source_table = []
+	target_doc.department_target_table = []
+	target_doc.employee_source_table = []
+	target_doc.employee_target_table = []
+	# target_doc.time_logs =[]
 	target_doc.department_issue_id = ir_name
 	target_doc.department_ir_status = "In-Transit"
 	target_doc.department = next_department
@@ -481,9 +523,9 @@ def department_receive_query(doctype, txt, searchfield, start, page_len, filters
 
 def get_material_wt(doc, manufacturing_operation):
 	res = frappe.db.sql(
-		f"""select ifnull(sum(if(sed.uom='cts',sed.qty*0.2, sed.qty)),0) as gross_wt, ifnull(sum(if(i.variant_of = 'M',sed.qty,0)),0) as net_wt,
-        ifnull(sum(if(i.variant_of = 'D',sed.qty,0)),0) as diamond_wt, ifnull(sum(if(i.variant_of = 'D',if(sed.uom='cts',sed.qty*0.2, sed.qty),0)),0) as diamond_wt_in_gram,
-        ifnull(sum(if(i.variant_of = 'G',sed.qty,0)),0) as gemstone_wt, ifnull(sum(if(i.variant_of = 'G',if(sed.uom='cts',sed.qty*0.2, sed.qty),0)),0) as gemstone_wt_in_gram,
+		f"""select ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt, ifnull(sum(if(i.variant_of = 'M',sed.qty,0)),0) as net_wt,
+        ifnull(sum(if(i.variant_of = 'D',sed.qty,0)),0) as diamond_wt, ifnull(sum(if(i.variant_of = 'D',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as diamond_wt_in_gram,
+        ifnull(sum(if(i.variant_of = 'G',sed.qty,0)),0) as gemstone_wt, ifnull(sum(if(i.variant_of = 'G',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as gemstone_wt_in_gram,
         ifnull(sum(if(i.variant_of = 'O',sed.qty,0)),0) as other_wt
         from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name left join `tabItem` i on i.name = sed.item_code
 		    where se.{scrub(doc.doctype)} = "{doc.name}" and sed.manufacturing_operation = "{manufacturing_operation}" and se.docstatus = 1""",

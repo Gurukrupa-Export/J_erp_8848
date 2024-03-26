@@ -39,10 +39,6 @@ frappe.ui.form.on("Gemstone Conversion", {
 		// Calculate Gemstone
 		calculate_Gemstone(frm);
 	},
-	// g_loss_qty(frm) {
-	// 	// Calculate Gemstone
-	// 	calculate_Gemstone(frm);
-	// },
 	source_warehouse(frm) {
 		frm.set_value("target_warehouse", frm.doc.source_warehouse);
 		frm.refresh_field("target_warehouse");
@@ -119,6 +115,7 @@ function get_detail_tab_value(frm) {
 			frm.refresh_field("manufacturer");
 			frm.refresh_field("source_warehouse");
 			frm.refresh_field("target_warehouse");
+			frm.refresh_field("branch");
 		},
 	});
 }
@@ -132,5 +129,4 @@ function clear_gemstone_field(frm) {
 	frm.set_value("g_target_qty", null);
 	frm.set_value("g_loss_item", null);
 	frm.set_value("g_loss_qty", null);
-	// frm.save();
 }

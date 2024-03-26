@@ -54,7 +54,9 @@
   "boric_powder_weight",
   "special_powder_weight",
   "section_break_rr9oa",
+  "column_break_uzau",
   "main_slip_operation",
+  "stock_details",
   "amended_from"
  ],
  "fields": [
@@ -372,6 +374,17 @@
    "hidden": 1,
    "label": "Naming Series",
    "options": "\nMSL.#####\n.dep_abbr.-.type_abbr.-.metal_touch.-.metal_purity.-.#####\n.dep_abbr.-.type_abbr.-.metal_touch.-.metal_purity.-.color_abbr.-.#####"
+  },
+  {
+   "fieldname": "column_break_uzau",
+   "fieldtype": "Column Break",
+   "options": "Main Slip SE Details"
+  },
+  {
+   "fieldname": "stock_details",
+   "fieldtype": "Table",
+   "label": "Stock Details",
+   "options": "Main Slip SE Details"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -386,7 +399,7 @@
    "link_fieldname": "main_slip"
   }
  ],
- "modified": "2024-02-14 13:37:50.118104",
+ "modified": "2024-03-19 16:17:05.114806",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Main Slip",

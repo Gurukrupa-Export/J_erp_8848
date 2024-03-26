@@ -45,8 +45,10 @@
   "section_break_shn6x",
   "employee_ir_operations",
   "section_break_dxdag",
+  "calculate_loss",
   "mop_loss_details_total",
   "employee_loss_details",
+  "manually_book_loss_details",
   "amended_from"
  ],
  "fields": [
@@ -72,7 +74,8 @@
    "fieldname": "employee",
    "fieldtype": "Link",
    "label": "Employee",
-   "options": "Employee"
+   "options": "Employee",
+   "reqd": 1
   },
   {
    "depends_on": "eval:doc.type==\"Issue\"",
@@ -290,6 +293,17 @@
    "fieldtype": "Data",
    "label": "Emp IR ID",
    "read_only": 1
+  },
+  {
+   "fieldname": "manually_book_loss_details",
+   "fieldtype": "Table",
+   "label": "Manually Book Loss Details",
+   "options": "Manually Book Loss Details"
+  },
+  {
+   "fieldname": "calculate_loss",
+   "fieldtype": "Button",
+   "label": "Calculate Loss"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -308,7 +322,7 @@
    "link_fieldname": "employee_ir"
   }
  ],
- "modified": "2024-01-12 22:05:48.208759",
+ "modified": "2024-03-21 14:12:39.775455",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Employee IR",

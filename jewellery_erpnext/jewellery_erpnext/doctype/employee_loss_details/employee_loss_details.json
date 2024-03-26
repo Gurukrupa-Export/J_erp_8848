@@ -9,6 +9,7 @@
   "item_code",
   "manufacturing_work_order",
   "item_name",
+  "batch_no",
   "column_break_3",
   "description",
   "quantity_and_rate",
@@ -17,7 +18,11 @@
   "received_gross_weight",
   "main_slip_consumption",
   "column_break_6",
-  "stock_uom"
+  "stock_uom",
+  "pcs",
+  "sub_setting_type",
+  "customer",
+  "inventory_type"
  ],
  "fields": [
   {
@@ -69,8 +74,7 @@
    "fieldname": "proportionally_loss",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Proportionally Loss",
-   "reqd": 1
+   "label": "Proportionally Loss"
   },
   {
    "fieldname": "received_gross_weight",
@@ -95,12 +99,41 @@
    "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Main Slip Consumption"
+  },
+  {
+   "fieldname": "batch_no",
+   "fieldtype": "Link",
+   "label": "Batch No",
+   "options": "Batch"
+  },
+  {
+   "fieldname": "pcs",
+   "fieldtype": "Data",
+   "label": "pcs"
+  },
+  {
+   "fieldname": "sub_setting_type",
+   "fieldtype": "Link",
+   "label": "sub setting type",
+   "options": "Attribute Value"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "inventory_type",
+   "fieldtype": "Link",
+   "label": "inventory type",
+   "options": "Inventory Type"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-01-11 18:32:06.480398",
+ "modified": "2024-03-21 13:49:45.794186",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Employee Loss Details",

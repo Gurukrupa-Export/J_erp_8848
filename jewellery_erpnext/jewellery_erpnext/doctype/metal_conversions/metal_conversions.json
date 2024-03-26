@@ -12,6 +12,7 @@
   "employee",
   "column_break_nvr33",
   "multiple_metal_converter",
+  "date",
   "column_break_v3jso",
   "company",
   "column_break_g0kkz",
@@ -19,7 +20,7 @@
   "column_break_ae5r8",
   "manufacturer",
   "column_break_2culq",
-  "date",
+  "branch",
   "section_break_6lpva",
   "source_warehouse",
   "column_break_6oxul",
@@ -92,7 +93,6 @@
    "fieldtype": "Link",
    "label": "Manufacturer",
    "options": "Manufacturer",
-   "read_only": 1,
    "reqd": 1
   },
   {
@@ -361,6 +361,13 @@
    "fieldtype": "Float",
    "label": "Alloy Qty",
    "read_only": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "label": "Branch",
+   "options": "Branch",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -371,7 +378,7 @@
    "link_fieldname": "custom_metal_conversions"
   }
  ],
- "modified": "2024-02-09 22:51:39.683647",
+ "modified": "2024-03-21 16:08:33.438410",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Metal Conversions",

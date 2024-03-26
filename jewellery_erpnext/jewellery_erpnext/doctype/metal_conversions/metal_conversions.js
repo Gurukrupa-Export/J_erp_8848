@@ -2,12 +2,6 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Metal Conversions", {
-	validate(frm) {
-		// if (frm.doc.multiple_metal_converter == 0) {
-		// 	calculate_metal(frm);
-		// }
-		// validate_alloy(frm);
-	},
 	refresh(frm) {
 		if (frm.doc.multiple_metal_converter == 0) {
 			if (frm.doc.source_item) {
@@ -190,6 +184,7 @@ function set_child_table_batch_filter(frm, child_table_name) {
 		cdn
 	) {
 		var child = locals[cdt][cdn];
+		console.log(child.item_code);
 		return {
 			query: "jewellery_erpnext.jewellery_erpnext.doctype.metal_conversions.metal_conversions.get_filtered_batches",
 			filters: {
@@ -219,6 +214,7 @@ function get_detail_tab_value(frm) {
 		callback: function (r) {
 			frm.refresh_field("department");
 			frm.refresh_field("manufacturer");
+			frm.refresh_field("branch");
 			frm.refresh_field("source_warehouse");
 			frm.refresh_field("target_warehouse");
 		},

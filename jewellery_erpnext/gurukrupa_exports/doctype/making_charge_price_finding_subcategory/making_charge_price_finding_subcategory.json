@@ -10,6 +10,7 @@
   "rate_per_gm",
   "rate_per_pc",
   "rate_per_diamond",
+  "metal_touch",
   "column_break_4",
   "wastage",
   "rate_per_gm_threshold",
@@ -64,12 +65,18 @@
    "fieldname": "supplier_fg_purchase_rate",
    "fieldtype": "Currency",
    "label": "Supplier FG Purchase Rate"
+  },
+  {
+   "fieldname": "metal_touch",
+   "fieldtype": "Link",
+   "label": "Metal Touch",
+   "options": "Attribute Value"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-02-19 18:21:27.794671",
+ "modified": "2024-02-28 17:04:51.622915",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Making Charge Price Finding Subcategory",

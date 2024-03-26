@@ -305,7 +305,7 @@ class ParentManufacturingOrder(Document):
 		# )
 		total_qty = 0
 		for row in data:
-			if row.uom == "cts":
+			if row.uom == "Carat":
 				total_qty += row.get("qty", 0) * 0.2
 			else:
 				total_qty += row.get("qty", 0)
@@ -666,10 +666,10 @@ def gemstone_details_set_mandatory_field(self):
 				errors.append("Gemstone Details Table <b>Quality</b> is required.")
 			if not row.gemstone_grade:
 				errors.append("Gemstone Details Table <b>Grade</b> is required.")
-			if not row.gemstone_pr:
-				errors.append("Gemstone Details Table <b>Gemstone PR</b> is required.")
-			if not row.per_pc_or_per_carat:
-				errors.append("Gemstone Details Table <b>Per Pc or Per Carat</b> is required.")
+			# if not row.gemstone_pr:
+			# 	errors.append("Gemstone Details Table <b>Gemstone PR</b> is required.")
+			# if not row.per_pc_or_per_carat:
+			# 	errors.append("Gemstone Details Table <b>Per Pc or Per Carat</b> is required.")
 	if errors:
 		frappe.throw("<br>".join(errors))
 

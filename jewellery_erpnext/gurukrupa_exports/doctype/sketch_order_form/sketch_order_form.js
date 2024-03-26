@@ -179,6 +179,9 @@ frappe.ui.form.on("Sketch Order Form Detail", {
 		frappe.model.set_value(row.doctype, row.name, "item_code", "");
 		frappe.model.set_value(row.doctype, row.name, "gemstone_type1", "");
 		frappe.model.set_value(row.doctype, row.name, "gemstone_size", "");
+		frappe.model.set_value(row.doctype, row.name, "subsetting_type", "");
+		frappe.model.set_value(row.doctype, row.name, "sub_setting_type2", "");
+		frappe.model.set_value(row.doctype, row.name, "budget", "");
 	},
 });
 

@@ -181,6 +181,7 @@ def onsubmit(self, method):
 def update_main_slip(doc, is_cancelled=False):
 	if doc.purpose != "Material Transfer":
 		return
+
 	main_slip_map = frappe._dict()
 	for entry in doc.items:
 		if entry.main_slip and entry.to_main_slip:
@@ -210,6 +211,47 @@ def update_main_slip(doc, is_cancelled=False):
 				"Item Variant Attribute",
 				{"parent": entry.item_code, "attribute": "Metal Type", "attribute_value": metal_type},
 			)
+			exsting_se_details = []
+			ms_doc = frappe.get_doc("Main Slip", entry.to_main_slip)
+			m_warehouse = frappe.db.get_value(
+				"Warehouse", {"employee": ms_doc.employee, "warehouse_type": "Manufacturing"}
+			)
+			if entry.s_warehouse == m_warehouse:
+				remaining_qty = entry.qty
+				for row in ms_doc.stock_details:
+					if row.batch_no == entry.batch_no:
+						if row.consume_qty + remaining_qty > row.qty:
+							se_qty = row.qty - row.consume_qty
+						else:
+							se_qty = remaining_qty
+						row.consume_qty += se_qty
+						remaining_qty -= se_qty
+
+				if remaining_qty > 0 or remaining_qty == entry.qty:
+					ms_doc.append(
+						"stock_details",
+						{
+							"batch_no": entry.batch_no,
+							"qty": remaining_qty,
+							"consume_qty": entry.qty,
+							"se_item": entry.name,
+							"auto_created": doc.auto_created,
+						},
+					)
+			else:
+				exsting_se_details = [row.se_item for row in ms_doc.stock_details]
+				if entry.name not in exsting_se_details:
+					ms_doc.append(
+						"stock_details",
+						{
+							"batch_no": entry.batch_no,
+							"qty": entry.qty,
+							"se_item": entry.name,
+							"auto_created": doc.auto_created,
+						},
+					)
+			ms_doc.save()
+
 			if not excluded_metal:
 				continue
 			temp = main_slip_map.get(entry.to_main_slip, frappe._dict())
@@ -427,36 +469,123 @@ def get_bom_scrap_material(self, qty):
 def update_manufacturing_operation(doc, is_cancelled=False):
 	if isinstance(doc, str):
 		doc = frappe.get_doc("Stock Entry", doc)
+
 	if doc.purpose not in ["Material Transfer", "Material Receipt"] or doc.auto_created:
+		update_mop_details(doc)
 		return
-	item_wt_map = frappe._dict()
-	field_map = {
-		"F": "finding_wt",
-		"G": "gemstone_wt",
-		"D": "diamond_wt",
-		"M": "net_wt",
-		"O": "other_wt",
-	}
-	for entry in doc.items:
+	else:
+		item_wt_map = frappe._dict()
+		field_map = {
+			"F": "finding_wt",
+			"G": "gemstone_wt",
+			"D": "diamond_wt",
+			"M": "net_wt",
+			"O": "other_wt",
+		}
+		for entry in doc.items:
+			if not entry.manufacturing_operation:
+				continue
+			variant_of = frappe.db.get_value("Item", entry.item_code, "variant_of")
+			fieldname = field_map.get(variant_of, "other_wt")
+			wt = item_wt_map.setdefault(entry.manufacturing_operation, frappe._dict())
+			employee = frappe.db.get_value(
+				"Manufacturing Operation", entry.manufacturing_operation, "employee"
+			)
+			e_warehouse = None
+			if employee:
+				e_warehouse = frappe.db.get_value(
+					"Warehouse", {"employee": employee, "warehouse_type": "Manufacturing"}
+				)
+			reg_se = True
+			if e_warehouse and entry.s_warehouse == e_warehouse:
+				reg_se = False
+			qty = entry.qty if (not is_cancelled and reg_se) else -entry.qty
+			weight_in_gram = flt(wt.get(fieldname)) + qty * 0.2 if entry.uom == "Carat" else qty
+			weight_in_cts = flt(wt.get(fieldname)) + qty
+			wt[fieldname] = weight_in_cts
+			if variant_of == "D":
+				wt["diamond_wt_in_gram"] = weight_in_gram
+			elif variant_of == "G":
+				wt["gemstone_wt_in_gram"] = weight_in_gram
+			wt["gross_wt"] = weight_in_gram
+			item_wt_map[entry.manufacturing_operation] = wt
+
+		for manufacturing_operation, values in item_wt_map.items():
+			_values = {key: f"{key} + {value}" for key, value in values.items() if key != "finding_wt"}
+			update_existing("Manufacturing Operation", manufacturing_operation, _values)
+		update_mop_details(doc)
+
+
+def update_mop_details(se_doc):
+	se_employee = se_doc.to_employee or se_doc.employee
+
+	for entry in se_doc.items:
 		if not entry.manufacturing_operation:
 			continue
-		variant_of = frappe.db.get_value("Item", entry.item_code, "variant_of")
-		fieldname = field_map.get(variant_of, "other_wt")
-		wt = item_wt_map.setdefault(entry.manufacturing_operation, frappe._dict())
-		qty = entry.qty if not is_cancelled else -entry.qty
-		weight_in_gram = flt(wt.get(fieldname)) + qty * 0.2 if entry.uom == "cts" else qty
-		weight_in_cts = flt(wt.get(fieldname)) + qty
-		wt[fieldname] = weight_in_cts
-		if variant_of == "D":
-			wt["diamond_wt_in_gram"] = weight_in_gram
-		elif variant_of == "G":
-			wt["gemstone_wt_in_gram"] = weight_in_gram
-		wt["gross_wt"] = weight_in_gram
-		item_wt_map[entry.manufacturing_operation] = wt
+		mop_doc = frappe.get_doc("Manufacturing Operation", entry.manufacturing_operation)
 
-	for manufacturing_operation, values in item_wt_map.items():
-		_values = {key: f"{key} + {value}" for key, value in values.items() if key != "finding_wt"}
-		update_existing("Manufacturing Operation", manufacturing_operation, _values)
+		mop_details = {
+			"department_source_table": {},
+			"department_target_table": {},
+			"employee_source_table": {},
+			"employee_target_table": {},
+		}
+
+		d_warehouse, e_warehouse = get_warehouse_details(mop_doc, se_employee)
+
+		if entry.s_warehouse == d_warehouse:
+			mop_details["department_source_table"] = entry.__dict__
+		elif entry.t_warehouse == d_warehouse:
+			mop_details["department_target_table"] = entry.__dict__
+		if entry.s_warehouse == e_warehouse:
+			mop_details["employee_source_table"] = entry.__dict__
+		elif entry.t_warehouse == e_warehouse:
+			mop_details["employee_target_table"] = entry.__dict__
+
+		for row in mop_details:
+			if mop_details.get(row):
+				mop_details[row]["sed_item"] = mop_details[row]["name"]
+				mop_details[row]["idx"] = None
+				mop_details[row]["name"] = None
+				mop_doc.append(row, mop_details[row])
+		print(mop_doc.gross_wt)
+		mop_doc.save()
+		print(mop_doc.gross_wt)
+
+
+def get_previous_se_details(mop_doc, d_warehouse, e_warehouse):
+	additional_rows = []
+	if mop_doc:
+		previous_se = frappe.db.get_all("Stock Entry", {"manufacturing_operation": mop_doc.name})
+		additional_rows += frappe.db.get_all(
+			"Stock Entry Detail", {"parent": ["in", previous_se], "s_warehouse": d_warehouse}
+		)
+		additional_rows += frappe.db.get_all(
+			"Stock Entry Detail", {"parent": ["in", previous_se], "s_warehouse": e_warehouse}
+		)
+		additional_rows += frappe.db.get_all(
+			"Stock Entry Detail", {"parent": ["in", previous_se], "s_warehouse": d_warehouse}
+		)
+		additional_rows += frappe.db.get_all(
+			"Stock Entry Detail", {"parent": ["in", previous_se], "s_warehouse": e_warehouse}
+		)
+
+	return additional_rows
+
+
+def get_warehouse_details(mop_doc, se_employee=None):
+	d_warehouse = None
+	e_warehouse = None
+	if mop_doc.department:
+		d_warehouse = frappe.db.get_value(
+			"Warehouse", {"department": mop_doc.department, "warehouse_type": "Manufacturing"}
+		)
+	mop_employee = mop_doc.employee or se_employee
+	if mop_employee:
+		e_warehouse = frappe.db.get_value(
+			"Warehouse", {"employee": mop_employee, "warehouse_type": "Manufacturing"}
+		)
+	return d_warehouse, e_warehouse
 
 
 @frappe.whitelist()

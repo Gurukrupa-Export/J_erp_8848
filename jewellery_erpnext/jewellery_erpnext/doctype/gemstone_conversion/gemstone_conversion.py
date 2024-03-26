@@ -2,10 +2,8 @@
 # For license information, please see license.txt
 
 import frappe
-from frappe.desk.reportview import get_filters_cond, get_match_cond
+from erpnext.stock.doctype.batch.batch import get_batch_qty
 from frappe.model.document import Document
-from frappe.query_builder.functions import CombineDatetime, CurDate, Sum
-from frappe.utils import nowdate, unique
 
 
 class GemstoneConversion(Document):
@@ -30,22 +28,26 @@ class GemstoneConversion(Document):
 
 	@frappe.whitelist()
 	def get_detail_tab_value(self):
-		dpt = frappe.get_value("Employee", self.employee, "department")
+		errors = []
+		dpt, branch = frappe.get_value("Employee", self.employee, ["department", "branch"])
+		if not dpt:
+			errors.append(f"Department Messing against <b>{self.employee} Employee Master</b>")
+		if not branch:
+			errors.append(f"Branch Messing against <b>{self.employee} Employee Master</b>")
 		mnf = frappe.get_value("Department", dpt, "manufacturer")
-		if dpt:
+		if not mnf:
+			errors.append("Manufacturer Messing against <b>Department Master</b>")
+		s_wh = frappe.get_value("Warehouse", {"department": dpt}, "name")
+		if not mnf:
+			errors.append("Warehouse Missing Warehouse Master Department Not Set")
+		if errors:
+			frappe.throw("<br>".join(errors))
+		if dpt and mnf and s_wh:
 			self.department = dpt
-			s_wh = frappe.get_value("Warehouse", {"department": dpt}, "name")
-			if s_wh:
-				self.source_warehouse = s_wh
-				self.target_warehouse = s_wh
-			else:
-				frappe.throw(f"{self.employee} Warehouse Master Department Not Set")
-		else:
-			frappe.throw(f"{self.employee} Employee Master Department Not Set")
-		if mnf:
+			self.branch = branch
 			self.manufacturer = mnf
-		else:
-			frappe.throw(f"{self.employee} Department Master Manufacturer Not Set")
+			self.source_warehouse = s_wh
+			self.target_warehouse = s_wh
 
 	@frappe.whitelist()
 	def get_batch_detail(self):
@@ -54,25 +56,24 @@ class GemstoneConversion(Document):
 		customer = ""
 		inventory_type = ""
 
-		batch_qty = get_batches(self.g_source_item, self.source_warehouse, self.company)
-		for batch_id, qty in batch_qty:
-			if batch_id == self.batch:
-				bal_qty = qty
-				break
-		batch_detail = frappe.db.get_all(
-			"Batch",
-			filters={"name": self.batch},
-			fields={"name", "batch_qty", "reference_doctype", "reference_name"},
-		)
-		if batch_detail:
-			ref_doctype = batch_detail[0].reference_doctype
-			ref_name = batch_detail[0].reference_name
-			if ref_doctype == "Purchase Receipt":
-				supplier = frappe.get_value(ref_doctype, ref_name, "supplier")
-			if ref_doctype == "Stock Entry":
-				customer, inventory_type = frappe.get_value(
-					ref_doctype, ref_name, ["_customer", "inventory_type"]
-				)
+		error = []
+		if self.batch:
+			bal_qty = get_batch_qty(batch_no=self.batch, warehouse=self.source_warehouse)
+			reference_doctype, reference_name = frappe.get_value(
+				"Batch", self.batch, ["reference_doctype", "reference_name"]
+			)
+			if not bal_qty:
+				error.append("Batch Qty zero")
+			if reference_doctype:
+				if reference_doctype == "Purchase Receipt":
+					supplier = frappe.get_value(reference_doctype, reference_name, "supplier")
+					inventory_type = "Regular Stock"
+				if reference_doctype == "Stock Entry":
+					inventory_type = frappe.get_value(reference_doctype, reference_name, "inventory_type")
+					if inventory_type == "Customer Goods":
+						customer = frappe.get_value(reference_doctype, reference_name, "_customer")
+			if error:
+				frappe.throw(", ".join(error))
 		return bal_qty or None, supplier or None, customer or None, inventory_type or None
 
 
@@ -91,6 +92,7 @@ def make_gemstone_stock_entry(self):
 			"inventory_type": inventory_type,
 			"_customer": self.customer,
 			"auto_created": 1,
+			"branch": self.branch,
 		}
 	)
 	source_item = []
@@ -160,28 +162,3 @@ def make_gemstone_stock_entry(self):
 	se.save()
 	se.submit()
 	self.stock_entry = se.name
-
-
-def get_batches(item_code, warehouse, company, qty=1, throw=False, serial_no=None):
-	batch = frappe.qb.DocType("Batch")
-	sle = frappe.qb.DocType("Stock Ledger Entry")
-	query = (
-		frappe.qb.from_(batch)
-		.join(sle)
-		.on(batch.batch_id == sle.batch_no)
-		.select(
-			batch.batch_id.as_("batch_no"),
-			Sum(sle.actual_qty).as_("qty"),
-		)
-		.where(
-			(sle.item_code == item_code)
-			& (sle.warehouse == warehouse)
-			& (sle.is_cancelled == 0)
-			& ((batch.expiry_date >= CurDate()) | (batch.expiry_date.isnull()))
-		)
-		.groupby(batch.batch_id)
-		.having(Sum(sle.actual_qty) != 0)
-		.orderby(batch.expiry_date, batch.creation)
-	)
-	batch_data = query.run(as_dict=False)
-	return batch_data

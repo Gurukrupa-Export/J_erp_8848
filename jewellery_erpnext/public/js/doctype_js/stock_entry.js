@@ -308,7 +308,8 @@ frappe.ui.form.on("Stock Entry", {
 		}
 		if (
 			in_list(["Material Transfer to Department"], frm.doc.stock_entry_type) &&
-			frm.doc.auto_created === 0
+			frm.doc.auto_created === 0 &&
+			frm.doc.docstatus != 1
 		) {
 			frm.set_value("add_to_transit", "1");
 			frm.set_df_property("add_to_transit", "read_only", 1);

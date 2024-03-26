@@ -51,7 +51,7 @@ function set_batch_filter(frm, child_table_name) {
 	) {
 		var child = locals[cdt][cdn];
 		return {
-			query: "jewellery_erpnext.jewellery_erpnext.doctype.diamond_conversion.diamond_conversion.get_filtered_batches",
+			query: "jewellery_erpnext.jewellery_erpnext.doctype.metal_conversions.metal_conversions.get_filtered_batches",
 			filters: {
 				item_code: child.item_code,
 				warehouse: frm.doc.source_warehouse,
@@ -108,6 +108,7 @@ function get_detail_tab_value(frm) {
 			frm.refresh_field("manufacturer");
 			frm.refresh_field("source_warehouse");
 			frm.refresh_field("target_warehouse");
+			frm.refresh_field("branch");
 		},
 	});
 }

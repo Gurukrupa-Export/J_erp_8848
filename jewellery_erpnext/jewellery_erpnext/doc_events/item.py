@@ -227,6 +227,14 @@ def get_month_code():
 
 
 def validate_attribute_value(self):
+	chain_type = 0
 	for i in self.attributes:
+
+		if i.attribute == "Chain Type" and i.attribute_value == "No":
+			chain_type = 1
+
+		if chain_type == 1 and i.attribute == "Chain Length" and i.attribute_value == 0:
+			continue
+
 		if not i.attribute_value:
 			frappe.throw(f"Value is not availabel for attribute value: <b>{i.attribute}</b>")

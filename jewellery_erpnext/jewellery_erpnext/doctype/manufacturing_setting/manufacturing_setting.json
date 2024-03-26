@@ -24,6 +24,12 @@
   "default_fg_department",
   "default_fg_warehouse",
   "in_transit",
+  "loss_items_section",
+  "gold_dust",
+  "diamond_dust",
+  "column_break_fndh",
+  "gemstone_dust",
+  "metal_dust",
   "manufacturing_warehouses_section",
   "powder_value",
   "water_value",
@@ -263,11 +269,48 @@
    "fieldtype": "Link",
    "label": "Default FG Warehouse",
    "options": "Warehouse"
+  },
+  {
+   "fieldname": "loss_items_section",
+   "fieldtype": "Section Break",
+   "label": "Loss Items"
+  },
+  {
+   "fieldname": "gold_dust",
+   "fieldtype": "Link",
+   "label": "Gold Dust",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "diamond_dust",
+   "fieldtype": "Link",
+   "label": "Diamond Dust",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_fndh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gemstone_dust",
+   "fieldtype": "Link",
+   "label": "Gemstone Dust",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "metal_dust",
+   "fieldtype": "Link",
+   "label": "Metal Dust",
+   "options": "Item",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-01-18 15:27:58.415903",
+ "modified": "2024-03-14 18:19:46.162810",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Setting",

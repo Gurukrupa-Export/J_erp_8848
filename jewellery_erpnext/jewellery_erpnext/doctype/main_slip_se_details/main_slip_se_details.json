@@ -1,0 +1,70 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-03-18 19:21:21.400532",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "batch_no",
+  "qty",
+  "consume_qty",
+  "se_item",
+  "auto_created"
+ ],
+ "fields": [
+  {
+   "fieldname": "batch_no",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Batch No",
+   "options": "Batch"
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "qty"
+  },
+  {
+   "fieldname": "consume_qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Consume qty"
+  },
+  {
+   "fetch_from": "batch_no.item",
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item Code",
+   "options": "Item"
+  },
+  {
+   "fieldname": "se_item",
+   "fieldtype": "Link",
+   "label": "SE Item",
+   "options": "Stock Entry Detail"
+  },
+  {
+   "default": "0",
+   "fieldname": "auto_created",
+   "fieldtype": "Check",
+   "label": "Auto Created",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2024-03-20 17:20:13.771674",
+ "modified_by": "Administrator",
+ "module": "Jewellery Erpnext",
+ "name": "Main Slip SE Details",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -5,6 +5,7 @@ import json
 
 import frappe
 from frappe.model.document import Document
+from frappe.utils import date_diff, get_first_day, get_last_day, nowdate, time_diff
 
 from jewellery_erpnext.jewellery_erpnext.doctype.manufacturing_operation.manufacturing_operation import (
 	create_finished_goods_bom,
@@ -24,7 +25,6 @@ class SerialNumberCreator(Document):
 
 	@frappe.whitelist()
 	def get_serial_summary(self):
-		se = frappe.get_all("Stock Entry", {"custom_serial_number_creator": self.name}, pluck="name")
 		data = frappe.db.sql(
 			f"""select sn.purchase_document_no,sn.serial_no,bom.name
 			from `tabStock Entry` as se
@@ -71,12 +71,108 @@ def to_prepare_data_for_make_mnf_stock_entry(self):
 				)
 	for key, row_data in id_wise_data_split.items():
 		se_name = create_manufacturing_entry(self, row_data)
+
 		pmo = frappe.db.get_value(
 			"Manufacturing Work Order", self.manufacturing_work_order, "manufacturing_order"
 		)
+
 		wo = frappe.get_all("Manufacturing Work Order", {"manufacturing_order": pmo}, pluck="name")
 		set_values_in_bulk("Manufacturing Work Order", wo, {"status": "Completed"})
-		create_finished_goods_bom(self, se_name)
+
+		all_mo = frappe.db.get_all(
+			"Manufacturing Operation",
+			{"manufacturing_order": pmo},
+			["name", "employee", "total_minutes", "creation", "finish_time"],
+			order_by="creation",
+		)
+		mo_data = {}
+		total_time = time_diff(all_mo[-1]["finish_time"], all_mo[0]["creation"]).total_seconds() / 60
+		for row in all_mo:
+			if row.employee:
+				operation_time = row.total_minutes or 0
+				workstation = frappe.db.get_all(
+					"Workstation",
+					{"employee": row.employee},
+					["name", "hour_rate_electricity", "hour_rate_rent", "hour_rate_consumable"],
+				)
+				if workstation:
+					workstation = workstation[0]
+				else:
+					frappe.throw(f"Please define Workstation for {row.employee}")
+				hour_rate_labour = get_hourly_rate(row.employee)
+
+				total_expense = (
+					workstation.hour_rate_electricity
+					+ workstation.hour_rate_rent
+					+ workstation.hour_rate_consumable
+					+ hour_rate_labour
+				)
+				mo_data[row.name] = {
+					"workstation": workstation.name,
+					"total_expense": total_expense,
+					"operation_time": operation_time,
+				}
+
+		create_finished_goods_bom(self, se_name, mo_data, total_time)
+
+
+def get_shift(employee, start_date, end_date):
+	Attendance = frappe.qb.DocType("Attendance")
+
+	shift = (
+		frappe.qb.from_(Attendance)
+		.select(Attendance.shift)
+		.distinct()
+		.where(
+			(Attendance.employee == employee)
+			& (Attendance.attendance_date.between(start_date, end_date))
+			& (Attendance.shift.notnull())
+		)
+	).run(pluck=True)
+
+	if shift:
+		return shift[0]
+
+	return ""
+
+
+def get_hourly_rate(employee):
+	hourly_rate = 0
+	start_date, end_date = get_first_day(nowdate()), get_last_day(nowdate())
+	shift = get_shift(employee, start_date, end_date)
+	shift_hours = frappe.utils.flt(frappe.db.get_value("Shift Type", shift, "shift_hours")) or 10
+
+	base = frappe.db.get_value("Employee", employee, "ctc")
+
+	holidays = get_holidays_for_employee(employee, start_date, end_date)
+	working_days = date_diff(end_date, start_date) + 1
+
+	working_days -= len(holidays)
+
+	total_working_days = working_days
+	target_working_hours = frappe.utils.flt(shift_hours * total_working_days)
+
+	if target_working_hours:
+		hourly_rate = frappe.utils.flt(base / target_working_hours)
+
+	return hourly_rate
+
+
+def get_holidays_for_employee(employee, start_date, end_date):
+	from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
+	from hrms.utils.holiday_list import get_holiday_dates_between
+
+	HOLIDAYS_BETWEEN_DATES = "holidays_between_dates"
+
+	holiday_list = get_holiday_list_for_employee(employee)
+	key = f"{holiday_list}:{start_date}:{end_date}"
+	holiday_dates = frappe.cache().hget(HOLIDAYS_BETWEEN_DATES, key)
+
+	if not holiday_dates:
+		holiday_dates = get_holiday_dates_between(holiday_list, start_date, end_date)
+		frappe.cache().hset(HOLIDAYS_BETWEEN_DATES, key, holiday_dates)
+
+	return holiday_dates
 
 
 def validate_qty(self):
