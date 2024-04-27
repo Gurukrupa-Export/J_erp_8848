@@ -6,12 +6,17 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "item_code",
   "batch_no",
+  "item_code",
   "qty",
   "consume_qty",
+  "stock_entry",
+  "column_break_nwef",
+  "mop_qty",
+  "mop_consume_qty",
   "se_item",
-  "auto_created"
+  "auto_created",
+  "inventory_type"
  ],
  "fields": [
   {
@@ -22,16 +27,18 @@
    "options": "Batch"
   },
   {
+   "default": "0",
    "fieldname": "qty",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "qty"
+   "label": "MSL QTY"
   },
   {
+   "default": "0",
    "fieldname": "consume_qty",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Consume qty"
+   "label": "MSL Consume QTY"
   },
   {
    "fetch_from": "batch_no.item",
@@ -53,12 +60,43 @@
    "fieldtype": "Check",
    "label": "Auto Created",
    "read_only": 1
+  },
+  {
+   "fieldname": "column_break_nwef",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "mop_qty",
+   "fieldtype": "Float",
+   "label": "MOP Qty"
+  },
+  {
+   "default": "0",
+   "fieldname": "mop_consume_qty",
+   "fieldtype": "Float",
+   "label": "MOP Consume Qty"
+  },
+  {
+   "fetch_from": "se_item.inventory_type",
+   "fetch_if_empty": 1,
+   "fieldname": "inventory_type",
+   "fieldtype": "Link",
+   "label": "Inventory Type",
+   "options": "Inventory Type"
+  },
+  {
+   "fieldname": "stock_entry",
+   "fieldtype": "Link",
+   "label": "Stock Entry",
+   "options": "Stock Entry",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-03-20 17:20:13.771674",
+ "modified": "2024-04-15 12:03:32.245162",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Main Slip SE Details",

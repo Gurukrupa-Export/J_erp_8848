@@ -247,6 +247,8 @@ def start_transit(doc, in_transit_wh, department_wh, manufacturing_operation, st
 	existing_doc = frappe.get_doc("Stock Entry", stock_entry)
 	se_doc = frappe.copy_doc(existing_doc)
 	se_doc.stock_entry_type = "Material Transfer to Department"
+	se_doc.from_warehouse = None
+	se_doc.to_warehouse = None
 	for child in se_doc.items:
 		child.t_warehouse = in_transit_wh
 		child.s_warehouse = department_wh
@@ -285,6 +287,9 @@ def end_transit(doc, in_transit_wh, department_wh, manufacturing_operation, stoc
 	existing_doc = frappe.get_doc("Stock Entry", stock_entry)
 	se_doc = frappe.copy_doc(existing_doc)
 	se_doc.stock_entry_type = "Material Transfer to Department"
+	se_doc.from_warehouse = None
+	se_doc.to_warehouse = None
+
 	# for child in se_doc.items:
 	for i, child in enumerate(se_doc.items):
 		child.t_warehouse = department_wh

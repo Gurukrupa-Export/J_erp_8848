@@ -18,6 +18,7 @@ from jewellery_erpnext.utils import update_existing
 
 class ManufacturingPlan(Document):
 	def on_submit(self):
+		is_subcontracting = False
 		for row in self.manufacturing_plan_table:
 			update_existing(
 				"Sales Order Item",
@@ -27,9 +28,13 @@ class ManufacturingPlan(Document):
 			)
 			create_manufacturing_order(self, row)
 			if row.subcontracting:
-				create_subcontracting_order(self, row)
+				is_subcontracting = True
+				# create_subcontracting_order(self, row)
 			if row.manufacturing_bom is None:
 				frappe.throw(f"Row:{row.idx} Manufacturing Bom Missing")
+
+		if is_subcontracting:
+			create_subcontracting_order(self)
 
 	def on_cancel(self):
 		for row in self.manufacturing_plan_table:
@@ -51,16 +56,18 @@ class ManufacturingPlan(Document):
 				row.subcontracting_qty = 0
 				row.supplier = None
 			if (row.manufacturing_order_qty + row.subcontracting_qty) > row.pending_qty:
-				frappe.throw(_(f"Row #{row.idx}: Total Order qty cannot be greater than {row.pending_qty}"))
+				error_message = _("Row #{0}: Total Order qty cannot be greater than {1}").format(
+					row.idx, row.pending_qty
+				)
+				frappe.throw(error_message)
 			total += cint(row.manufacturing_order_qty) + cint(row.subcontracting_qty)
 			if row.qty_per_manufacturing_order == 0:
 				frappe.throw(_("Qty per Manufacturing Order cannot be Zero"))
 			if row.manufacturing_order_qty % row.qty_per_manufacturing_order != 0:
-				frappe.throw(
-					_(
-						f"Row #{row.idx}: `Manufacturing Order Qty` / `Qty per Manufacturing Order` must be a whole number"
-					)
-				)
+				error_message = _(
+					"Row #{0}: `Manufacturing Order Qty` / `Qty per Manufacturing Order` must be a whole number"
+				).format(row.idx)
+				frappe.throw(error_message)
 		self.total_planned_qty = total
 
 	@frappe.whitelist()
@@ -78,6 +85,9 @@ class ManufacturingPlan(Document):
 
 	@frappe.whitelist()
 	def get_items_for_production(self):
+		condition = ""
+		if self.setting_type:
+			condition += f"and soi.setting_type = '{self.setting_type}'"
 		sales_orders = [row.sales_order for row in self.sales_order]
 		items = frappe.db.sql(
 			f"""
@@ -88,9 +98,14 @@ class ManufacturingPlan(Document):
 								soi.custom_customer_diamond as customer_diamond,
 								soi.custom_customer_stone as customer_stone,
 								soi.custom_customer_good as customer_good,
-								(soi.qty - soi.manufacturing_order_qty) as pending_qty
+								(soi.qty - soi.manufacturing_order_qty) as pending_qty,
+								soi.order_form_type as order_form_type,
+								soi.custom_repair_type as repair_type,
+								soi.custom_product_type as product_type,
+								soi.serial_no as serial_no,
+								soi.serial_id_bom as serial_id_bom
 						from `tabSales Order Item` soi left join `tabItem` itm on soi.item_code = itm.name
-						where soi.parent in ('{"', '".join(sales_orders)}') and soi.qty > soi.manufacturing_order_qty""",
+						where soi.parent in ('{"', '".join(sales_orders)}') and soi.qty > soi.manufacturing_order_qty {condition}""",
 			as_dict=1,
 		)
 		self.manufacturing_plan_table = []
@@ -102,9 +117,18 @@ class ManufacturingPlan(Document):
 				check_bom_type = frappe.get_value("BOM", so_bom or item_master_bom, "bom_type")
 				if check_bom_type == "Sales Order":
 					item_row["manufacturing_order_qty"] = item_row.get("pending_qty")
+					if self.is_subcontracting:
+						item_row["subcontracting"] = self.is_subcontracting
+						item_row["subcontracting_qty"] = 1
+						item_row["supplier"] = self.supplier
+						item_row["estimated_delivery_date"] = self.estimated_date
+						item_row["purchase_type"] = self.purchase_type
+						item_row["manufacturing_order_qty"] = 0
+
 					item_row["qty_per_manufacturing_order"] = 1
 					item_row["bom"] = so_bom or item_master_bom
 					item_row["customer"] = frappe.db.get_value("Sales Order", item_row["sales_order"], "customer")
+					item_row["order_form_type"] = item_row.get("order_form_type")
 					self.append("manufacturing_plan_table", item_row)
 				else:
 					frappe.throw(
@@ -165,9 +189,9 @@ def create_manufacturing_order(doc, row):
 	frappe.msgprint("Parent Manufacturing Order Created")
 
 
-def create_subcontracting_order(doc, row):
-	for row in doc.manufacturing_plan_table:
-		make_subcontracting_order(doc, row)
+def create_subcontracting_order(doc):
+	# for row in doc.manufacturing_plan_table:
+	make_subcontracting_order(doc)
 
 
 @frappe.whitelist()
@@ -223,10 +247,11 @@ def get_pending_ppo_sales_order(doctype, txt, searchfield, start, page_len, filt
 
 	return so_data
 
+
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
 def get_repair_pending_ppo_sales_order(doctype, txt, searchfield, start, page_len, filters):
-	conditions = " and soi.qty > soi.manufacturing_order_qty and soi.order_form_type='Repair Order' and so.custom_repair_order_form <> '' "
+	conditions = " and soi.qty > soi.manufacturing_order_qty and soi.order_form_type='Repair Order'  and so.status='Draft'"  # and so.custom_repair_order_form <> ''
 	if txt:
 		conditions += " and so.name like '%%" + txt + "%%' "
 	if customer := filters.get("customer"):
@@ -246,7 +271,7 @@ def get_repair_pending_ppo_sales_order(doctype, txt, searchfield, start, page_le
 			`tabSales Order` so, `tabSales Order Item` soi
 		where
 			so.name = soi.parent
-			and so.docstatus = 1
+			# and so.docstatus = 1
 			{conditions}
 		order by so.transaction_date Desc
 		limit %(page_len)s offset %(start)s """,
@@ -258,4 +283,3 @@ def get_repair_pending_ppo_sales_order(doctype, txt, searchfield, start, page_le
 	)
 
 	return so_data
-

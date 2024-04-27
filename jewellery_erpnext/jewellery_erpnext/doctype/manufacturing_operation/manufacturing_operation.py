@@ -176,14 +176,12 @@ class ManufacturingOperation(Document):
 			d_warehouse = frappe.db.get_value(
 				"Warehouse", {"department": self.department, "warehouse_type": "Manufacturing"}
 			)
-		mop_employee = self.employee
-		if mop_employee:
+		if self.employee:
 			e_warehouse = frappe.db.get_value(
-				"Warehouse", {"employee": mop_employee, "warehouse_type": "Manufacturing"}
+				"Warehouse", {"employee": self.employee, "warehouse_type": "Manufacturing"}
 			)
 
 		if self.previous_mop:
-			se_data = frappe.db.get_all("Stock Entry", {"manufacturing_operation": self.previous_mop})
 
 			existing_data = {
 				"department_source_table": [],
@@ -197,48 +195,42 @@ class ManufacturingOperation(Document):
 					if entry.get("sed_item") and entry.get("sed_item") not in existing_data[row]:
 						existing_data[row].append(entry.get("sed_item"))
 
-			if se_data:
-				se_list = [row.name for row in se_data]
-				department_source_table = frappe.db.get_all(
-					"Stock Entry Detail", {"parent": ["in", se_list], "s_warehouse": d_warehouse}, ["*"]
-				)
-				department_target_table = frappe.db.get_all(
-					"Stock Entry Detail", {"parent": ["in", se_list], "t_warehouse": d_warehouse}, ["*"]
-				)
-				employee_source_table = frappe.db.get_all(
-					"Stock Entry Detail", {"parent": ["in", se_list], "s_warehouse": e_warehouse}, ["*"]
-				)
-				employee_target_table = frappe.db.get_all(
-					"Stock Entry Detail", {"parent": ["in", se_list], "t_warehouse": e_warehouse}, ["*"]
-				)
+			department_source_table = frappe.db.get_all(
+				"Department Source Table", {"parent": self.previous_mop, "s_warehouse": d_warehouse}, ["*"]
+			)
+			department_target_table = frappe.db.get_all(
+				"Department Target Table", {"parent": self.previous_mop, "t_warehouse": d_warehouse}, ["*"]
+			)
+			employee_source_table = frappe.db.get_all(
+				"Employee Source Table", {"parent": self.previous_mop, "s_warehouse": e_warehouse}, ["*"]
+			)
+			employee_target_table = frappe.db.get_all(
+				"Employee Target Table", {"parent": self.previous_mop, "t_warehouse": e_warehouse}, ["*"]
+			)
 
-				for row in department_source_table:
-					row["sed_item"] = row["name"]
-					if row["sed_item"] not in existing_data["department_source_table"]:
-						row["name"] = None
-						row["idx"] = None
-						self.append("department_source_table", row)
+			for row in department_source_table:
+				if row["sed_item"] not in existing_data["department_source_table"]:
+					row["name"] = None
+					row["idx"] = None
+					self.append("department_source_table", row)
 
-				for row in department_target_table:
-					row["sed_item"] = row["name"]
-					if row["sed_item"] not in existing_data["department_target_table"]:
-						row["name"] = None
-						row["idx"] = None
-						self.append("department_target_table", row)
+			for row in department_target_table:
+				if row["sed_item"] not in existing_data["department_target_table"]:
+					row["name"] = None
+					row["idx"] = None
+					self.append("department_target_table", row)
 
-				for row in employee_source_table:
-					row["sed_item"] = row["name"]
-					if row["sed_item"] not in existing_data["employee_source_table"]:
-						row["name"] = None
-						row["idx"] = None
-						self.append("employee_source_table", row)
+			for row in employee_source_table:
+				if row["sed_item"] not in existing_data["employee_source_table"]:
+					row["name"] = None
+					row["idx"] = None
+					self.append("employee_source_table", row)
 
-				for row in employee_target_table:
-					row["sed_item"] = row["name"]
-					if row["sed_item"] not in existing_data["employee_target_table"]:
-						row["name"] = None
-						row["idx"] = None
-						self.append("employee_target_table", row)
+			for row in employee_target_table:
+				if row["sed_item"] not in existing_data["employee_target_table"]:
+					row["name"] = None
+					row["idx"] = None
+					self.append("employee_target_table", row)
 
 	# timer code
 	def validate_time_logs(self):
@@ -429,15 +421,18 @@ class ManufacturingOperation(Document):
 		items = get_stock_entries_against_mfg_operation(self)
 		for row in self.loss_details:
 			if row.item_code not in items.keys():
-				frappe.throw(_(f"Row #{row.idx}: Invalid item for loss"), title="Loss Details")
+				frappe.throw(_("Row #{0}: Invalid item for loss").format(row.idx), title=_("Loss Details"))
 			if row.stock_uom != items[row.item_code].get("uom"):
 				frappe.throw(
-					_(f"Row #{row.idx}: UOM should be {items[row.item_code].get('uom')}"), title="Loss Details"
+					_("Row #{0}: UOM should be {1}").format(row.idx, items[row.item_code].get("uom")),
+					title=_("Loss Details"),
 				)
 			if row.stock_qty > items[row.item_code].get("qty", 0):
 				frappe.throw(
-					_(f"Row #{row.idx}: qty cannot be greater than {items[row.item_code].get('qty',0)}"),
-					title="Loss Details",
+					_("Row #{0}: qty cannot be greater than {1}").format(
+						row.idx, items[row.item_code].get("qty", 0)
+					),
+					title=_("Loss Details"),
 				)
 
 	def set_start_finish_time(self):
@@ -449,10 +444,10 @@ class ManufacturingOperation(Document):
 					if not self.start_time:
 						self.start_time = self.time_logs[0].from_time
 					self.finish_time = self.time_logs[-1].to_time
-					self.time_taken = get_timedelta(time_diff(self.finish_time, self.start_time))
+					# self.time_taken = get_timedelta(time_diff(self.finish_time, self.start_time))
 
 	def attach_cad_cam_file_into_item_master(self):
-		self.ref_name = self.name
+		# self.ref_name = self.name
 		existing_child = self.get_existing_child("Item", self.item_code, "Cam Weight Detail", self.name)
 
 		record_filter_from_mnf_setting = frappe.get_all(
@@ -467,7 +462,7 @@ class ManufacturingOperation(Document):
 				{
 					"cad_numbering_file": self.cad_numbering_file,
 					"support_cam_file": self.support_cam_file,
-					"mop_series": self.ref_name,
+					"mop_series": self.name,
 					"platform_wt": self.platform_wt,
 					"rpt_wt_issue": self.rpt_wt_issue,
 					"rpt_wt_receive": self.rpt_wt_receive,
@@ -487,8 +482,8 @@ class ManufacturingOperation(Document):
 					{
 						"cad_numbering_file": self.cad_numbering_file,
 						"support_cam_file": self.support_cam_file,
-						"mop_reference": self.ref_name,
-						"mop_series": self.ref_name,
+						"mop_reference": self.name,
+						"mop_series": self.name,
 						"platform_wt": self.platform_wt,
 						"rpt_wt_issue": self.rpt_wt_issue,
 						"rpt_wt_receive": self.rpt_wt_receive,
@@ -792,38 +787,39 @@ class ManufacturingOperation(Document):
 		bal_qty = {}
 		# Calculate sum of quantities for department source table
 		for row in self.department_source_table:
-			bal_qty[row.item_code] = bal_qty.get(row.item_code, 0) + row.qty
+			bal_qty[(row.item_code, row.batch_no)] = bal_qty.get((row.item_code, row.batch_no), 0) + row.qty
 		# Calculate sum of quantities for employee source table
 		for row in self.employee_source_table:
-			bal_qty[row.item_code] = bal_qty.get(row.item_code, 0) + row.qty
+			bal_qty[(row.item_code, row.batch_no)] = bal_qty.get((row.item_code, row.batch_no), 0) + row.qty
 		# Subtract sum of quantities for department target table
 		for row in self.department_target_table:
-			bal_qty[row.item_code] = bal_qty.get(row.item_code, 0) - row.qty
+			bal_qty[(row.item_code, row.batch_no)] = bal_qty.get((row.item_code, row.batch_no), 0) - row.qty
 		# Subtract sum of quantities for employee target table
 		for row in self.employee_target_table:
-			bal_qty[row.item_code] = bal_qty.get(row.item_code, 0) - row.qty
+			bal_qty[(row.item_code, row.batch_no)] = bal_qty.get((row.item_code, row.batch_no), 0) - row.qty
 
-		for item_code, qty in bal_qty.items():
-			if qty != 0:
+		for key in bal_qty:
+			if bal_qty[key] != 0:
 				row_data = None
 				# if row_data is None and not self.employee_target_table:
 				if self.department_target_table:
 					for row_dtt in self.department_target_table:
-						if row_dtt.item_code == item_code:
+						if row_dtt.item_code == key[0] and row_dtt.batch_no == key[1]:
 							row_data = row_dtt.__dict__.copy()
 							break
 				if self.employee_target_table:
 					for row_ett in self.employee_target_table:
-						if row_ett.item_code == item_code:
+						if row_ett.item_code == key[0] and row_ett.batch_no == key[1]:
 							row_data = row_ett.__dict__.copy()
 							break
 				if row_data:
-					row_data["qty"] = abs(qty)
+					row_data["qty"] = abs(bal_qty[key])
 					row_data["name"] = None
 					row_data["idx"] = None
 					row_data["parentfield"] = None
 					row_data["s_warehouse"] = row_data["t_warehouse"] or row_data["s_warehouse"]
 					row_data["t_warehouse"] = None
+					row_data["batch_no"] = key[1]
 					final_balance_row.append(row_data)
 
 		# To check Item_code already added or not balance table
@@ -1082,12 +1078,15 @@ def get_material_wt(doc):
 	if doc.for_subcontracting:
 		if doc.subcontractor:
 			filters["subcontractor"] = doc.subcontractor
+			filters["warehouse_type"] = "Manufacturing"
 	else:
 		if doc.employee:
 			filters["employee"] = doc.employee
 			filters["warehouse_type"] = "Manufacturing"
 	if not filters:
 		filters["department"] = doc.department
+		filters["warehouse_type"] = "Manufacturing"
+
 	t_warehouse = frappe.db.get_value("Warehouse", filters, "name")
 	res = frappe.db.sql(
 		f"""select ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt, ifnull(sum(if(i.variant_of = 'M',sed.qty,0)),0) as net_wt,

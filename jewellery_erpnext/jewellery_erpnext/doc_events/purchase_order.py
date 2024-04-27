@@ -41,40 +41,51 @@ def update_rate(self):
 				)
 
 
-def make_subcontracting_order(doc, row):
-	po = frappe.new_doc("Purchase Order")
-	po.supplier = row.supplier
-	po.company = doc.company
-	po.schedule_date = po.transaction_date
-	po.purchase_type = row.purchase_type
-	po.ref_customer = row.get("customer", None)
+def make_subcontracting_order(doc):
+	supplier_dict = {}
+	for row in doc.manufacturing_plan_table:
+		is_new = False
+		if supplier_dict.get(row.supplier):
+			po_doc = frappe.get_doc("Purchase Order", supplier_dict[row.supplier])
+		else:
+			po_doc = frappe.new_doc("Purchase Order")
+			is_new = True
+		if is_new:
+			po_doc.supplier = row.supplier
+			po_doc.company = doc.company
+			po_doc.schedule_date = po_doc.transaction_date
+			po_doc.purchase_type = row.purchase_type
+			po_doc.ref_customer = row.get("customer", None)
 
-	if po.purchase_type == "FG Purchase":
-		po.append(
-			"items",
-			{
-				"item_code": (row.item_code),
-				"qty": row.subcontracting_qty,
-				"manufacturing_bom": row.manufacturing_bom,
-				"diamond_quality": row.diamond_quality,
-			},
-		)
-	else:
-		po.is_subcontracted = 1
-		po.schedule_date = row.estimated_delivery_date
-		po.append(
-			"items",
-			{
-				"item_code": (frappe.db.get_single_value("Jewellery Settings", "service_item")),
-				"qty": 1,
-				"fg_item": row.item_code,
-				"fg_item_qty": row.subcontracting_qty,
-				"schedule_date": row.estimated_delivery_date,
-			},
-		)
-	po.manufacturing_plan = doc.name
-	po.rowname = row.name
-	po.save()
+		if po_doc.purchase_type == "FG Purchase":
+			po_doc.append(
+				"items",
+				{
+					"item_code": (row.item_code),
+					"qty": row.subcontracting_qty,
+					"manufacturing_bom": row.manufacturing_bom,
+					"diamond_quality": row.diamond_quality,
+				},
+			)
+		else:
+			po_doc.is_subcontracted = 1
+			po_doc.schedule_date = row.estimated_delivery_date
+			po_doc.append(
+				"items",
+				{
+					"item_code": (frappe.db.get_single_value("Jewellery Settings", "service_item")),
+					"qty": 1,
+					"fg_item": row.item_code,
+					"fg_item_qty": row.subcontracting_qty,
+					"schedule_date": row.estimated_delivery_date,
+				},
+			)
+
+		if is_new:
+			po_doc.manufacturing_plan = doc.name
+			# po_doc.rowname = row.name
+		po_doc.save()
+		supplier_dict[row.supplier] = po_doc.name
 
 
 def on_cancel(doc, method=None):
@@ -90,6 +101,10 @@ def make_quotation(source_name, target_doc=None):
 
 		quotation = frappe.get_doc(target)
 		company_currency = frappe.get_cached_value("Company", quotation.company, "default_currency")
+		customer = frappe.db.get_value("Company", source.company, "customer_code")
+
+		target.party_name = customer
+
 		if company_currency == quotation.currency:
 			exchange_rate = 1
 		else:
@@ -108,9 +123,6 @@ def make_quotation(source_name, target_doc=None):
 
 		quotation.quotation_to = "Customer"
 		field_map = {
-			# target : source
-			"company": "supplier",
-			"party_name": "company",
 			"transaction_date": "transaction_date",
 			"ref_customer": "ref_customer",
 		}

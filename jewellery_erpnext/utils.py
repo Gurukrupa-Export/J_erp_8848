@@ -8,7 +8,8 @@ from frappe.utils import now
 
 @frappe.whitelist()
 def set_items_from_attribute(item_template, item_template_attribute):
-	item_template_attribute = json.loads(item_template_attribute)
+	if isinstance(item_template_attribute, str):
+		item_template_attribute = json.loads(item_template_attribute)
 	args = {}
 	for row in item_template_attribute:
 		if not row.get("attribute_value"):

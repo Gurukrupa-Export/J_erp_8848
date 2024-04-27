@@ -15,11 +15,20 @@ from erpnext.stock.get_item_details import (
 from frappe.model.document import Document
 from frappe.utils import nowdate
 
+from jewellery_erpnext.jewellery_erpnext.doctype.subcontracting.doc_events.sub_utils import (
+	create_repack_entry,
+)
+
 
 class Subcontracting(Document):
 	def validate(self):
 		self.set_PMO()
-		self.set_source_and_remain_table()
+		# self.set_source_and_remain_table()
+
+	def on_submit(self):
+		if not self.finish_item:
+			self.finish_item = frappe.db.get_value("Manufacturing Setting", self.company, "service_item")
+		create_repack_entry(self)
 
 	def set_PMO(self):
 		if self.work_order:

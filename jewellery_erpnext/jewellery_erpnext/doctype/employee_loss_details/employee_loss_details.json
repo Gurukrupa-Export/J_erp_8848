@@ -12,6 +12,7 @@
   "batch_no",
   "column_break_3",
   "description",
+  "manufacturing_operation",
   "quantity_and_rate",
   "net_weight",
   "proportionally_loss",
@@ -65,20 +66,21 @@
   {
    "fieldname": "net_weight",
    "fieldtype": "Float",
+   "hidden": 1,
    "in_list_view": 1,
    "label": "Net Weight",
-   "read_only": 1,
-   "reqd": 1
+   "read_only": 1
   },
   {
    "fieldname": "proportionally_loss",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Proportionally Loss"
+   "label": "Qty"
   },
   {
    "fieldname": "received_gross_weight",
    "fieldtype": "Float",
+   "hidden": 1,
    "in_list_view": 1,
    "label": "Received Gross Weight"
   },
@@ -128,12 +130,18 @@
    "fieldtype": "Link",
    "label": "inventory type",
    "options": "Inventory Type"
+  },
+  {
+   "fieldname": "manufacturing_operation",
+   "fieldtype": "Link",
+   "label": "Manufacturing Operation",
+   "options": "Manufacturing Operation"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-03-21 13:49:45.794186",
+ "modified": "2024-04-05 18:36:33.648752",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Employee Loss Details",

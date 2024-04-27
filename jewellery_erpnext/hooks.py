@@ -83,9 +83,11 @@ doc_events = {
 	},
 	"Stock Entry": {
 		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.validate",
-		# "before_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.serial_no.before_submit",
+		"before_validate": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.before_validate",
+		"before_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.before_submit",
 		"on_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.onsubmit",
 		"on_cancel": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.on_cancel",
+		"on_update_after_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.on_update_after_submit",
 	},
 	"Job Card": {
 		"onload": "jewellery_erpnext.jewellery_erpnext.doc_events.job_card.onload",
@@ -110,10 +112,13 @@ doc_events = {
 	"Sales Invoice": {
 		"before_validate": "jewellery_erpnext.jewellery_erpnext.doc_events.sales_invoice.before_validate"
 	},
-    "Serial No": {
-		"on_update": "jewellery_erpnext.jewellery_erpnext.doc_events.serial_no.update_table"
+	"Serial No": {
+		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.serial_no.update_table"
 	},
-    
+	"Material Request": {
+		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.material_request.create_stock_entry",
+		# "on_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.material_request.create_stock_entry",
+	},
 }
 
 override_whitelisted_methods = {
@@ -186,6 +191,10 @@ fixtures = [
 		"filters": [["document_type", "in", ["Branch"]], ["disabled", "=", 0]],
 	},
 ]
+
+override_doctype_class = {
+	"Stock Entry": "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.stock_entry.CustomStockEntry"
+}
 
 # from erpnext.stock import get_item_details
 # from jewellery_erpnext.erpnext_override import get_price_list_rate_for

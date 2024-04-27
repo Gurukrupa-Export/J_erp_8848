@@ -40,6 +40,7 @@ frappe.ui.form.on("Employee IR", {
 					docstatus: 0,
 					employee: frm.doc.employee,
 					for_subcontracting: frm.doc.subcontracting == "Yes",
+					workflow_state: "In Use",
 				},
 			};
 		});
@@ -77,6 +78,8 @@ frappe.ui.form.on("Employee IR", {
 		});
 		var parent_fields = [["custom_transfer_type", "Employee IR Reason"]];
 		set_filters_on_parent_table_fields(frm, parent_fields);
+
+		set_filters_on_manually_book_loss(frm);
 	},
 
 	type(frm) {
@@ -222,6 +225,9 @@ function set_filters_on_parent_table_fields(frm, fields) {
 		});
 	});
 }
+function set_filters_on_manually_book_loss(frm) {
+	console.log("his");
+}
 frappe.ui.form.on("Employee IR Operation", {
 	received_gross_wt: function (frm, cdt, cdn) {
 		var child = locals[cdt][cdn];
@@ -231,7 +237,7 @@ frappe.ui.form.on("Employee IR Operation", {
 		}
 		if (child.received_gross_wt && frm.doc.type == "Receive") {
 			var mwo = child.manufacturing_work_order;
-			var gwt = child.gross_wt;
+			var gwt = child.gross_wt || 0;
 			var opt = child.manufacturing_operation;
 			var r_gwt = child.received_gross_wt;
 			book_loss_details(frm, mwo, opt, gwt, r_gwt);
@@ -246,16 +252,28 @@ frappe.ui.form.on("Employee IR Operation", {
 	},
 });
 
+frappe.ui.form.on("Manually Book Loss Details", {
+	item_code(frm, cdt, cdn) {
+		let d = locals[cdt][cdn];
+		if (d.item_code[0] === "D" || d.item_code[0] === "G") {
+			frm.set_df_property("pcs", "reqd", 1);
+			frm.set_df_property("sub_setting_type", "reqd", 1);
+		}
+	},
+});
+
 function book_loss_details(frm, mwo, opt, gwt, r_gwt) {
 	if (gwt == r_gwt) {
 		frm.clear_table("employee_loss_details");
 		frm.refresh_field("employee_loss_details");
 		frm.save();
 	}
-	frappe.call({
-		method: "jewellery_erpnext.jewellery_erpnext.doctype.employee_ir.employee_ir.book_metal_loss",
+	frm.call({
+		method: "book_metal_loss", //jewellery_erpnext.jewellery_erpnext.doctype.employee_ir.employee_ir.
+		doc: frm.doc,
+		freeze: true,
 		args: {
-			doc_name: frm.doc.name,
+			// doc_name: frm.doc.name,
 			mwo: mwo,
 			opt: opt,
 			gwt: gwt,
@@ -266,15 +284,19 @@ function book_loss_details(frm, mwo, opt, gwt, r_gwt) {
 				frm.clear_table("employee_loss_details");
 				var r_data = r.message[0];
 				for (var i = 0; i < r_data.length; i++) {
-					var child = frm.add_child("employee_loss_details");
-					child.item_code = r_data[i].item_code;
-					child.net_weight = r_data[i].qty;
-					child.stock_uom = r_data[i].stock_uom;
-					child.batch_no = r_data[i].batch_no;
-					child.manufacturing_work_order = r_data[i].manufacturing_work_order;
-					// child.proportionally_loss = r_data[i].proportionally_loss;
-					// child.received_gross_weight = r_data[i].received_gross_weight;
-					child.main_slip_consumption = r_data[i].main_slip_consumption;
+					if (r_data[i].proportionally_loss > 0) {
+						var child = frm.add_child("employee_loss_details");
+						child.item_code = r_data[i].item_code;
+						child.net_weight = r_data[i].qty;
+						child.stock_uom = r_data[i].stock_uom;
+						child.batch_no = r_data[i].batch_no;
+						child.manufacturing_work_order = r_data[i].manufacturing_work_order;
+						child.manufacturing_operation = r_data[i].manufacturing_operation;
+						child.proportionally_loss = r_data[i].proportionally_loss;
+						child.received_gross_weight = r_data[i].received_gross_weight;
+						child.main_slip_consumption = r_data[i].main_slip_consumption;
+						child.inventory_type = r_data[i].inventory_type;
+					}
 				}
 				frm.set_value("mop_loss_details_total", r.message[1]);
 				frm.refresh_field("employee_loss_details", "mop_loss_details_total");

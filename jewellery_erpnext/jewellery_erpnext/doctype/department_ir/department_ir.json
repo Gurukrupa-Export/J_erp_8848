@@ -63,6 +63,7 @@
    "fieldname": "next_department",
    "fieldtype": "Link",
    "label": "Next Department",
+   "no_copy": 1,
    "options": "Department"
   },
   {
@@ -87,7 +88,8 @@
    "default": "Now",
    "fieldname": "date_time",
    "fieldtype": "Datetime",
-   "label": "Date / Time"
+   "label": "Date / Time",
+   "no_copy": 1
   },
   {
    "depends_on": "eval:doc.type==\"Receive\"",
@@ -107,6 +109,7 @@
    "fieldname": "previous_department",
    "fieldtype": "Link",
    "label": "Previous Department",
+   "no_copy": 1,
    "options": "Department"
   },
   {
@@ -187,7 +190,7 @@
    "link_fieldname": "department_ir"
   }
  ],
- "modified": "2023-11-10 14:00:20.676621",
+ "modified": "2024-03-27 11:42:13.238655",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Department IR",

@@ -2,6 +2,12 @@ frappe.ui.form.off("Stock Entry", "get_items_from_transit_entry");
 
 frappe.ui.form.on("Stock Entry", {
 	refresh(frm) {
+		if (
+			frm.doc.stock_entry_type == "Material Transfer to Department" &&
+			frm.doc.docstatus == 1
+		) {
+			frm.remove_custom_button("End Transit");
+		}
 		frm.trigger("get_items_from_customer_goods");
 		if (frm.doc.docstatus == 1) {
 			frm.add_custom_button(
@@ -325,6 +331,73 @@ frappe.ui.form.on("Stock Entry", {
 			return;
 		}
 		frm.set_value("inventory_type", "Regular Stock");
+
+		let company = frm.doc.company;
+		let stock_entry_type = frm.doc.stock_entry_type;
+		if (
+			[
+				"Material Transfer (DEPARTMENT)",
+				"Material Transfer (MAIN SLIP)",
+				"Material Transfer (WORK ORDER)",
+				"Material Transfer (Subcontracting Work Order)",
+			].includes(frm.doc.stock_entry_type)
+		) {
+			frm.fields_dict["items"].grid.get_field("s_warehouse").get_query = function (
+				frm,
+				cdt,
+				cdn
+			) {
+				var child = locals[cdt][cdn];
+				return {
+					query: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.se_utils.warehouse_query_filters",
+					filters: {
+						company: company,
+						stock_entry_type: stock_entry_type,
+					},
+				};
+			};
+			frm.fields_dict["items"].grid.get_field("t_warehouse").get_query = function (
+				frm,
+				cdt,
+				cdn
+			) {
+				var child = locals[cdt][cdn];
+				return {
+					query: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.se_utils.warehouse_query_filters",
+					filters: {
+						company: company,
+						stock_entry_type: stock_entry_type,
+					},
+				};
+			};
+		} else {
+			frm.fields_dict["items"].grid.get_field("s_warehouse").get_query = function (
+				frm,
+				cdt,
+				cdn
+			) {
+				var child = locals[cdt][cdn];
+				return {
+					filters: {
+						company: company,
+						is_group: 0,
+					},
+				};
+			};
+			frm.fields_dict["items"].grid.get_field("t_warehouse").get_query = function (
+				frm,
+				cdt,
+				cdn
+			) {
+				var child = locals[cdt][cdn];
+				return {
+					filters: {
+						company: company,
+						is_group: 0,
+					},
+				};
+			};
+		}
 	},
 	inventory_type(frm) {
 		$.each(frm.doc.items || [], function (i, d) {
@@ -389,6 +462,25 @@ frappe.ui.form.on("Stock Entry", {
 		$.each(frm.doc.items || [], function (i, d) {
 			d.to_employee = frm.doc.to_employee;
 		});
+		frappe.db.get_value("Employee", frm.doc.to_employee, "department").then((r) => {
+			console.log(r.message.department);
+			frm.set_value("to_department", r.message.department);
+		});
+		frappe.db.get_value("Main Slip", { employee: frm.doc.to_employee }, "name").then((r) => {
+			console.log(r.message.name);
+			frm.set_value("to_main_slip", r.message.name);
+		});
+	},
+	manufacturing_work_order(frm) {
+		frappe.db
+			.get_value("Manufacturing Work Order", frm.doc.manufacturing_work_order, [
+				"manufacturing_order",
+				"manufacturing_operation",
+			])
+			.then((r) => {
+				frm.set_value("manufacturing_order", r.message.manufacturing_order);
+				frm.set_value("manufacturing_operation", r.message.manufacturing_operation);
+			});
 	},
 	subcontractor(frm) {
 		$.each(frm.doc.items || [], function (i, d) {

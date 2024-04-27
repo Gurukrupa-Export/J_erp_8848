@@ -485,6 +485,7 @@
   {
    "fieldname": "department",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Department",
    "options": "Department"
   },
@@ -622,6 +623,7 @@
   {
    "fieldname": "diamond_department",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Diamond Department",
    "options": "Department",
    "reqd": 1
@@ -629,6 +631,7 @@
   {
    "fieldname": "gemstone_department",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Gemstone Department",
    "options": "Department",
    "reqd": 1
@@ -649,6 +652,7 @@
   {
    "fieldname": "finding_department",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Finding Department",
    "options": "Department"
   },
@@ -659,6 +663,7 @@
   {
    "fieldname": "other_material_department",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Other Material Department",
    "options": "Department"
   },
@@ -669,6 +674,7 @@
   {
    "fieldname": "metal_department",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Metal Department",
    "options": "Department"
   },
@@ -736,7 +742,7 @@
    "link_fieldname": "manufacturing_order"
   }
  ],
- "modified": "2024-01-25 16:36:33.936709",
+ "modified": "2024-03-28 18:06:22.963950",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Parent Manufacturing Order",

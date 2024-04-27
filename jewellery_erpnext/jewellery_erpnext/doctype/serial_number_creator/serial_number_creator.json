@@ -61,9 +61,9 @@
   {
    "fieldname": "source_table",
    "fieldtype": "Table",
-   "hidden": 1,
    "label": "Source Table",
-   "options": "SNC Source Table"
+   "options": "SNC Source Table",
+   "read_only": 1
   },
   {
    "fieldname": "manufacturing_operation",
@@ -165,7 +165,7 @@
    "link_fieldname": "custom_serial_number_creator"
   }
  ],
- "modified": "2024-02-16 16:50:59.806569",
+ "modified": "2024-04-04 18:23:01.315851",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Serial Number Creator",

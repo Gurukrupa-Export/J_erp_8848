@@ -25,15 +25,19 @@ class ParentManufacturingOrder(Document):
 		pass
 
 	def on_submit(self):
-		set_metal_tolerance_table(self)  # To Set Metal Product Tolerance Table
-		set_diamond_tolerance_table(self)  # To Set Diamond Product Tolerance Table
-		set_gemstone_tolerance_table(self)  # To Set Gemstone Product Tolerance Table
+		if not self.order_form_type:
+			set_metal_tolerance_table(self)  # To Set Metal Product Tolerance Table
+			set_diamond_tolerance_table(self)  # To Set Diamond Product Tolerance Table
+			set_gemstone_tolerance_table(self)  # To Set Gemstone Product Tolerance Table
+			for idx in range(0, int(self.qty)):
+				self.create_material_requests()
+
+			self.submit_bom()
 		create_manufacturing_work_order(self)
 		gemstone_details_set_mandatory_field(self)
-		for idx in range(0, int(self.qty)):
-			self.create_material_requests()
 
-		self.submit_bom()
+		# if self.order_form_type == "Repair Order":
+		# 	create_repair_un_pack_stock_entry(self)
 
 	def on_cancel(self):
 		update_existing(
@@ -122,8 +126,11 @@ class ParentManufacturingOrder(Document):
 							{
 								"item_code": row.item_variant,
 								"qty": row.quantity,
+								"from_warehouse": frappe.db.get_value(
+									"Manufacturing Setting", self.company, "metal_source_warehouse"
+								),
 								"warehouse": frappe.db.get_value(
-									"Warehouse", {"department": self.metal_department}, "name"
+									"Manufacturing Setting", self.company, "metal_target_warehouse"
 								)
 								or deafault_warehouse,
 								"is_customer_item": row.is_customer_item,
@@ -136,8 +143,11 @@ class ParentManufacturingOrder(Document):
 							{
 								"item_code": row.item_variant,
 								"qty": row.quantity,
+								"from_warehouse": frappe.db.get_value(
+									"Manufacturing Setting", self.company, "finding_source_warehouse"
+								),
 								"warehouse": frappe.db.get_value(
-									"Warehouse", {"department": self.finding_department}, "name"
+									"Manufacturing Setting", self.company, "finding_target_warehouse"
 								)
 								or deafault_warehouse,
 								"is_customer_item": row.is_customer_item,
@@ -150,8 +160,11 @@ class ParentManufacturingOrder(Document):
 							{
 								"item_code": row.item_variant,
 								"qty": row.quantity,
+								"from_warehouse": frappe.db.get_value(
+									"Manufacturing Setting", self.company, "diamond_source_warehouse"
+								),
 								"warehouse": frappe.db.get_value(
-									"Warehouse", {"department": self.diamond_department}, "name"
+									"Manufacturing Setting", self.company, "diamond_target_warehouse"
 								)
 								or deafault_warehouse,
 								"is_customer_item": row.is_customer_item,
@@ -164,10 +177,14 @@ class ParentManufacturingOrder(Document):
 							{
 								"item_code": row.item_variant,
 								"qty": row.quantity,
+								"from_warehouse": frappe.db.get_value(
+									"Manufacturing Setting", self.company, "gemstone_source_warehouse"
+								),
 								"warehouse": frappe.db.get_value(
-									"Warehouse", {"department": self.gemstone_department}, "name"
+									"Manufacturing Setting", self.company, "gemstone_target_warehouse"
 								)
-								or deafault_warehouse,
+								# or deafault_warehouse
+								,
 								"is_customer_item": row.is_customer_item,
 								"sub_setting_type": row.sub_setting_type,
 								"pcs": row.pcs,
@@ -178,8 +195,11 @@ class ParentManufacturingOrder(Document):
 							{
 								"item_code": row.item_code,
 								"qty": row.quantity,
+								"from_warehouse": frappe.db.get_value(
+									"Manufacturing Setting", self.company, "other_source_warehouse"
+								),
 								"warehouse": frappe.db.get_value(
-									"Warehouse", {"department": self.other_material_department}, "name"
+									"Manufacturing Setting", self.company, "other_target_warehouse"
 								)
 								or deafault_warehouse,
 								"is_customer_item": "0",
@@ -224,6 +244,7 @@ class ParentManufacturingOrder(Document):
 								"item_code": i["item_code"],
 								"qty": i["qty"],
 								"warehouse": i["warehouse"],
+								"from_warehouse": i["from_warehouse"],
 								"custom_is_customer_item": i.get("is_customer_item", 0),
 								"custom_sub_setting_type": i.get("sub_setting_type", None),
 								"pcs": i.get("pcs", None),
@@ -452,7 +473,10 @@ def make_manufacturing_order(source_doc, row):
 	)
 	doc.qty = row.qty_per_manufacturing_order
 	doc.rowname = row.name
-	doc.master_bom = row.manufacturing_bom
+	if source_doc.select_manufacture_order == "Manufacturing":
+		doc.master_bom = row.manufacturing_bom
+	if source_doc.select_manufacture_order == "Repair" and row.order_form_type == "Repair Order":
+		doc.master_bom = row.serial_id_bom
 	doc.save()
 
 	diamond_grade = frappe.db.get_value(
@@ -650,9 +674,9 @@ def get_gemstone_details(self):
 					"stock_uom": gem_row.stock_uom,
 					"item_variant": gem_row.item_variant,
 					"gemstone_rate_for_specified_quantity": gem_row.gemstone_rate_for_specified_quantity,
-					"navratna": gem_row.navratna,
-					"gemstone_pr": gem_row.gemstone_pr,
-					"per_pc_or_per_carat": gem_row.per_pc_or_per_carat,
+					"navratna": gem_row.get("navratna"),
+					"gemstone_pr": gem_row.get("gemstone_pr"),
+					"per_pc_or_per_carat": gem_row.get("per_pc_or_per_carat"),
 				},
 			)
 		self.save()
@@ -923,3 +947,58 @@ def set_gemstone_tolerance_table(self):  # To Set Gemstone Product Tolerance Tab
 					f"Error appending <b>Gemstone Product Tolerance Table</b> Please check <b>Customer Product Tolerance Master</b> Doctype Correctly configured or not:</br></br> {str(e)}"
 				)
 	self.save()
+
+
+def create_repair_un_pack_stock_entry(self):
+	wh = frappe.get_value("Manufacturer", self.manufacturer, "custom_repair_warehouse")
+	bom_item = frappe.get_doc("BOM", self.master_bom)
+	se = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": "Repack-Repair Unpack",
+			"purpose": "Repack",
+			"company": self.company,
+			"inventory_type": "Regular Stock",
+			"auto_created": 1,
+			"branch": self.branch,
+			"manufacturing_order": self.name,
+		}
+	)
+	source_item = []
+	target_item = []
+	source_item.append(
+		{
+			"item_code": self.item_code,
+			"qty": self.qty,
+			"inventory_type": "Regular Stock",
+			"serial_no": self.serial_no,
+			"department": self.department,
+			"manufacturer": self.manufacturer,
+			"use_serial_batch_fields": 1,
+			"s_warehouse": wh,
+		}
+	)
+	for row in bom_item.items:
+		row_data = row.__dict__.copy()
+		row_data["name"] = None
+		row_data["idx"] = None
+		row_data["t_warehouse"] = wh
+		row_data["inventory_type"] = "Regular Stock"
+		row_data["department"] = self.department
+		target_item.append(row_data)
+	for row in source_item:
+		se.append("items", row)
+	for row in target_item:
+		se.append(
+			"items",
+			{
+				"item_code": row["item_code"],
+				"qty": row["qty"],
+				"inventory_type": row["inventory_type"],
+				"t_warehouse": row["t_warehouse"],
+				"use_serial_batch_fields": 1,
+			},
+		)
+	se.save()
+	# se.submit()
+	# self.stock_entry = se.name

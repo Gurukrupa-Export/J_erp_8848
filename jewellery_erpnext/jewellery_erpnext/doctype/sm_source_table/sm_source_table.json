@@ -1,7 +1,7 @@
 {
  "actions": [],
  "autoname": "hash",
- "creation": "2024-03-04 13:42:11.313123",
+ "creation": "2024-03-28 16:46:40.591089",
  "default_view": "List",
  "doctype": "DocType",
  "document_type": "Other",
@@ -41,6 +41,7 @@
   "image_view",
   "quantity_section",
   "qty",
+  "pure_qty",
   "transfer_qty",
   "retain_sample",
   "column_break_20",
@@ -327,6 +328,12 @@
    "reqd": 1
   },
   {
+   "fieldname": "pure_qty",
+   "fieldtype": "Float",
+   "label": "Pure Qty",
+   "read_only": 1
+  },
+  {
    "depends_on": "eval:doc.uom != doc.stock_uom",
    "fieldname": "transfer_qty",
    "fieldtype": "Float",
@@ -511,6 +518,13 @@
    "oldfieldname": "batch_no",
    "oldfieldtype": "Link",
    "options": "Batch"
+  },
+  {
+   "depends_on": "eval:doc.batch_no",
+   "fieldname": "batch_available_qty",
+   "fieldtype": "Float",
+   "label": "Batch Available Qty",
+   "read_only": 1
   },
   {
    "fieldname": "accounting",
@@ -760,6 +774,18 @@
    "options": "Supplier"
   },
   {
+   "fieldname": "parent_manufacturing_order",
+   "fieldtype": "Link",
+   "label": "Parent Manufacturing Order",
+   "options": "Parent Manufacturing Order"
+  },
+  {
+   "fieldname": "manufacturing_work_order",
+   "fieldtype": "Link",
+   "label": "Manufacturing Work Order",
+   "options": "Manufacturing Work Order"
+  },
+  {
    "fieldname": "manufacturing_operation",
    "fieldtype": "Link",
    "label": "Manufacturing Operation",
@@ -805,20 +831,6 @@
    "options": "Customer"
   },
   {
-   "fieldname": "inventory_type",
-   "fieldtype": "Link",
-   "label": "Inventory Type",
-   "options": "Inventory Type",
-   "reqd": 1
-  },
-  {
-   "depends_on": "eval:doc.batch_no",
-   "fieldname": "batch_available_qty",
-   "fieldtype": "Float",
-   "label": "Batch Available Qty",
-   "read_only": 1
-  },
-  {
    "depends_on": "eval:doc.batch_no",
    "fieldname": "supplier",
    "fieldtype": "Link",
@@ -826,22 +838,17 @@
    "options": "Supplier"
   },
   {
-   "fieldname": "manufacturing_work_order",
+   "fieldname": "inventory_type",
    "fieldtype": "Link",
-   "label": "Manufacturing Work Order",
-   "options": "Manufacturing Work Order"
-  },
-  {
-   "fieldname": "parent_manufacturing_order",
-   "fieldtype": "Link",
-   "label": "Parent Manufacturing Order",
-   "options": "Parent Manufacturing Order"
+   "label": "Inventory Type",
+   "options": "Inventory Type",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-03-04 13:49:39.496773",
+ "modified": "2024-03-28 16:46:45.793307",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "SM Source Table",

@@ -2,6 +2,25 @@ import frappe
 from frappe.utils import flt
 
 
+def update_serial_details(self):
+	if self.tag_no:
+		sr_doc = frappe.get_doc("Serial No", self.tag_no)
+
+		if not frappe.db.exists("Serial No Table", {"serial_no": self.tag_no, "bom": self.name}):
+
+			sr_doc.append(
+				"custom_serial_no_table",
+				{
+					"serial_no": self.tag_no,
+					"item_code": self.get("item"),
+					"company": self.get("company"),
+					"bom": self.name,
+					"purchase_document_no": sr_doc.get("purchase_document_no"),
+				},
+			)
+			sr_doc.save()
+
+
 def calculate_gst_rate(self):
 	gold_gst_rate = frappe.db.get_value("Jewellery Settings", "Jewellery Settings", "gold_gst_rate")
 	divide_by = 100 + int(gold_gst_rate)
@@ -45,11 +64,11 @@ def set_bom_rate(self):
 
 	self.diamond_fg_purchase = 0
 	for row in self.diamond_detail:
-		self.diamond_fg_purchase += row.fg_purchase_amount
+		self.diamond_fg_purchase += row.fg_purchase_amount if row.fg_purchase_amount else 0
 
 	self.gemstone_fg_purchase = 0
 	for row in self.gemstone_detail:
-		self.gemstone_fg_purchase += row.fg_purchase_amount
+		self.gemstone_fg_purchase += row.fg_purchase_amount if row.fg_purchase_amount else 0
 
 	# commit the changes
 	# frappe.db.commit()
@@ -315,16 +334,17 @@ def get_metal_and_finding_making_rate(self, sub_category, setting_type):
 					   subcat.subcategory is null or subcat.subcategory = '', subcat.subcategory = '{sub_category if not row.get('finding_type') else row.get('finding_type')}')
 				AND mcp.setting_type = '{setting_type}'
 				AND mcp.metal_type = '{row.metal_type}'
+				{f"AND subcat.metal_touch = '{row.metal_touch}'" if row.parentfield != "metal_detail" else ""}
 				LIMIT 1
 			""",
 			as_dict=True,
 		)
 		# AND mcp.metal_purity = '{row.metal_purity}'
-		if not making_charge_details and not row.parentfield == "metal_detail":
+		if not making_charge_details and row.parentfield != "metal_detail":
 			making_charge_details = frappe.db.sql(
 				f"""
 				SELECT
-					mcp.metal_purity, subcat.rate_per_gm, subcat.rate_per_pc, subcat.rate_per_gm_threshold,subcat.wastage, subcat.subcategory, subcat.supplier_fg_purchase_rate
+					mcp.metal_purity, subcat.rate_per_gm, subcat.rate_per_pc, subcat.rate_per_gm_threshold,subcat.wastage, subcat.subcategory, subcat.supplier_fg_purchase_rate, 1 as non_finding_rate
 				FROM `tabMaking Charge Price` mcp
 					LEFT JOIN `tabMaking Charge Price Item Subcategory` subcat
 				ON subcat.parent = mcp.name
@@ -365,7 +385,7 @@ def _set_total_making_charges(self, metal, making_charge_details):
 					"Customer", self.customer, "compute_making_charges_on"
 				) == "Diamond Inclusive" and flt(metal.metal_purity) == flt(self.metal_purity):
 					if not self.total_diamond_weight_per_gram:
-						self.total_diamond_weight_per_gram = (flt(self.total_diamond_weight) / 5, 3)
+						self.total_diamond_weight_per_gram = flt(flt(self.total_diamond_weight) / 5, 3)
 					metal.additional_net_weight = self.total_diamond_weight_per_gram
 					additional_net_weight = metal.additional_net_weight
 					self.set_additional_rate = True
@@ -374,6 +394,10 @@ def _set_total_making_charges(self, metal, making_charge_details):
 				metal_making_charges = making_charges.get("rate_per_pc")
 			else:
 				metal_making_charges = metal.making_rate * (metal.quantity + additional_net_weight)
+
+			# For E-Invoicing purpose
+			if making_charges.get("non_finding_rate"):
+				metal.non_finding_rate = 1
 
 			# Set the making amount on the metal or finding
 			metal.making_amount = metal_making_charges

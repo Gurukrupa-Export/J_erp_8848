@@ -1,25 +1,25 @@
 // Copyright (c) 2024, Nirali and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Subcontracting", {
-	refresh(frm) {
-		set_sum(frm);
-	},
-	validate(frm) {
-		if (frm.doc.target_table) {
-			set_purity_calculation(frm);
-		}
-	},
-});
-frappe.ui.form.on("SM Target Table", {
-	item_code(frm, cdt, cdn) {
-		var d = locals[cdt][cdn];
-		set_missing_value(frm, d);
-	},
-	// batch_no(frm, cdt, cdn) {
-	// 	get_selected_batch_qty(frm, cdt, cdn);
-	// },
-});
+// frappe.ui.form.on("Subcontracting", {
+// 	refresh(frm) {
+// 		set_sum(frm);
+// 	},
+// 	validate(frm) {
+// 		if (frm.doc.target_table) {
+// 			set_purity_calculation(frm);
+// 		}
+// 	},
+// });
+// frappe.ui.form.on("SM Target Table", {
+// 	item_code(frm, cdt, cdn) {
+// 		var d = locals[cdt][cdn];
+// 		set_missing_value(frm, d);
+// 	},
+// 	// batch_no(frm, cdt, cdn) {
+// 	// 	get_selected_batch_qty(frm, cdt, cdn);
+// 	// },
+// });
 
 function set_sum(frm) {
 	let qty_sum_source = 0;

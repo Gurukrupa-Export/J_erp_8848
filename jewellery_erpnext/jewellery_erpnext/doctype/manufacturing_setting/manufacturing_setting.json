@@ -24,12 +24,29 @@
   "default_fg_department",
   "default_fg_warehouse",
   "in_transit",
+  "material_request_settings_section",
+  "diamond_source_warehouse",
+  "gemstone_source_warehouse",
+  "finding_source_warehouse",
+  "metal_source_warehouse",
+  "other_source_warehouse",
+  "column_break_edrg",
+  "diamond_target_warehouse",
+  "gemstone_target_warehouse",
+  "finding_target_warehouse",
+  "metal_target_warehouse",
+  "other_target_warehouse",
   "loss_items_section",
   "gold_dust",
   "diamond_dust",
+  "metal_variant",
+  "diamond_variant",
   "column_break_fndh",
   "gemstone_dust",
   "metal_dust",
+  "gemstone_variant",
+  "finding_variant",
+  "other_variant",
   "manufacturing_warehouses_section",
   "powder_value",
   "water_value",
@@ -306,11 +323,110 @@
    "label": "Metal Dust",
    "options": "Item",
    "reqd": 1
+  },
+  {
+   "fieldname": "metal_variant",
+   "fieldtype": "Link",
+   "label": "Metal Variant",
+   "options": "Item"
+  },
+  {
+   "fieldname": "diamond_variant",
+   "fieldtype": "Link",
+   "label": "Diamond Variant",
+   "options": "Item"
+  },
+  {
+   "fieldname": "gemstone_variant",
+   "fieldtype": "Link",
+   "label": "Gemstone Variant",
+   "options": "Item"
+  },
+  {
+   "fieldname": "finding_variant",
+   "fieldtype": "Link",
+   "label": "Finding Variant",
+   "options": "Item"
+  },
+  {
+   "fieldname": "other_variant",
+   "fieldtype": "Link",
+   "label": "Other Variant",
+   "options": "Item"
+  },
+  {
+   "fieldname": "material_request_settings_section",
+   "fieldtype": "Section Break",
+   "label": "Material Request Settings"
+  },
+  {
+   "fieldname": "diamond_source_warehouse",
+   "fieldtype": "Link",
+   "label": "Diamond Source Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "column_break_edrg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "diamond_target_warehouse",
+   "fieldtype": "Link",
+   "label": "Diamond Target Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "gemstone_source_warehouse",
+   "fieldtype": "Link",
+   "label": "Gemstone Source Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "finding_source_warehouse",
+   "fieldtype": "Link",
+   "label": "Finding Source Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "metal_source_warehouse",
+   "fieldtype": "Link",
+   "label": "Metal Source Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "gemstone_target_warehouse",
+   "fieldtype": "Link",
+   "label": "Gemstone Target Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "finding_target_warehouse",
+   "fieldtype": "Link",
+   "label": "Finding Target Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "metal_target_warehouse",
+   "fieldtype": "Link",
+   "label": "Metal Target Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "other_source_warehouse",
+   "fieldtype": "Link",
+   "label": "Other Source Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "other_target_warehouse",
+   "fieldtype": "Link",
+   "label": "Other Target Warehouse",
+   "options": "Warehouse"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-03-14 18:19:46.162810",
+ "modified": "2024-04-15 13:10:10.374697",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Setting",

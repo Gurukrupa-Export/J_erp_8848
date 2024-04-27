@@ -70,12 +70,11 @@
    "options": "Issue\nReceive"
   },
   {
-   "depends_on": "eval:doc.subcontracting == \"No\"",
    "fieldname": "employee",
    "fieldtype": "Link",
    "label": "Employee",
-   "options": "Employee",
-   "reqd": 1
+   "mandatory_depends_on": "eval: doc.subcontracting == \"No\";",
+   "options": "Employee"
   },
   {
    "depends_on": "eval:doc.type==\"Issue\"",
@@ -89,7 +88,8 @@
    "default": "Now",
    "fieldname": "date_time",
    "fieldtype": "Datetime",
-   "label": "Date / Time"
+   "label": "Date / Time",
+   "no_copy": 1
   },
   {
    "fieldname": "operation",
@@ -141,6 +141,7 @@
    "fieldname": "employee_ir_operations",
    "fieldtype": "Table",
    "label": "Employee IR Operations",
+   "no_copy": 1,
    "options": "Employee IR Operation"
   },
   {
@@ -182,7 +183,6 @@
    "fieldtype": "Link",
    "label": "Main Slip No",
    "mandatory_depends_on": "eval:doc.is_main_slip_required",
-   "no_copy": 1,
    "options": "Main Slip"
   },
   {
@@ -275,7 +275,9 @@
    "fieldname": "employee_loss_details",
    "fieldtype": "Table",
    "label": "Loss Details",
-   "options": "Employee Loss Details"
+   "no_copy": 1,
+   "options": "Employee Loss Details",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_dxdag",
@@ -286,6 +288,7 @@
    "fieldname": "mop_loss_details_total",
    "fieldtype": "Float",
    "label": "MOP Loss Details Total",
+   "no_copy": 1,
    "read_only": 1
   },
   {
@@ -298,12 +301,14 @@
    "fieldname": "manually_book_loss_details",
    "fieldtype": "Table",
    "label": "Manually Book Loss Details",
+   "no_copy": 1,
    "options": "Manually Book Loss Details"
   },
   {
    "fieldname": "calculate_loss",
    "fieldtype": "Button",
-   "label": "Calculate Loss"
+   "label": "Calculate Loss",
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -314,15 +319,11 @@
    "link_fieldname": "employee_ir"
   },
   {
-   "link_doctype": "QC",
-   "link_fieldname": "employee_ir"
-  },
-  {
    "link_doctype": "Purchase Order",
    "link_fieldname": "employee_ir"
   }
  ],
- "modified": "2024-03-21 14:12:39.775455",
+ "modified": "2024-04-10 14:35:56.275217",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Employee IR",

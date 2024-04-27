@@ -18,13 +18,15 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Manufacturing Operation",
+   "no_copy": 1,
    "options": "Manufacturing Operation"
   },
   {
    "fieldname": "status",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Status"
+   "label": "Status",
+   "no_copy": 1
   },
   {
    "fetch_from": "manufacturing_operation.manufacturing_work_order",
@@ -48,7 +50,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-01-11 13:58:07.254879",
+ "modified": "2024-03-27 11:45:49.582279",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Department IR Operation",

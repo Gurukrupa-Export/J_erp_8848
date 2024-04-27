@@ -41,12 +41,14 @@ def system_item_restriction(self):
 
 def add_item_attributes(self):
 	if self.has_variants and self.subcategory and not self.attributes:
+		# change in this quary
 		item_attributes = frappe.get_all(
 			"Attribute Value Item Attribute Detail",
-			{"parent": self.subcategory},
+			{"parent": self.subcategory, "in_item_variant": 1},
 			"item_attribute",
 			order_by="idx asc",
 		)
+
 		if item_attributes:
 			self.attributes = []
 			for row in item_attributes:
@@ -230,11 +232,20 @@ def validate_attribute_value(self):
 	chain_type = 0
 	for i in self.attributes:
 
-		if i.attribute == "Chain Type" and i.attribute_value == "No":
-			chain_type = 1
+		# if i.attribute == 'Chain Type' and i.attribute_value == 'No':
+		# 	chain_type = 1
 
-		if chain_type == 1 and i.attribute == "Chain Length" and i.attribute_value == 0:
+		# valid_with_zero_value = ['Chain Thickness','Chain Length','Distance Between Kadi To Mugappu','Space between Mugappu','Back Side Size','Number of Ant','Count of Spiral Turns']
+
+		allow_with_zero = frappe.db.get_value(
+			"Attribute Value Item Attribute Detail",
+			{"parent": self.item_subcategory, "item_attribute": i.attribute},
+			"allow_zero_values",
+		)
+
+		# if chain_type == 1 and allow_with_zero == 1:
+		if allow_with_zero == 1:
 			continue
 
 		if not i.attribute_value:
-			frappe.throw(f"Value is not availabel for attribute value: <b>{i.attribute}</b>")
+			frappe.throw(f"Value is not available for attribute value: <b>{i.attribute}</b>")

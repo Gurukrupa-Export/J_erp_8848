@@ -6,6 +6,7 @@ from jewellery_erpnext.jewellery_erpnext.doc_events.bom_utils import (
 	calculate_gst_rate,
 	set_bom_item_details,
 	set_bom_rate,
+	update_serial_details,
 )
 
 
@@ -23,8 +24,14 @@ def validate(self, method):
 	calculate_diamond_qty(self)
 	calculate_total(self)
 	set_bom_rate(self)
-	set_sepecifications(self)
+	# set_sepecifications(self)
 	calculate_rates(self)
+	if frappe.db.exists("BOM", self.name):
+		update_serial_details(self)
+
+
+def after_insert(self, method):
+	update_serial_details(self)
 
 
 def on_update(self, method):
@@ -263,23 +270,17 @@ def set_sepecifications(self):
 		"item_category",
 		"item_subcategory",
 		"product_size",
-		"gold_target",
+		"metal_target",
 		"diamond_target",
 		"metal_colour",
 		"enamal",
 		"rhodium",
 		"gemstone_type",
 		"gemstone_quality",
-		"changeable",
-		"hinges",
 		"back_belt_patti",
 		"black_beed",
 		"black_beed_line",
-		"screw_type",
-		"hook_type",
-		"lock_type",
-		"2_in_1",
-		"kadi_type",
+		"two_in_one",
 		"chain",
 		"chain_type",
 		"chain_length",
@@ -330,22 +331,16 @@ def set_specifications_for_modified_bom(self, fields_list):
 		{"item_category": self.item_category},
 		{"item_subcategory": self.item_subcategory},
 		{"product_size": self.product_size},
-		{"gold_target": self.gold_target},
+		{"metal_target": self.metal_target},
 		{"diamond_target": self.diamond_target},
 		{"metal_colour": self.metal_colour},
 		{"enamal": self.enamal},
 		{"rhodium": self.rhodium},
 		{"gemstone_type": self.gemstone_type},
 		{"gemstone_quality": self.gemstone_quality},
-		{"changeable": self.changeable},
-		{"hinges": self.hinges},
 		{"back_belt_patti": self.back_belt_patti},
 		{"black_beed": self.black_beed},
 		{"black_beed_line": self.black_beed_line},
-		{"screw_type": self.screw_type},
-		{"hook_type": self.hook_type},
-		{"lock_type": self.lock_type},
-		{"kadi_type": self.kadi_type},
 		{"chain": self.chain},
 		{"chain_type": self.chain_type},
 		{"chain_length": self.chain_length},
@@ -359,7 +354,6 @@ def set_specifications_for_modified_bom(self, fields_list):
 		{"chain_size": self.chain_size},
 		{"kadi_to_mugappu": self.kadi_to_mugappu},
 		{"space_between_mugappu": self.space_between_mugappu},
-		{"breadth": self.breadth},
 		{"width": self.width},
 		{"back_belt_length": self.back_belt_length},
 	]

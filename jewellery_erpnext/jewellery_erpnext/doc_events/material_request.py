@@ -194,3 +194,8 @@ def make_in_transit_stock_entry(source_name, in_transit_warehouse, pmo=None, mnf
 	for row in ste_doc.items:
 		row.t_warehouse = in_transit_warehouse
 	return ste_doc
+
+
+@frappe.whitelist()
+def create_stock_entry(doc, method):
+	pass

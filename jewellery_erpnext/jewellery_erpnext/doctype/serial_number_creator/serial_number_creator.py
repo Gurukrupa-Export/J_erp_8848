@@ -4,6 +4,7 @@
 import json
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 from frappe.utils import date_diff, get_first_day, get_last_day, nowdate, time_diff
 
@@ -25,16 +26,21 @@ class SerialNumberCreator(Document):
 
 	@frappe.whitelist()
 	def get_serial_summary(self):
-		data = frappe.db.sql(
-			f"""select sn.purchase_document_no,sn.serial_no,bom.name
-			from `tabStock Entry` as se
-			    join `tabSerial No` as sn
-				join `tabBOM` as bom
-			where se.name=sn.purchase_document_no
-			and se.custom_serial_number_creator = '{self.name}'
-			and bom.custom_serial_number_creator = '{self.name}' """,
-			as_dict=1,
-		)
+		# Define the tables
+		stock_entry = frappe.qb.DocType("Stock Entry")
+		serial_no = frappe.qb.DocType("Serial No")
+		bom = frappe.qb.DocType("BOM")
+
+		# Build the query
+		data = (
+			frappe.qb.from_(stock_entry)
+			.inner_join(serial_no)
+			.on(stock_entry.name == serial_no.purchase_document_no)
+			.inner_join(bom)
+			.on(serial_no.name == bom.tag_no)
+			.select(serial_no.purchase_document_no, serial_no.serial_no, bom.name)
+			.where(stock_entry.custom_serial_number_creator == self.name)
+		).run(as_dict=True)
 
 		return frappe.render_template(
 			"jewellery_erpnext/jewellery_erpnext/doctype/serial_number_creator/serial_summery.html",
@@ -178,7 +184,7 @@ def get_holidays_for_employee(employee, start_date, end_date):
 def validate_qty(self):
 	for row in self.fg_details:
 		if row.qty == 0:
-			frappe.throw("FG Details Table Quantity Zero Not Allowed")
+			frappe.throw(_("FG Details Table Quantity Zero Not Allowed"))
 
 
 @frappe.whitelist()
@@ -206,9 +212,22 @@ def get_operation_details(data, docname, mwo, pmo, company, mnf, dpt, for_fg, de
 					"row_material": data_entry["item_code"],
 					"id": mnf_id,
 					"batch_no": data_entry["batch_no"],
-					"qty": data_entry["qty"],
+					"qty": _qty,  # data_entry["qty"],
 					"uom": data_entry["uom"],
 					"gross_wt": data_entry["gross_wt"],
+				},
+			)
+	if mnf_qty > 1:
+		for data_entry in stock_data:
+			snc_doc.append(
+				"source_table",
+				{
+					"row_material": data_entry["item_code"],
+					"qty": data_entry["qty"],
+					"uom": data_entry["uom"],
+					# "id": mnf_id,
+					# "batch_no": data_entry["batch_no"],
+					# "gross_wt": data_entry["gross_wt"],
 				},
 			)
 	snc_doc.type = "Manufacturing"
@@ -235,21 +254,6 @@ from decimal import ROUND_HALF_UP, Decimal
 def calulate_id_wise_sum_up(self):
 	id_qty_sum = {}  # Dictionary to store the sum of 'qty' for each 'id'
 	item_wise_total = []
-	for row in self.source_table:
-		# if row.uom == "cts":
-		# 	item_wise={
-		# 		"item": row.row_material,
-		# 		"qty":round(row.qty * 0.2,3)
-		# 	}
-		# else:
-		item_wise = {
-			"item": row.row_material,
-			"qty": float(
-				Decimal(str(row.qty)).quantize(Decimal("0.000"), rounding=ROUND_HALF_UP)
-			),  # round(row.qty,3)
-		}
-		item_wise_total.append(item_wise)
-
 	for row in self.fg_details:
 		if row.id and row.row_material:
 			key = row.row_material
@@ -264,10 +268,10 @@ def calulate_id_wise_sum_up(self):
 				Decimal(str(row.qty)).quantize(Decimal("0.000"), rounding=ROUND_HALF_UP)
 			)
 	id_qty_sum = {key: round(float(value), 3) for key, value in id_qty_sum.items()}
-	# frappe.throw(f"{item_wise_total}</br>{id_qty_sum}")
+
 	for (row_material), qty_sum in id_qty_sum.items():
-		for row in item_wise_total:
-			if row_material == row["item"] and round(qty_sum, 3) != round(row["qty"], 3):
+		for row in self.source_table:
+			if row_material == row.get("row_material") and round(qty_sum, 3) != round(row.get("qty"), 3):
 				frappe.throw(
-					f"Sum of Qty of Row Material <b>{row_material}</b> does not match </br><b>Your Sum of:</b>{round(qty_sum, 3)}</br><b>Must Be Need</b>:{row['qty']}"
+					f"Row Material in FG Details <b>{row_material}</b> does not match </br></br>ID Wise Row Material SUM: <b>{round(qty_sum, 3)}</b></br>Must be equal of row <b>#{row.get('idx')}</b> in source table<b>: {row.get('qty')}</b>"
 				)
