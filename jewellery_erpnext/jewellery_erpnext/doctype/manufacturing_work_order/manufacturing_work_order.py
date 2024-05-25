@@ -12,12 +12,12 @@ from jewellery_erpnext.utils import set_values_in_bulk
 
 
 class ManufacturingWorkOrder(Document):
-	def autoname(self):
-		if self.for_fg:
-			self.name = make_autoname("MWO-.abbr.-.item_code.-.seq.-.##", doc=self)
-		else:
-			color = self.metal_colour.split("+")
-			self.color = "".join([word[0] for word in color if word])
+	# def autoname(self):
+	# 	if self.for_fg:
+	# 		self.name = make_autoname(".abbr.-MWO-.YY.-.seq.-.##", doc=self)
+	# 	else:
+	# 		color = self.metal_colour.split("+")
+	# 		self.color = "".join([word[0] for word in color if word])
 
 	def on_submit(self):
 		if self.for_fg:

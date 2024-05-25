@@ -10,7 +10,7 @@ from jewellery_erpnext.utils import get_item_from_attribute
 
 
 class MainSlip(Document):
-	def autoname(self):
+	def before_insert(self):
 		department = frappe.get_value(
 			"Department", self.department, "custom_abbreviation"
 		)  # self.department.split("-")[0]
@@ -19,14 +19,38 @@ class MainSlip(Document):
 			frappe.throw(f"{self.department} please set department abbreviation")
 		self.dep_abbr = department  # "".join([word[0] for word in initials if word])
 		self.type_abbr = self.metal_type[0]
+		frappe.msgprint(f"{self.metal_colour[0]}")
 		if self.metal_colour:
 			self.color_abbr = self.metal_colour[0]
+		
 		elif self.allowed_colours:
 			self.color_abbr = str(self.allowed_colours).upper()
 		else:
 			self.color_abbr = None
 
 	def validate(self):
+		# frappe.throw("HERE")
+		if not self.dep_abbr:
+			department = frappe.get_value(
+				"Department", self.department, "custom_abbreviation"
+			)  # self.department.split("-")[0]
+			# initials = department.split(" ")
+			if not department:
+				frappe.throw(f"{self.department} please set department abbreviation")
+			self.dep_abbr = department  # "".join([word[0] for word in initials if word])
+		if not self.type_abbr:
+			self.type_abbr = self.metal_type[0]
+
+		if not self.color_abbr:
+			if self.metal_colour:
+				self.color_abbr = self.metal_colour[0]
+		
+		elif self.allowed_colours:
+			self.color_abbr = str(self.allowed_colours).upper()
+		else:
+			self.color_abbr = None
+
+
 		if not self.for_subcontracting:
 			self.validate_metal_properties()
 			self.warehouse = frappe.db.get_value(
@@ -212,8 +236,9 @@ class MainSlip(Document):
 					)
 
 	def before_insert(self):
+		
 		if self.is_tree_reqd:
-			self.tree_number = create_tree_number()
+			self.tree_number = create_tree_number(self)
 
 
 def create_material_request(doc):
@@ -238,8 +263,8 @@ def create_material_request(doc):
 	mr.save()
 
 
-def create_tree_number():
-	doc = frappe.get_doc({"doctype": "Tree Number"}).insert()
+def create_tree_number(self):
+	doc = frappe.get_doc({"doctype": "Tree Number","custom_company":self.company}).insert()
 	return doc.name
 
 
@@ -521,3 +546,4 @@ def get_any_item_from_attribute(variant_of, attributes):
 	if data:
 		return data[0][0]
 	return None
+

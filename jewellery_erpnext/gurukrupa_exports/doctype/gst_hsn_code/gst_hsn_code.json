@@ -1,0 +1,65 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-05-08 11:49:13.702964",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "hsn_code",
+  "description",
+  "batch_description",
+  "section_break_m7ki",
+  "taxes"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_m7ki",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "hsn_code",
+   "fieldtype": "Data",
+   "label": "HSN Code"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "batch_description",
+   "fieldtype": "Small Text",
+   "label": "Batch Description"
+  },
+  {
+   "fieldname": "taxes",
+   "fieldtype": "Table",
+   "label": "Taxes",
+   "options": "Item Tax"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-05-08 11:50:16.832692",
+ "modified_by": "Administrator",
+ "module": "Gurukrupa Exports",
+ "name": "GST HSN Code",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

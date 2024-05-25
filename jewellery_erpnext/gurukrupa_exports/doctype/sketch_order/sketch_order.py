@@ -130,7 +130,13 @@ def create_item_template_from_sketch_order(self, source_name, target_doc=None):
 		target.usa_states = self.usa_states
 
 		# new code start
-		target.item_group = (self.subcategory + " - T",)
+		target.custom_sketch_order_id = self.name
+		target.custom_sketch_order_form_id = self.sketch_order_form
+		sub_category = frappe.db.get_value("Final Sketch Approval CMO",source_name,"sub_category")
+		designer = frappe.db.get_value("Final Sketch Approval CMO",source_name,"designer")
+		target.item_group = sub_category + " - T"
+		target.designer = designer
+		target.subcategory = sub_category
 		# new code end
 
 	doc = get_mapped_doc(
@@ -144,13 +150,14 @@ def create_item_template_from_sketch_order(self, source_name, target_doc=None):
 					"gold_wt_approx": "approx_gold",
 					"diamond_wt_approx": "approx_diamond",
 					"sub_category": "subcategory",
+					"sub_category":"item_subcategory"
 				},
 			}
 		},
-		target_doc,
-		post_process,
+		target_doc, post_process
 	)
 	doc.save()
+	# frappe.throw(f"{doc.name}")
 	return doc.name
 
 
@@ -161,7 +168,7 @@ def create_item_from_sketch_order(self, item_template, source_name, target_doc=N
 		target.india_states = self.india_states
 		target.usa = self.usa
 		target.usa_states = self.usa_states
-
+		
 		# new code start
 		target.item_group = (self.subcategory + " - V",)
 		# new code end
@@ -209,7 +216,7 @@ def create_item_from_sketch_order(self, item_template, source_name, target_doc=N
 		for row in self.rhodium:
 			target.append("custom_rhodium", {"design_attribute": row.design_attribute})
 
-		attribute_value_for_name = []
+		# attribute_value_for_name = []
 
 		for i in frappe.get_all(
 			"Attribute Value Item Attribute Detail",
@@ -236,27 +243,27 @@ def create_item_from_sketch_order(self, item_template, source_name, target_doc=N
 				},
 			)
 
-			if i.item_attribute == "Gold Target":
-				attribute_value_for_name.append("G1")
-				continue
-			if i.item_attribute == "Diamond Target":
-				attribute_value_for_name.append("D1")
-				continue
+			# if i.item_attribute == "Gold Target":
+			# 	attribute_value_for_name.append("G1")
+			# 	continue
+			# if i.item_attribute == "Diamond Target":
+			# 	attribute_value_for_name.append("D1")
+			# 	continue
 
-			attribute_value_for_name.append(
-				str(
-					frappe.db.get_value(
-						"Item Attribute Value",
-						{
-							"parent": i.item_attribute,
-							"attribute_value": attribute_value,
-						},
-						"abbr",
-					)
-				)
-			)
+			# attribute_value_for_name.append(
+			# 	str(
+			# 		frappe.db.get_value(
+			# 			"Item Attribute Value",
+			# 			{
+			# 				"parent": i.item_attribute,
+			# 				"attribute_value": attribute_value,
+			# 			},
+			# 			"abbr",
+			# 		)
+			# 	)
+			# )
 
-		n = item_template + "-" + "-".join(attribute_value_for_name)
+		# n = item_template + "-" + "-".join(attribute_value_for_name)
 
 	doc = get_mapped_doc(
 		"Final Sketch Approval CMO",
@@ -269,6 +276,7 @@ def create_item_from_sketch_order(self, item_template, source_name, target_doc=N
 					"sub_category": "item_subcategory",
 					"gold_wt_approx": "approx_gold",
 					"diamond_wt_approx": "approx_diamond",
+					"designer":"designer"
 				},
 			}
 		},

@@ -696,7 +696,7 @@
    "link_fieldname": "manufacturing_operation"
   }
  ],
- "modified": "2024-03-28 18:15:45.739635",
+ "modified": "2024-05-21 10:38:39.040902",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Operation",
@@ -716,7 +716,11 @@
    "write": 1
   }
  ],
+ "show_preview_popup": 1,
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "operation",
+ "track_changes": 1
 }

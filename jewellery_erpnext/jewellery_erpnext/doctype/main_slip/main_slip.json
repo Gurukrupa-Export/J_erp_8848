@@ -188,23 +188,17 @@
   {
    "fieldname": "dep_abbr",
    "fieldtype": "Data",
-   "hidden": 1,
-   "label": "Abbr",
-   "read_only": 1
+   "label": "Abbr"
   },
   {
    "fieldname": "type_abbr",
    "fieldtype": "Data",
-   "hidden": 1,
-   "label": "type_abbr",
-   "read_only": 1
+   "label": "type_abbr"
   },
   {
    "fieldname": "color_abbr",
    "fieldtype": "Data",
-   "hidden": 1,
-   "label": "color_abbr",
-   "read_only": 1
+   "label": "color_abbr"
   },
   {
    "default": "0",
@@ -374,9 +368,8 @@
   {
    "fieldname": "naming_series",
    "fieldtype": "Select",
-   "hidden": 1,
    "label": "Naming Series",
-   "options": "\nMSL.#####\n.dep_abbr.-.type_abbr.-.metal_touch.-.metal_purity.-.#####\n.dep_abbr.-.type_abbr.-.metal_touch.-.metal_purity.-.color_abbr.-.#####"
+   "options": "\nMSL.#####"
   },
   {
    "fieldname": "column_break_uzau",
@@ -418,14 +411,14 @@
  "links": [
   {
    "link_doctype": "Material Request",
-   "link_fieldname": "main_slip"
+   "link_fieldname": "to_main_slip"
   },
   {
    "link_doctype": "Stock Entry",
    "link_fieldname": "main_slip"
   }
  ],
- "modified": "2024-04-05 17:39:06.637324",
+ "modified": "2024-05-15 10:42:00.066011",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Main Slip",

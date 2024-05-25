@@ -157,26 +157,80 @@ def calculate_item_wt_details(doc, bom=None, item=None):
 	return doc
 
 
-def before_insert(self, method):
-	if self.item_group in ["Metal - V", "Diamond - V", "Gemstone - V", "Finding - V", "Other - V"]:
-		self.has_batch_no = 1
-		self.create_new_batch = 1
+# def before_insert(self, method):
+# 	if self.item_group in ["Metal - V", "Diamond - V", "Gemstone - V", "Finding - V", "Other - V"]:
+# 		self.has_batch_no = 1
+# 		self.create_new_batch = 1
 
+# 		year_code = get_year_code()
+# 		month_code = get_month_code()
+# 		week_code = get_week_code()
+
+# 		if self.item_group == "Diamond - V":
+# 			batch_number = f"GE{year_code}{month_code}{week_code}-D"
+# 		elif self.item_group == "Metal - V":
+# 			batch_number = f"GE{year_code}{month_code}{week_code}-M"
+# 		elif self.item_group == "Gemstone - V":
+# 			batch_number = f"GE{year_code}{month_code}{week_code}-G"
+# 		elif self.item_group == "Finding - V":
+# 			batch_number = f"GE{year_code}{month_code}{week_code}-F"
+# 		elif self.item_group == "Other - V":
+# 			batch_number = f"GE{year_code}{month_code}{week_code}-O"
+
+# 		batch_abbr_code_list = []
+# 		for i in self.attributes:
+# 			if i.attribute == "Finding Category":
+# 				continue
+# 			batch_abbreviation = frappe.db.get_value(
+# 				"Attribute Value", i.attribute_value, "custom_batch_abbreviation"
+# 			)
+# 			if i.attribute_value:
+# 				if batch_abbreviation:
+# 					batch_abbr_code_list.append(batch_abbreviation)
+# 					# frappe.throw(batch_abbreviation)
+# 				else:
+# 					frappe.throw(f"Abbrivation is missing for {i.attribute_value}")
+# 		batch_code = batch_number + "".join(batch_abbr_code_list) + "-.##."
+# 		self.batch_number_series = batch_code
+# 		self.is_stock_item = 1
+# 		self.include_item_in_manufacturing = 1
+# 	elif " - V" in self.item_group and self.variant_of:
+# 		validate_attribute_value(self)
+def before_insert(self, method):
+	consumables_list = []
+	iav = frappe.qb.DocType("Item Attribute Value")
+
+	for i in (
+		frappe.qb.from_(iav).select(iav.attribute_value).where(iav.parent == "Consumables").run()
+	):
+		consumables_list.append(i[0])
+	year_code = get_year_code()
+	month_code = get_month_code()
+	week_code = get_week_code()
+	if self.item_group in ["Metal - V", "Diamond - V", "Gemstone - V", "Finding - V", "Other - V"]:
 		year_code = get_year_code()
 		month_code = get_month_code()
 		week_code = get_week_code()
-
 		if self.item_group == "Diamond - V":
-			batch_number = f"GE{year_code}{month_code}{week_code}-D"
+			batch_number = "GE{year_code}{month_code}{week_code}-D".format(
+				year_code=year_code, month_code=month_code, week_code=week_code
+			)
 		elif self.item_group == "Metal - V":
-			batch_number = f"GE{year_code}{month_code}{week_code}-M"
+			batch_number = "GE{year_code}{month_code}{week_code}-M".format(
+				year_code=year_code, month_code=month_code, week_code=week_code
+			)
 		elif self.item_group == "Gemstone - V":
-			batch_number = f"GE{year_code}{month_code}{week_code}-G"
+			batch_number = "GE{year_code}{month_code}{week_code}-G".format(
+				year_code=year_code, month_code=month_code, week_code=week_code
+			)
 		elif self.item_group == "Finding - V":
-			batch_number = f"GE{year_code}{month_code}{week_code}-F"
+			batch_number = "GE{year_code}{month_code}{week_code}-F".format(
+				year_code=year_code, month_code=month_code, week_code=week_code
+			)
 		elif self.item_group == "Other - V":
-			batch_number = f"GE{year_code}{month_code}{week_code}-O"
-
+			batch_number = "GE{year_code}{month_code}{week_code}-O".format(
+				year_code=year_code, month_code=month_code, week_code=week_code
+			)
 		batch_abbr_code_list = []
 		for i in self.attributes:
 			if i.attribute == "Finding Category":
@@ -187,16 +241,94 @@ def before_insert(self, method):
 			if i.attribute_value:
 				if batch_abbreviation:
 					batch_abbr_code_list.append(batch_abbreviation)
-					# frappe.throw(batch_abbreviation)
 				else:
-					frappe.throw(f"Abbrivation is missing for {i.attribute_value}")
+					frappe.throw(("Abbrivation is missing for {0}").format(i.attribute_value))
 		batch_code = batch_number + "".join(batch_abbr_code_list) + "-.##."
 		self.batch_number_series = batch_code
+		self.has_batch_no = 1
+		self.create_new_batch = 1
 		self.is_stock_item = 1
 		self.include_item_in_manufacturing = 1
 	elif " - V" in self.item_group and self.variant_of:
 		validate_attribute_value(self)
+	elif self.item_group in consumables_list and self.variant_of:
+		for i in self.attributes:
+			if not frappe.db.get_value("Attribute Value", i.attribute_value, "custom_batch_or_serial_no"):
+				frappe.throw(
+					(
+						"Select one options for <b>{attribute_value}</b> in Attribute Value".format(
+							attribute_value=i.attribute_value
+						)
+					)
+				)
+			if (
+				frappe.db.get_value("Attribute Value", i.attribute_value, "custom_batch_or_serial_no")
+				== "Batch"
+			):
+				batch_number = "GE{year_code}{month_code}{week_code}-CO".format(
+					year_code=year_code, month_code=month_code, week_code=week_code
+				)
+				# group_abbr = frappe.db.sql("""select abbr  from `tabItem Attribute Value` where attribute_value = {item_group}""".format(item_group=self.item_group),as_dict=1)
+				group_abbr = (
+					frappe.qb.from_(iav).select(iav.abbr).where(iav.attribute_value == self.item_group).run()
+				)
+				if not group_abbr:
+					frappe.throw(
+						(
+							"Abbr is not available for <b>{item_group}</b> in Item Attribute Consumnables".format(
+								item_group=self.item_group
+							)
+						)
+					)
+				# batch_abbr_code = frappe.db.get_value(
+				# 	"Attribute Value", i.attribute_value, "custom_batch_abbreviation"
+				# )
+				# if not batch_abbr_code:
+				# 	frappe.throw(("Abbrivation is missing for {0}".format(i.attribute_value)))
+				# batch_code = batch_number + group_abbr[0][0] + batch_abbr_code + "-.##."
 
+				total_variant = len(frappe.db.get_list('Item',{'item_group':self.item_group,'has_batch_no':1}))
+				if total_variant == 0:
+					sequence = 1
+					sequence = group_abbr[0][0] + f"{sequence:02}"
+				else:
+					sequence = total_variant + 1
+					sequence = group_abbr[0][0] + f"{sequence:02}"
+
+				batch_code = batch_number + group_abbr[0][0] + sequence + "-.##."
+
+				self.batch_number_series = batch_code
+				self.has_batch_no = 1
+				self.create_new_batch = 1
+				self.is_stock_item = 1
+				self.include_item_in_manufacturing = 1
+			elif (
+				frappe.db.get_value("Attribute Value", i.attribute_value, "custom_batch_or_serial_no")
+				== "Serial No"
+			):
+				self.has_serial_no = 1
+				self.is_stock_item = 1
+				self.include_item_in_manufacturing = 1
+				group_abbr = (
+					frappe.qb.from_(iav).select(iav.abbr).where(iav.attribute_value == self.item_group).run()
+				)
+				if not group_abbr:
+					frappe.throw(
+						(
+							"Abbr is not available for <b>{item_group}</b> in Item Attribute Consumnables".format(
+								item_group=self.item_group
+							)
+						)
+					)
+				total_variant = len(
+					frappe.db.get_list("Item", {"item_group": self.item_group, "has_serial_no": 1})
+				)
+				if total_variant == 0:
+					sequence = 1
+					self.serial_no_series = group_abbr[0][0] + f"{sequence:05}"
+				else:
+					sequence = total_variant + 1
+					self.serial_no_series = group_abbr[0][0] + f"{sequence:05}"
 
 def get_year_code():
 	year_dict = {

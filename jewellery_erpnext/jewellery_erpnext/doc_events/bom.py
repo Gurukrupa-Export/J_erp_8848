@@ -200,14 +200,15 @@ def calculate_metal_qty(self):
 
 			if row.cad_weight and row.cad_to_finish_ratio:
 				row.quantity = flt(row.cad_weight * row.cad_to_finish_ratio / 100)
-		if color:
-			condition = " and ".join([f"name like '%{value}%'" for value in color])
-			metal_colours = frappe.db.sql(
-				f"""select name from `tabAttribute Value` where is_metal_colour = 1 and {condition}"""
-			)
-			metal_colour = [i[0] for i in metal_colours if len(i[0].split("+")) == len(color)]
-			if metal_colour:
-				self.metal_colour = metal_colour[0]
+		# if color:
+		# 	condition = " and ".join([f"name like '%{value}%'" for value in color])
+		# 	metal_colours = frappe.db.sql(
+		# 		f"""select name from `tabAttribute Value` where is_metal_colour = 1 and {condition}"""
+		# 	)
+		# 	metal_colour = [i[0] for i in metal_colours if len(i[0].split("+")) == len(color)]
+		# 	if metal_colour:
+		# 		# frappe.throw(f"{metal_colour}")
+		# 		self.metal_colour = metal_colour[0]
 
 
 def calculate_diamond_qty(self):
