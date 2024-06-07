@@ -219,14 +219,6 @@
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "season",
-   "fieldtype": "Table MultiSelect",
-   "hidden": 1,
-   "label": "Season",
-   "options": "Sketch Order Season",
-   "read_only": 1
-  },
-  {
    "fieldname": "column_break_10",
    "fieldtype": "Column Break"
   },
@@ -371,7 +363,6 @@
    "options": "design_image4"
   },
   {
-   "fetch_from": "sketch_order_form_detail.sizer_type",
    "fieldname": "setting_type",
    "fieldtype": "Link",
    "label": "Setting Type",
@@ -408,7 +399,6 @@
    "read_only": 1
   },
   {
-   "fetch_from": "sketch_order_form_detail.qty",
    "fieldname": "qty",
    "fieldtype": "Int",
    "label": "No of Designs",
@@ -430,7 +420,6 @@
    "read_only": 1
   },
   {
-   "fetch_from": "sketch_order_form_detail.gemstone_type1",
    "fieldname": "gemstone_type1",
    "fieldtype": "Link",
    "label": "Gemstone Type1",
@@ -518,7 +507,6 @@
   },
   {
    "depends_on": "eval:((doc.design_type==\"Mod\"))",
-   "fetch_from": "sketch_order_form_detail.tag_id",
    "fieldname": "tag_id",
    "fieldtype": "Link",
    "label": "Master Serial No",
@@ -627,7 +615,6 @@
    "read_only": 1
   },
   {
-   "fetch_from": "sketch_order_form.due_days",
    "fieldname": "due_days",
    "fieldtype": "Int",
    "label": "Due Days",
@@ -765,22 +752,22 @@
    "options": "Design Attribute - Multiselect"
   },
   {
-   "fetch_from": "sketch_order_form_detail.gemstone_size",
-   "fieldname": "gemstone_size",
-   "fieldtype": "Link",
-   "label": "Gemstone Size",
-   "options": "Attribute Value",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_7dbz",
-   "fieldtype": "Column Break"
-  }
+    "fetch_from": "sketch_order_form_detail.gemstone_size",
+    "fieldname": "gemstone_size",
+    "fieldtype": "Link",
+    "label": "Gemstone Size",
+    "options": "Attribute Value",
+    "read_only": 1
+   },
+   {
+    "fieldname": "column_break_7dbz",
+    "fieldtype": "Column Break"
+   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2024-05-13 14:14:04.945929",
+ "modified": "2024-02-20 12:19:42.002556",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Sketch Order",

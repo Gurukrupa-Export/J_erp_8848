@@ -14,12 +14,15 @@
   "batch_no",
   "warehouse",
   "purchase_rate",
+  "repair_type",
+  "product_type",
   "column_break1",
   "status",
   "item_name",
   "description",
   "item_group",
   "brand",
+  "bom",
   "asset_details",
   "asset",
   "asset_status",
@@ -37,7 +40,12 @@
   "company",
   "column_break_2cmm",
   "work_order",
-  "purchase_document_no"
+  "purchase_document_no",
+  "section_break_zgyo",
+  "pmo",
+  "mwo",
+  "huid_details",
+  "certification_details"
  ],
  "fields": [
   {
@@ -264,12 +272,56 @@
    "label": "Creation Document No",
    "no_copy": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "bom",
+   "fieldtype": "Link",
+   "label": "BOM",
+   "options": "BOM"
+  },
+  {
+   "fieldname": "section_break_zgyo",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "pmo",
+   "fieldtype": "Link",
+   "label": "PMO",
+   "options": "Parent Manufacturing Order"
+  },
+  {
+   "fieldname": "mwo",
+   "fieldtype": "Link",
+   "label": "MWO",
+   "options": "Manufacturing Work Order"
+  },
+  {
+   "fieldname": "huid_details",
+   "fieldtype": "Text",
+   "label": "HUID Details"
+  },
+  {
+   "fieldname": "certification_details",
+   "fieldtype": "Text",
+   "label": "Certification Details"
+  },
+  {
+   "fieldname": "repair_type",
+   "fieldtype": "Link",
+   "label": "Repair Type",
+   "options": "Attribute Value"
+  },
+  {
+   "fieldname": "product_type",
+   "fieldtype": "Link",
+   "label": "Product Type",
+   "options": "Attribute Value"
   }
  ],
  "icon": "fa fa-barcode",
  "istable": 1,
  "links": [],
- "modified": "2024-02-26 18:37:34.202577",
+ "modified": "2024-04-26 15:07:34.985522",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Serial No Table",

@@ -12,6 +12,7 @@ from erpnext.stock.get_item_details import (
 	get_conversion_factor,
 	get_default_cost_center,
 )
+from frappe import _
 from frappe.model.document import Document
 from frappe.utils import nowdate
 
@@ -27,7 +28,9 @@ class Subcontracting(Document):
 
 	def on_submit(self):
 		if not self.finish_item:
-			self.finish_item = frappe.db.get_value("Manufacturing Setting", self.company, "service_item")
+			# self.finish_item = frappe.db.get_value("Manufacturing Setting", self.company, "service_item")
+			finish_item_value = frappe.db.get_value("Manufacturing Setting", self.company, "service_item")
+			self.db_set("finish_item", finish_item_value)
 		create_repack_entry(self)
 
 	def set_PMO(self):
@@ -97,14 +100,14 @@ class Subcontracting(Document):
 					)
 
 					if not item_variant_attribute_value:
-						frappe.throw("Attribute Value Missing")
+						frappe.throw(_("Attribute Value Missing"))
 
 					target_purity = float(
 						frappe.get_value("Attribute Value", item_variant_attribute_value, "purity_percentage")
 					)
 
 					if not target_purity:
-						frappe.throw("Purity Percentage Missing")
+						frappe.throw(_("Purity Percentage Missing"))
 
 					qty = (self.sum_source_table * source_purity) / target_purity
 
@@ -115,7 +118,7 @@ class Subcontracting(Document):
 						return qty
 				# Check if more than one unique item code exists
 				if len(unique_item_codes) > 1:
-					frappe.throw("All rows must have the same item code")
+					frappe.throw(_("All rows must have the same item code"))
 
 	@frappe.whitelist()
 	def custom_get_item_details(self, args=None, for_update=False):

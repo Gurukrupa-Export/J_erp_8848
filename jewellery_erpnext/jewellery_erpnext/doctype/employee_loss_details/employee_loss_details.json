@@ -12,6 +12,8 @@
   "batch_no",
   "column_break_3",
   "description",
+  "variant_of",
+  "loss_type",
   "manufacturing_operation",
   "quantity_and_rate",
   "net_weight",
@@ -136,12 +138,26 @@
    "fieldtype": "Link",
    "label": "Manufacturing Operation",
    "options": "Manufacturing Operation"
+  },
+  {
+   "fieldname": "loss_type",
+   "fieldtype": "Link",
+   "label": "Loss Type",
+   "options": "Loss Type"
+  },
+  {
+   "fetch_from": "item_code.variant_of",
+   "fieldname": "variant_of",
+   "fieldtype": "Link",
+   "label": "Variant Of",
+   "options": "Item",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-04-05 18:36:33.648752",
+ "modified": "2024-05-13 16:23:43.209829",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Employee Loss Details",

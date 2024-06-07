@@ -3,6 +3,7 @@
 
 import frappe
 from erpnext.stock.doctype.batch.batch import get_batch_qty
+from frappe import _
 from frappe.model.document import Document
 
 
@@ -67,14 +68,14 @@ class DiamondConversion(Document):
 def to_check_valid_qty_in_table(self):
 	for row in self.sc_source_table:
 		if row.qty <= 0:
-			frappe.throw("Source Table Qty not allowed Nigative or Zero Value")
+			frappe.throw(_("Source Table Qty not allowed Nigative or Zero Value"))
 	for row in self.sc_target_table:
 		if row.qty <= 0:
-			frappe.throw("Target Table Qty not allowed Nigative or Zero Value")
+			frappe.throw(_("Target Table Qty not allowed Nigative or Zero Value"))
 	if not self.sc_source_table:
-		frappe.throw("Source table is empty. Please add rows.")
+		frappe.throw(_("Source table is empty. Please add rows."))
 	if not self.sc_target_table:
-		frappe.throw("Target table is empty. Please add rows.")
+		frappe.throw(_("Target table is empty. Please add rows."))
 
 
 def make_diamond_stock_entry(self):
@@ -88,12 +89,16 @@ def make_diamond_stock_entry(self):
 			"stock_entry_type": "Repack-Diamond Conversion",
 			"purpose": "Repack",
 			"custom_diamond_conversion": self.name,
-			"inventory_type": "Regular Stock",
 			"auto_created": 1,
 			"branch": self.branch,
 		}
 	)
+	inventory_wise_data = {}
 	for row in self.sc_source_table:
+		if inventory_wise_data.get(row.inventory_type):
+			inventory_wise_data[row.inventory_type]["qty"] += row.qty
+		else:
+			inventory_wise_data[row.inventory_type] = {"customer": row.get("customer"), "qty": row.qty}
 		se.append(
 			"items",
 			{
@@ -105,22 +110,27 @@ def make_diamond_stock_entry(self):
 				"employee": self.employee,
 				"manufacturer": self.manufacturer,
 				"s_warehouse": source_wh,
+				"use_serial_batch_fields": True,
+				"customer": row.get("customer"),
 			},
 		)
 	for row in self.sc_target_table:
-		se.append(
-			"items",
-			{
-				"item_code": row.item_code,
-				"qty": row.qty,
-				"inventory_type": "Regular Stock",  # row.inventory_type,
-				# "batch_no":row.batch,
-				"department": self.department,
-				"employee": self.employee,
-				"manufacturer": self.manufacturer,
-				"t_warehouse": target_wh,
-			},
-		)
+		for inventory in inventory_wise_data:
+			se.append(
+				"items",
+				{
+					"item_code": row.item_code,
+					"qty": ((row.qty * inventory_wise_data[inventory]["qty"]) / self.sum_source_table),
+					# "inventory_type": "Regular Stock",  # row.inventory_type,
+					# "batch_no":row.batch,
+					"department": self.department,
+					"employee": self.employee,
+					"manufacturer": self.manufacturer,
+					"t_warehouse": target_wh,
+					"inventory_type": inventory,
+					"customer": inventory_wise_data[inventory].get("customer"),
+				},
+			)
 	se.save()
 	se.submit()
 	self.stock_entry = se.name

@@ -10,6 +10,69 @@ from frappe.utils import flt
 from jewellery_erpnext.utils import get_item_from_attribute
 
 
+def validate_inventory_dimention(self):
+	for row in self.items:
+		if row.custom_parent_manufacturing_order or self.manufacturing_order:
+			pmo = row.custom_parent_manufacturing_order or self.manufacturing_order
+			pmo_data = frappe.db.get_value(
+				"Parent Manufacturing Order",
+				pmo,
+				[
+					"is_customer_gold",
+					"is_customer_diamond",
+					"is_customer_gemstone",
+					"is_customer_material",
+					"customer",
+					"manufacturer",
+				],
+				as_dict=1,
+			)
+			allow_customer_goods = frappe.db.get_value(
+				"Manufacturer",
+				pmo_data.get("manufacturer"),
+				"custom_allow_regular_goods_instead_of_customer_goods",
+			)
+
+			if row.inventory_type == "Customer Goods" and pmo_data.get("customer") != row.customer:
+				frappe.throw(_("Only {0} allowed in Stock Entry").format(pmo_data.get("customer")))
+			else:
+				if row.custom_variant_of in ["M", "F"]:
+					if pmo_data.get("is_customer_gold") == 1 and row.inventory_type != "Customer Goods":
+						frappe.throw(_("Can not use regular stock inventory for Customer provided Item"))
+					else:
+						if allow_customer_goods:
+							frappe.msgprint(_("Can not use Customer Goods inventory for non provided customer Item"))
+						else:
+							frappe.throw(_("Can not use Customer Goods inventory for non provided customer Item"))
+
+				if row.custom_variant_of == "D":
+					if pmo_data.get("is_customer_diamond") == 1 and row.inventory_type != "Customer Goods":
+						frappe.throw(_("Can not use regular stock inventory for Customer provided Item"))
+					else:
+						if allow_customer_goods:
+							frappe.msgprint(_("Can not use Customer Goods inventory for non provided customer Item"))
+						else:
+							frappe.throw(_("Can not use Customer Goods inventory for non provided customer Item"))
+
+				if row.custom_variant_of == "G":
+					if pmo_data.get("is_customer_gemstone") == 1 and row.inventory_type != "Customer Goods":
+						frappe.throw(_("Can not use regular stock inventory for Customer provided Item"))
+					else:
+						if allow_customer_goods:
+							frappe.msgprint(_("Can not use Customer Goods inventory for non provided customer Item"))
+						else:
+							frappe.throw(_("Can not use Customer Goods inventory for non provided customer Item"))
+
+				if row.custom_variant_of == "O":
+					if pmo_data.get("is_customer_material") == 1 and row.inventory_type != "Customer Goods":
+						frappe.throw(_("Can not use regular stock inventory for Customer provided Item"))
+					else:
+						if allow_customer_goods:
+							frappe.msgprint(_("Can not use Customer Goods inventory for non provided customer Item"))
+						else:
+							frappe.throw(_("Can not use Customer Goods inventory for non provided customer Item"))
+
+
 def get_fifo_batches(self, row):
 	rows_to_append = []
 	row.batch_no = None
@@ -27,28 +90,56 @@ def get_fifo_batches(self, row):
 			)
 		)
 	for batch in batch_data:
-		if total_qty > 0 and batch.qty > 0:
-			if not existing_updated:
-				row.db_set("qty", min(total_qty, batch.qty))
-				row.db_set("transfer_qty", row.qty)
-				row.db_set("batch_no", batch.batch_no)
-				total_qty -= batch.qty
-				existing_updated = True
-				rows_to_append.append(row.__dict__)
-			else:
-				temp_row = copy.deepcopy(row.__dict__)
-				temp_row["name"] = None
-				temp_row["idx"] = None
-				temp_row["batch_no"] = batch.batch_no
-				temp_row["transfer_qty"] = 0
-				temp_row["qty"] = flt(min(total_qty, batch.qty), 4)
-				rows_to_append.append(temp_row)
-				total_qty -= batch.qty
+		if (
+			row.inventory_type == "Customer Goods"
+			and frappe.db.get_value("Batch", batch.batch_no, "custom_inventory_type") == row.inventory_type
+			and frappe.db.get_value("Batch", batch.batch_no, "custom_customer") == row.customer
+		):
+			if total_qty > 0 and batch.qty > 0:
+				if not existing_updated:
+					row.db_set("qty", min(total_qty, batch.qty))
+					row.db_set("transfer_qty", row.qty)
+					row.db_set("batch_no", batch.batch_no)
+					total_qty -= batch.qty
+					existing_updated = True
+					rows_to_append.append(row.__dict__)
+				else:
+					temp_row = copy.deepcopy(row.__dict__)
+					temp_row["name"] = None
+					temp_row["idx"] = None
+					temp_row["batch_no"] = batch.batch_no
+					temp_row["transfer_qty"] = 0
+					temp_row["qty"] = flt(min(total_qty, batch.qty), 4)
+					rows_to_append.append(temp_row)
+					total_qty -= batch.qty
+		elif row.inventory_type != "Customer Goods":
+			if total_qty > 0 and batch.qty > 0:
+				if not existing_updated:
+					row.db_set("qty", min(total_qty, batch.qty))
+					row.db_set("transfer_qty", row.qty)
+					row.db_set("batch_no", batch.batch_no)
+					total_qty -= batch.qty
+					existing_updated = True
+					rows_to_append.append(row.__dict__)
+				else:
+					temp_row = copy.deepcopy(row.__dict__)
+					temp_row["name"] = None
+					temp_row["idx"] = None
+					temp_row["batch_no"] = batch.batch_no
+					temp_row["transfer_qty"] = 0
+					temp_row["qty"] = flt(min(total_qty, batch.qty), 4)
+					rows_to_append.append(temp_row)
+					total_qty -= batch.qty
 
 	if total_qty > 0:
 		frappe.msgprint(
-			_(f"For <b>{row.item_code}</b> {flt(total_qty, 2)} is missing in <b>{row.s_warehouse}</b>")
+			_("For <b>{0}</b> {1} is missing in <b>{2}</b>").format(
+				row.item_code, flt(total_qty, 2), row.s_warehouse
+			)
 		)
+		# frappe.msgprint(
+		# 	_(f"For <b>{row.item_code}</b> {flt(total_qty, 2)} is missing in <b>{row.s_warehouse}</b>")
+		# )
 
 	return rows_to_append
 
@@ -112,7 +203,9 @@ def create_subcontracting_doc(
 		sub_doc.manufacturing_order = self.manufacturing_order
 		sub_doc.operation = self.manufacturing_operation
 
-		sub_doc.finish_item = frappe.db.get_value("Manufacturing Setting", self.company, "service_item")
+		sub_doc.finish_item = frappe.db.get_value(
+			"Manufacturing Setting", self.company, "subcontracting_repack_item"
+		)
 
 		if self.manufacturing_operation:
 			metal_data = frappe.db.get_value(
@@ -345,8 +438,8 @@ def update_main_slip_se_details(doc, stock_entry_type, se_row, auto_created=0, i
 					},
 				)
 
-	for row in to_remove:
-		doc.remove(row)
+	# for row in to_remove:
+	# 	doc.remove(row)
 
 
 def validate_gross_weight_for_unpack(self):
@@ -355,9 +448,22 @@ def validate_gross_weight_for_unpack(self):
 		receive_gr_wt = 0
 		for row in self.items:
 			if row.s_warehouse:
-				source_gr_wt += row.gross_weight
+				source_gr_wt += row.get("gross_weight") or 0
 			elif row.t_warehouse:
-				receive_gr_wt += row.gross_weight
+				receive_gr_wt += row.get("gross_weight") or 0
 
 		if flt(receive_gr_wt, 3) != flt(source_gr_wt, 3):
 			frappe.throw(_("Gross weight does not match for source and target items"))
+
+
+def validation_for_stock_entry_submission(self):
+	for item in self.items:
+		stock_reco = frappe.get_doc("Stock Reconciliation", {"set_warehouse": item.s_warehouse})
+		if stock_reco.docstatus != 1:
+			frappe.throw(
+				_(
+					"Please complete the Stock Reconciliation {0}  to Submit the Stock Entry".format_(
+						stock_reco.name
+					)
+				)
+			)

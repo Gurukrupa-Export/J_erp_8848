@@ -11,10 +11,15 @@
   "item_code",
   "manufacturing_work_order",
   "bom",
+  "tree_no",
+  "pure_item",
   "column_break_0qyor",
   "amount",
   "category",
-  "sub_category"
+  "sub_category",
+  "total_weight",
+  "main_slip",
+  "loss_item"
  ],
  "fields": [
   {
@@ -68,12 +73,45 @@
    "fieldtype": "Link",
    "label": "Sub Category",
    "options": "Attribute Value"
+  },
+  {
+   "depends_on": "eval: parent.service_type != \"Diamond Certificate service\";",
+   "fieldname": "total_weight",
+   "fieldtype": "Float",
+   "label": "Total Weight"
+  },
+  {
+   "depends_on": "eval: parent.service_type == \"Fire SI Services\";",
+   "fieldname": "tree_no",
+   "fieldtype": "Link",
+   "label": "Tree No",
+   "options": "Tree Number"
+  },
+  {
+   "depends_on": "eval: parent.service_type == \"Fire SI Services\";",
+   "fieldname": "main_slip",
+   "fieldtype": "Link",
+   "label": "Main Slip",
+   "options": "Main Slip"
+  },
+  {
+   "fieldname": "pure_item",
+   "fieldtype": "Link",
+   "label": "Pure Item",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "loss_item",
+   "fieldtype": "Link",
+   "label": "Loss Item",
+   "options": "Item"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2023-10-19 12:56:17.314312",
+ "modified": "2024-06-04 16:39:24.150357",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Product Details",

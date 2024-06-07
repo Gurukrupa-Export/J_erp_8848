@@ -52,7 +52,6 @@
   "diamond_quality",
   "column_break_xc8mk",
   "abbreviation",
-  "attribute_type",
   "finding_type_details",
   "finding_dimension",
   "finding_size_and_weights",
@@ -357,16 +356,11 @@
    "fieldtype": "Table",
    "label": "Diamond Sieve Size",
    "options": "Attribute Value Diamond Sieve Size"
-  },
-  {
-   "fieldname": "attribute_type",
-   "fieldtype": "Data",
-   "label": "Attribute Type"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-05-13 13:17:46.897739",
+ "modified": "2023-12-18 18:26:13.471987",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Attribute Value",

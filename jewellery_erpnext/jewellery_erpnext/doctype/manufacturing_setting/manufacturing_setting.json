@@ -15,6 +15,8 @@
   "default_operation",
   "gold_loss_item",
   "service_item",
+  "subcontracting_repack_item",
+  "pure_gold_item",
   "column_break_9vro2",
   "default_diamond_department",
   "default_gemstone_department",
@@ -69,7 +71,13 @@
   "wax_to_gold_18",
   "wax_to_gold_22",
   "wax_to_gold_24",
-  "wax_to_silver"
+  "wax_to_silver",
+  "item_validations_section",
+  "check_purity",
+  "check_colour",
+  "check_touch",
+  "product_certification_section",
+  "product_certification_details"
  ],
  "fields": [
   {
@@ -422,11 +430,57 @@
    "fieldtype": "Link",
    "label": "Other Target Warehouse",
    "options": "Warehouse"
+  },
+  {
+   "fieldname": "subcontracting_repack_item",
+   "fieldtype": "Link",
+   "label": "Subcontracting Repack Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "item_validations_section",
+   "fieldtype": "Section Break",
+   "label": "Item Validations"
+  },
+  {
+   "fieldname": "check_purity",
+   "fieldtype": "Select",
+   "label": "Check Purity",
+   "options": "\nM\nF\nBoth"
+  },
+  {
+   "fieldname": "check_colour",
+   "fieldtype": "Select",
+   "label": "Check Colour",
+   "options": "\nM\nF\nBoth"
+  },
+  {
+   "fieldname": "check_touch",
+   "fieldtype": "Select",
+   "label": "Check Touch",
+   "options": "\nM\nF\nBoth"
+  },
+  {
+   "fieldname": "pure_gold_item",
+   "fieldtype": "Link",
+   "label": "Pure Gold Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "product_certification_section",
+   "fieldtype": "Section Break",
+   "label": "Product Certification"
+  },
+  {
+   "fieldname": "product_certification_details",
+   "fieldtype": "Table",
+   "label": "Product Certification Details",
+   "options": "Product Certification Details"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-04-15 13:10:10.374697",
+ "modified": "2024-06-04 15:48:32.664151",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Setting",
@@ -446,5 +500,8 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "track_changes": 1,
+ "track_seen": 1,
+ "track_views": 1
 }

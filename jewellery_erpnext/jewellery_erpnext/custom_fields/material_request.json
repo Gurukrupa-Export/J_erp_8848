@@ -1,0 +1,20 @@
+{
+	"Material Request": [
+		{
+		"fieldname": "custom_manufacturer",
+		"fieldtype": "Link",
+		"insert_after": "manufacturing_order",
+		"label": "Manufacturer",
+		"options": "Manufacturer",
+		"module": "Jewellery Erpnext"
+		},
+		{
+			"fieldname": "custom_transfer_type",
+			"fieldtype": "Link",
+			"insert_after": "amended_from",
+			"label": "Transfer Type",
+			"options": "Transfer Type",
+			"module": "Jewellery Erpnext"
+			}
+	]
+}

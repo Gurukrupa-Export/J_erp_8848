@@ -1,0 +1,18 @@
+{
+    "Customer": [
+        {
+            "fieldname": "custom_certification_charges",
+            "fieldtype": "Currency",
+            "insert_after": "image",
+            "label": "Certification Charges",
+            "module": "Jewellery Erpnext"
+        },
+        {
+            "fieldname": "custom_ignore_po_creation_for_certification",
+            "fieldtype": "Check",
+            "insert_after": "custom_certification_charges",
+            "label": "Ignore PO creation for Certification",
+            "module": "Jewellery Erpnext"
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "Supplier": [
+        {
+            "fieldname": "custom_is_external_supplier",
+            "fieldtype": "Check",
+            "insert_after": "column_break_16",
+            "label": "Is External Customer",
+            "module": "Jewellery Erpnext"
+        },
+        {
+            "fieldname": "custom_certification_charges",
+            "fieldtype": "Currency",
+            "insert_after": "payment_terms",
+            "label": "Certification Charges",
+            "module": "Jewellery Erpnext"
+        }
+    ]
+}

@@ -8,22 +8,34 @@ from frappe.model.mapper import get_mapped_doc
 from frappe.model.naming import make_autoname
 from frappe.utils import cint, flt, now
 
-from jewellery_erpnext.utils import set_values_in_bulk
+from jewellery_erpnext.utils import get_item_from_attribute, set_values_in_bulk
 
 
 class ManufacturingWorkOrder(Document):
-	# def autoname(self):
-	# 	if self.for_fg:
-	# 		self.name = make_autoname(".abbr.-MWO-.YY.-.seq.-.##", doc=self)
-	# 	else:
-	# 		color = self.metal_colour.split("+")
-	# 		self.color = "".join([word[0] for word in color if word])
+	def autoname(self):
+		mfg_purity = frappe.db.get_value(
+			"Metal Criteria",
+			{"parent": self.manufacturer, "metal_touch": self.metal_touch, "metal_type": self.metal_type},
+			"metal_purity",
+		)
+
+		if not mfg_purity:
+			frappe.throw(_("Metal Purity is not mentioned into Manufacturer."))
+
+		self.metal_purity = mfg_purity
+
+		if self.for_fg:
+			self.name = make_autoname("MWO-.abbr.-.item_code.-.seq.-.##", doc=self)
+		else:
+			color = self.metal_colour.split("+")
+			self.color = "".join([word[0] for word in color if word])
 
 	def on_submit(self):
 		if self.for_fg:
 			self.validate_other_work_orders()
 		create_manufacturing_operation(self)
-		self.start_datetime = now()
+		# self.start_datetime = now()
+		self.db_set("start_datetime", now())
 		self.db_set("status", "Not Started")
 
 	def validate_other_work_orders(self):
@@ -43,7 +55,9 @@ class ManufacturingWorkOrder(Document):
 			"name",
 		)
 		if pending_wo:
-			frappe.throw(_(f"All the pending manufacturing work orders should be in {last_department}."))
+			frappe.throw(
+				_("All the pending manufacturing work orders should be in {0}.").format(last_department)
+			)
 
 	def on_cancel(self):
 		self.db_set("status", "Cancelled")
@@ -66,7 +80,17 @@ class ManufacturingWorkOrder(Document):
 
 	@frappe.whitelist()
 	def create_repair_un_pack_stock_entry(self):
-		wh = frappe.get_value("Manufacturer", self.manufacturer, "custom_repair_warehouse")
+
+		bom_weight = frappe.db.get_value("BOM", self.master_bom, "gross_weight")
+
+		pmo_weight = frappe.db.get_value(
+			"Parent Manufacturing Order", self.manufacturing_order, "customer_weight"
+		)
+
+		if bom_weight != pmo_weight:
+			frappe.throw(_("BOM weight does not match with customer weight"))
+
+		wh = frappe.db.get_value("Manufacturer", self.manufacturer, "custom_repair_warehouse")
 		wh_department = frappe.db.get_value("Warehouse", wh, "department")
 
 		target_wh = frappe.get_value(
@@ -93,6 +117,20 @@ class ManufacturingWorkOrder(Document):
 				row_dict[item_code]["total_basic_rate"] / row_dict[item_code]["count"]
 			)
 
+		mwo_data = frappe.db.get_all(
+			"Manufacturing Work Order",
+			{"manufacturing_order": self.manufacturing_order},
+			["name", "metal_type", "metal_type", "metal_touch", "metal_purity", "manufacturing_operation"],
+		)
+
+		mwo_map = {}
+
+		for row in mwo_data:
+			metal_item = get_item_from_attribute(
+				row.metal_type, row.metal_touch, row.metal_purity, row.metal_colour
+			)
+			mwo_map.update({metal_item: {"mwo": row.name, "mop": row.manufacturing_operation}})
+
 		bom_item = frappe.get_doc("BOM", self.master_bom)
 		se = frappe.get_doc(
 			{
@@ -103,9 +141,9 @@ class ManufacturingWorkOrder(Document):
 				"inventory_type": "Regular Stock",
 				"auto_created": 1,
 				"branch": self.branch,
-				"manufacturing_order": self.manufacturing_order,
-				"manufacturing_work_order": self.name,
-				"manufacturing_operation": self.manufacturing_operation,
+				# "manufacturing_order": self.manufacturing_order,
+				# "manufacturing_work_order": self.name,
+				# "manufacturing_operation": self.manufacturing_operation,
 			}
 		)
 		source_item = []
@@ -121,6 +159,8 @@ class ManufacturingWorkOrder(Document):
 				"use_serial_batch_fields": 1,
 				"s_warehouse": wh,
 				"gross_weight": bom_item.gross_weight,
+				# "custom_manufacturing_work_order": self.name,
+				# "manufacturing_operation": self.manufacturing_operation
 			}
 		)
 		for row in bom_item.items:
@@ -135,31 +175,42 @@ class ManufacturingWorkOrder(Document):
 		for row in source_item:
 			se.append("items", row)
 		for row in target_item:
-			if row_dict.get(row["item_code"]):
-				batch_number_series = frappe.db.get_value("Item", row["item_code"], "batch_number_series")
+			batch_number_series = frappe.db.get_value("Item", row["item_code"], "batch_number_series")
 
-				batch_doc = frappe.new_doc("Batch")
-				batch_doc.item = row["item_code"]
+			batch_doc = frappe.new_doc("Batch")
+			batch_doc.item = row["item_code"]
 
-				if batch_number_series:
-					batch_doc.batch_id = make_autoname(batch_number_series, doc=batch_doc)
+			if batch_number_series:
+				batch_doc.batch_id = make_autoname(batch_number_series, doc=batch_doc)
 
-				batch_doc.flags.ignore_permissions = True
-				batch_doc.save()
-				se.append(
-					"items",
-					{
-						"item_code": row["item_code"],
-						"qty": row["qty"],
-						"inventory_type": row["inventory_type"],
-						"t_warehouse": row["t_warehouse"],
-						"use_serial_batch_fields": 1,
-						"set_basic_rate_manually": 1,
-						"basic_rate": row_dict[row["item_code"]]["avg_basic_rate"],
-						"batch_no": batch_doc.name,
-					},
-				)
+			batch_doc.flags.ignore_permissions = True
+			batch_doc.save()
+			rate = 0
+			if row_dict.get(row["item_code"]) and row_dict[row["item_code"]].get("avg_basic_rate"):
+				rate = row_dict[row["item_code"]].get("avg_basic_rate")
+			mwo = self.name
+			mop = self.manufacturing_operation
+			if mwo_map.get(row["item_code"]):
+				mwo = mwo_map[row["item_code"]]["mwo"]
+				mop = mwo_map[row["item_code"]]["mop"]
+			se.append(
+				"items",
+				{
+					"item_code": row["item_code"],
+					"qty": row["qty"],
+					"inventory_type": row["inventory_type"],
+					"t_warehouse": row["t_warehouse"],
+					"use_serial_batch_fields": 1,
+					"set_basic_rate_manually": 1,
+					"basic_rate": rate,
+					"batch_no": batch_doc.name,
+					"custom_manufacturing_work_order": mwo,
+					"manufacturing_operation": mop,
+				},
+			)
+
 		se.save()
+		se.submit()
 
 
 def create_manufacturing_operation(doc):
@@ -196,6 +247,7 @@ def create_manufacturing_operation(doc):
 	mop.department = department
 	mop.save()
 	mop.db_set("employee", None)
+	doc.db_set("manufacturing_operation", mop.name)
 
 
 @frappe.whitelist()

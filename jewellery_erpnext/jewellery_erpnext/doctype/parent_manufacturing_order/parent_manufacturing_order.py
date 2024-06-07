@@ -3,6 +3,7 @@
 
 import frappe
 from erpnext.controllers.item_variant import create_variant, get_variant
+from frappe import _
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils import now
@@ -11,6 +12,19 @@ from jewellery_erpnext.utils import update_existing
 
 
 class ParentManufacturingOrder(Document):
+	def before_save(self):
+		self.metal_details()
+
+	def metal_details(self):
+		if self.master_bom:
+			metal_purity = frappe.db.get_value(
+				"Metal Criteria",
+				{"parent": self.manufacturer, "metal_touch": self.metal_touch},
+				["metal_purity"],
+			)
+			if metal_purity:
+				self.metal_purity = metal_purity
+
 	def after_insert(self):
 		if self.serial_no:
 			serial_bom = frappe.db.exists("BOM", {"tag_no": self.serial_no})
@@ -69,7 +83,7 @@ class ParentManufacturingOrder(Document):
 		bom = self.serial_id_bom or self.master_bom
 		mnf_abb = frappe.get_value("Manufacturer", self.manufacturer, "custom_abbreviation")
 		if not bom:
-			frappe.throw("BOM is missing")
+			frappe.throw(_("BOM is missing"))
 		check_bom_type = frappe.get_value("BOM", bom, "bom_type")
 		if check_bom_type != "Manufacturing Process":
 			frappe.throw(f"Master BOM <b>{bom}</b> BOM Type must be a Sales Order")
@@ -235,7 +249,6 @@ class ParentManufacturingOrder(Document):
 				):
 					mr_doc._customer = self.customer
 					mr_doc.inventory_type = "Customer Goods"
-
 				for i in val:
 					if i["qty"] > 0:
 						mr_doc.append(
@@ -248,6 +261,7 @@ class ParentManufacturingOrder(Document):
 								"custom_is_customer_item": i.get("is_customer_item", 0),
 								"custom_sub_setting_type": i.get("sub_setting_type", None),
 								"pcs": i.get("pcs", None),
+								"custom_inventory_type": "Customer Stock" if i.get("is_customer_item") == 1 else None,
 							},
 						)
 					else:
@@ -256,7 +270,7 @@ class ParentManufacturingOrder(Document):
 						)
 				counter += 1
 				mr_doc.save()
-		frappe.msgprint("Material Request Created !!")
+		frappe.msgprint(_("Material Request Created !!"))
 
 	def set_missing_value(self):
 		if not self.is_new():
@@ -458,6 +472,10 @@ def make_manufacturing_order(source_doc, row):
 	doc.customer_diamond = row.customer_diamond
 	doc.customer_stone = row.customer_stone
 	doc.customer_good = row.customer_good
+	doc.customer_weight = row.customer_weight
+	doc.repair_type = row.repair_type
+	doc.product_type = row.product_type
+	doc.type = source_doc.select_manufacture_order
 	# doc.sales_order_bom = row.bom
 	doc.service_type = [
 		frappe.get_doc(row)
@@ -468,23 +486,34 @@ def make_manufacturing_order(source_doc, row):
 		)
 	]
 	doc.manufacturing_plan = source_doc.name
-	doc.manufacturer = frappe.db.get_value(
-		"Manufacturer", {"company": source_doc.company}, "name", order_by="creation asc"
-	)
+	# doc.manufacturer = frappe.db.get_value(
+	# 	"Manufacturer", {"company": source_doc.company}, "name", order_by="creation asc"
+	# )
 	doc.qty = row.qty_per_manufacturing_order
 	doc.rowname = row.name
 	if source_doc.select_manufacture_order == "Manufacturing":
 		doc.master_bom = row.manufacturing_bom
 	if source_doc.select_manufacture_order == "Repair" and row.order_form_type == "Repair Order":
 		doc.master_bom = row.serial_id_bom
-	doc.save()
+	if doc.master_bom:
+		metal_type = frappe.db.get_value("BOM", doc.master_bom, ["metal_type_"])
+		metal_colour = frappe.db.get_value("BOM", doc.master_bom, ["metal_colour"])
+		metal_touch = frappe.db.get_value("BOM", doc.master_bom, ["metal_touch"])
+		if metal_touch:
+			doc.metal_type = metal_type
+		if metal_colour:
+			doc.metal_colour = metal_colour
+		if metal_touch:
+			doc.metal_touch = metal_touch
+	# doc.save()
+	doc.insert(ignore_mandatory=True)
 
-	diamond_grade = frappe.db.get_value(
-		"Customer Diamond Grade",
-		{"diamond_quality": doc.diamond_quality, "parent": so_doc.get("ref_customer") or doc.customer},
-		"diamond_grade_1",
-	)
-	doc.db_set("diamond_grade", diamond_grade)
+	# diamond_grade = frappe.db.get_value(
+	# 	"Customer Diamond Grade",
+	# 	{"diamond_quality": doc.diamond_quality, "parent": so_doc.get("ref_customer") or doc.customer},
+	# 	"diamond_grade_1",
+	# )
+	# doc.db_set("diamond_grade", diamond_grade)
 
 
 def create_manufacturing_work_order(self):
@@ -650,7 +679,7 @@ def get_gemstone_item_code_by_variant(self, bom, target_warehouse):
 def get_gemstone_details(self):
 	bom = self.serial_id_bom or self.master_bom
 	if not bom:
-		frappe.throw("Sales Order BOM is Missing on Manufacturing Plan Table")
+		frappe.throw(_("Sales Order BOM is Missing on Manufacturing Plan Table"))
 	bom_doc = frappe.get_doc("BOM", bom)
 	if len(bom_doc.gemstone_detail) > 0:
 		for gem_row in bom_doc.gemstone_detail:
@@ -707,7 +736,7 @@ def set_metal_tolerance_table(self):  # To Set Metal Product Tolerance Table
 	cptm = frappe.get_doc("Customer Product Tolerance Master", cpt)
 	bom = self.serial_id_bom or self.master_bom
 	if not bom:
-		frappe.throw("BOM is missing")
+		frappe.throw(_("BOM is missing"))
 	bom_doc = frappe.get_doc("BOM", bom)
 	if len(cptm.metal_tolerance_table) > 0:
 		for mtt_tbl in cptm.metal_tolerance_table:
@@ -720,8 +749,8 @@ def set_metal_tolerance_table(self):  # To Set Metal Product Tolerance Table
 				from_tolerance_wt = round(bom_gross_wt - mtt_tbl.tolerance_range, 4)
 				to_tolerance_wt = round(bom_gross_wt + mtt_tbl.tolerance_range, 4)
 			else:
-				from_tolerance_wt = round(bom_gross_wt * (100 - mtt_tbl.minus_percent), 4)
-				to_tolerance_wt = round(bom_gross_wt * (100 + mtt_tbl.plus_percent), 4)
+				from_tolerance_wt = round(bom_gross_wt * ((100 - mtt_tbl.minus_percent) / 100), 4)
+				to_tolerance_wt = round(bom_gross_wt * ((100 + mtt_tbl.plus_percent) / 100), 4)
 
 			child_row = {
 				"doctype": "Metal Product Tolerance",
@@ -732,7 +761,7 @@ def set_metal_tolerance_table(self):  # To Set Metal Product Tolerance Table
 				"from_tolerance_wt": from_tolerance_wt,
 				"to_tolerance_wt": to_tolerance_wt,
 				"standard_tolerance_wt": round(bom_gross_wt, 4),
-				"product_wt": self.gross_weight,
+				"product_wt": self.gross_weight if mtt_tbl.weight_type == "Gross Weight" else self.net_weight,
 			}
 			try:
 				self.append("metal_product_tolerance", child_row)
@@ -752,10 +781,11 @@ def set_diamond_tolerance_table(self):  # To Set Diamond Product Tolerance Table
 	cptm = frappe.get_doc("Customer Product Tolerance Master", cpt)
 	bom = self.serial_id_bom or self.master_bom
 	if not bom:
-		frappe.throw("BOM is missing")
+		frappe.throw(_("BOM is missing"))
 	bom_doc = frappe.get_doc("BOM", bom)
 	if len(cptm.diamond_tolerance_table) > 0:
 		for dtt_tbl in cptm.diamond_tolerance_table:
+			child_row = {}
 			if dtt_tbl.weight_type == "MM Size wise":
 				for dimond_row in bom_doc.diamond_detail:
 					if dimond_row.diamond_sieve_size == dtt_tbl.sieve_size:
@@ -804,6 +834,7 @@ def set_diamond_tolerance_table(self):  # To Set Diamond Product Tolerance Table
 							"standard_tolerance_wt": round(quantity_sum, 4),
 							"product_wt": self.diamond_weight,
 						}
+
 			if dtt_tbl.weight_type == "Weight wise":
 				diamond_total_wt = 0
 				for dimond_row in bom_doc.diamond_detail:
@@ -851,7 +882,8 @@ def set_diamond_tolerance_table(self):  # To Set Diamond Product Tolerance Table
 							"product_wt": self.diamond_weight,
 						}
 			try:
-				self.append("diamond_product_tolerance", child_row)
+				if child_row:
+					self.append("diamond_product_tolerance", child_row)
 			except Exception as e:
 				frappe.throw(
 					f"Error appending <b>Diamond Product Tolerance Table</b> Please check <b>Customer Product Tolerance Master</b> Doctype Correctly configured or not:</br></br> {str(e)}"
@@ -868,16 +900,16 @@ def set_gemstone_tolerance_table(self):  # To Set Gemstone Product Tolerance Tab
 	cptm = frappe.get_doc("Customer Product Tolerance Master", cpt)
 	bom = self.serial_id_bom or self.master_bom
 	if not bom:
-		frappe.throw("BOM is missing")
+		frappe.throw(_("BOM is missing"))
 	bom_doc = frappe.get_doc("BOM", bom)
 	if len(cptm.gemstone_tolerance_table) > 0:
 		for dtt_tbl in cptm.gemstone_tolerance_table:
-
+			child_row = {}
 			if dtt_tbl.weight_type == "Weight Range":
 				shapes = set()
 				quantity_sum = 0
 				for gem_row in bom_doc.gemstone_detail:
-					if dtt_tbl.gemstone_shape == gem_row.stone_shape:
+					if dtt_tbl.from_diamond <= gem_row.quantity <= dtt_tbl.to_diamond:
 						quantity_sum += gem_row.quantity
 						shapes.add(gem_row.stone_shape)
 				from_tolerance_wt = round(quantity_sum * ((100 - dtt_tbl.minus_percent) / 100), 4)
@@ -891,7 +923,7 @@ def set_gemstone_tolerance_table(self):  # To Set Gemstone Product Tolerance Tab
 							"parentfield": "gemstone_product_tolerance",
 							"weight_type": dtt_tbl.weight_type,
 							"gemstone_shape": shape,
-							"gemstone_type": None,
+							"gemstone_type": dtt_tbl.gemstone_type,
 							"standard_tolerance_wt": quantity_sum,
 							"from_tolerance_wt": from_tolerance_wt,
 							"to_tolerance_wt": to_tolerance_wt,
@@ -941,7 +973,8 @@ def set_gemstone_tolerance_table(self):  # To Set Gemstone Product Tolerance Tab
 						"product_wt": self.diamond_weight,
 					}
 			try:
-				self.append("gemstone_product_tolerance", child_row)
+				if child_row:
+					self.append("gemstone_product_tolerance", child_row)
 			except Exception as e:
 				frappe.throw(
 					f"Error appending <b>Gemstone Product Tolerance Table</b> Please check <b>Customer Product Tolerance Master</b> Doctype Correctly configured or not:</br></br> {str(e)}"

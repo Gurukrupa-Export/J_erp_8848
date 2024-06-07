@@ -11,12 +11,16 @@
   "pcs",
   "uom",
   "id",
+  "batch_no",
+  "column_break_xnlw",
+  "inventory_type",
   "default_bom_rm",
   "bom_qty",
   "bom_pcs",
   "sub_setting_type",
   "is_customer_item",
-  "serial_no"
+  "serial_no",
+  "sed_item"
  ],
  "fields": [
   {
@@ -47,7 +51,8 @@
    "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Pcs",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "uom",
@@ -102,12 +107,35 @@
    "label": "Serial No",
    "options": "Serial No",
    "read_only": 1
+  },
+  {
+   "fieldname": "batch_no",
+   "fieldtype": "Link",
+   "label": "Batch No",
+   "options": "Batch"
+  },
+  {
+   "fieldname": "column_break_xnlw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "inventory_type",
+   "fieldtype": "Link",
+   "label": "Inventory Type",
+   "options": "Inventory Type"
+  },
+  {
+   "fieldname": "sed_item",
+   "fieldtype": "Link",
+   "label": "SED Item",
+   "options": "Stock Entry Detail",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-02-16 17:41:39.548055",
+ "modified": "2024-05-21 11:34:03.838981",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "SNC FG Details",

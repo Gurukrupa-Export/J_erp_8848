@@ -25,7 +25,7 @@ class SketchOrder(Document):
 			item_variant = create_item_from_sketch_order(self, item_template, row.name)
 			update_item_variant(self, item_variant, item_template)
 			frappe.db.set_value(row.doctype, row.name, "item", item_template)
-			frappe.msgprint(_("New Item Created: {0}".format(get_link_to_form("Item", item_variant))))
+			frappe.msgprint(_("New Item Created: {0}").format(get_link_to_form("Item", item_variant)))
 
 	# new code end
 
@@ -49,6 +49,9 @@ def populate_child_table(self):
 		self.rough_sketch_approval = []
 		self.final_sketch_approval = []
 		self.final_sketch_approval_cmo = []
+		rough_sketch_approval = []
+		final_sketch_approval = []
+		final_sketch_approval_cmo = []
 		for designer in self.designer_assignment:
 			r_s_row = self.get(
 				"rough_sketch_approval",
@@ -58,29 +61,45 @@ def populate_child_table(self):
 				},
 			)
 			if not r_s_row:
-				self.append(
-					"rough_sketch_approval",
+				rough_sketch_approval.append(
 					{
 						"designer": designer.designer,
 						"designer_name": designer.designer_name,
 					},
 				)
-
-			self.append(
-				"final_sketch_approval",
+				# self.append(
+				# 	"rough_sketch_approval",
+				# 	{
+				# 		"designer": designer.designer,
+				# 		"designer_name": designer.designer_name,
+				# 	},
+				# )
+			final_sketch_approval.append(
 				{
 					"designer": designer.designer,
 					"designer_name": designer.designer_name,
 				},
 			)
-
-			self.append(
-				"final_sketch_approval_cmo",
+			# self.append(
+			# 	"final_sketch_approval",
+			# 	{
+			# 		"designer": designer.designer,
+			# 		"designer_name": designer.designer_name,
+			# 	},
+			# )
+			final_sketch_approval_cmo.append(
 				{
-					"designer": designer.designer,
-					"designer_name": designer.designer_name,
-				},
+						"designer": designer.designer,
+						"designer_name": designer.designer_name,
+					},
 			)
+			# self.append(
+			# 	"final_sketch_approval_cmo",
+			# 	{
+			# 		"designer": designer.designer,
+			# 		"designer_name": designer.designer_name,
+			# 	},
+			# )
 
 			hod_name = frappe.db.get_value("User", {"email": frappe.session.user}, "full_name")
 			subject = "Sketch Design Assigned"
@@ -92,7 +111,12 @@ def populate_child_table(self):
 		# doc.final_sketch_approval_cmo and frappe.db.get_value("Final Sketch Approval HOD",{"parent":doc.name},"cmo_count as cnt", order_by="cnt asc")
 		#  and frappe.db.get_value("Final Sketch Approval CMO",{"parent":doc.name},"sub_category")
 		# and frappe.db.get_value("Final Sketch Approval CMO",{"parent":doc.name},"category") and frappe.db.get_value("Final Sketch Approval CMO",{"parent":doc.name},"setting_type")
-
+		for row in rough_sketch_approval:
+			self.append("rough_sketch_approval",row)
+		for row in final_sketch_approval:
+			self.appen("final_sketch_approval",row)
+		for row in final_sketch_approval_cmo:
+			self.append("final_sketch_approval_cmo",row)
 
 def create_system_notification(self, subject, context, recipients):
 	if not recipients:
@@ -130,13 +154,7 @@ def create_item_template_from_sketch_order(self, source_name, target_doc=None):
 		target.usa_states = self.usa_states
 
 		# new code start
-		target.custom_sketch_order_id = self.name
-		target.custom_sketch_order_form_id = self.sketch_order_form
-		sub_category = frappe.db.get_value("Final Sketch Approval CMO",source_name,"sub_category")
-		designer = frappe.db.get_value("Final Sketch Approval CMO",source_name,"designer")
-		target.item_group = sub_category + " - T"
-		target.designer = designer
-		target.subcategory = sub_category
+		target.item_group = (self.subcategory + " - T",)
 		# new code end
 
 	doc = get_mapped_doc(
@@ -150,14 +168,13 @@ def create_item_template_from_sketch_order(self, source_name, target_doc=None):
 					"gold_wt_approx": "approx_gold",
 					"diamond_wt_approx": "approx_diamond",
 					"sub_category": "subcategory",
-					"sub_category":"item_subcategory"
 				},
 			}
 		},
-		target_doc, post_process
+		target_doc,
+		post_process,
 	)
 	doc.save()
-	# frappe.throw(f"{doc.name}")
 	return doc.name
 
 
@@ -168,7 +185,7 @@ def create_item_from_sketch_order(self, item_template, source_name, target_doc=N
 		target.india_states = self.india_states
 		target.usa = self.usa
 		target.usa_states = self.usa_states
-		
+
 		# new code start
 		target.item_group = (self.subcategory + " - V",)
 		# new code end
@@ -216,7 +233,7 @@ def create_item_from_sketch_order(self, item_template, source_name, target_doc=N
 		for row in self.rhodium:
 			target.append("custom_rhodium", {"design_attribute": row.design_attribute})
 
-		# attribute_value_for_name = []
+		attribute_value_for_name = []
 
 		for i in frappe.get_all(
 			"Attribute Value Item Attribute Detail",
@@ -243,27 +260,27 @@ def create_item_from_sketch_order(self, item_template, source_name, target_doc=N
 				},
 			)
 
-			# if i.item_attribute == "Gold Target":
-			# 	attribute_value_for_name.append("G1")
-			# 	continue
-			# if i.item_attribute == "Diamond Target":
-			# 	attribute_value_for_name.append("D1")
-			# 	continue
+			if i.item_attribute == "Gold Target":
+				attribute_value_for_name.append("G1")
+				continue
+			if i.item_attribute == "Diamond Target":
+				attribute_value_for_name.append("D1")
+				continue
 
-			# attribute_value_for_name.append(
-			# 	str(
-			# 		frappe.db.get_value(
-			# 			"Item Attribute Value",
-			# 			{
-			# 				"parent": i.item_attribute,
-			# 				"attribute_value": attribute_value,
-			# 			},
-			# 			"abbr",
-			# 		)
-			# 	)
-			# )
+			attribute_value_for_name.append(
+				str(
+					frappe.db.get_value(
+						"Item Attribute Value",
+						{
+							"parent": i.item_attribute,
+							"attribute_value": attribute_value,
+						},
+						"abbr",
+					)
+				)
+			)
 
-		# n = item_template + "-" + "-".join(attribute_value_for_name)
+		n = item_template + "-" + "-".join(attribute_value_for_name)
 
 	doc = get_mapped_doc(
 		"Final Sketch Approval CMO",
@@ -276,7 +293,6 @@ def create_item_from_sketch_order(self, item_template, source_name, target_doc=N
 					"sub_category": "item_subcategory",
 					"gold_wt_approx": "approx_gold",
 					"diamond_wt_approx": "approx_diamond",
-					"designer":"designer"
 				},
 			}
 		},

@@ -12,7 +12,8 @@
   "gross_wt",
   "column_break_uz0qw",
   "received_gross_wt",
-  "gold_loss"
+  "gold_loss",
+  "qc"
  ],
  "fields": [
   {
@@ -52,12 +53,19 @@
   {
    "fieldname": "column_break_uz0qw",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "qc",
+   "fieldtype": "Link",
+   "label": "QC",
+   "options": "QC",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-03-07 18:34:27.788231",
+ "modified": "2024-05-02 17:33:50.289913",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Employee IR Operation",

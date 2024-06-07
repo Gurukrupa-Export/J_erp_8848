@@ -6,7 +6,12 @@ from erpnext.stock.doctype.stock_entry.stock_entry import StockEntry
 
 from jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.se_utils import (
 	get_fifo_batches,
+	validate_inventory_dimention,
 )
+
+
+def on_submit(self, method):
+	validate_inventory_dimention(self)
 
 
 class CustomStockEntry(StockEntry):
@@ -15,12 +20,17 @@ class CustomStockEntry(StockEntry):
 		if not self.auto_created:
 			rows_to_append = []
 			for row in self.items:
-				if frappe.db.get_value("Item", row.item_code, "has_batch_no") and row.s_warehouse:
-					if row.get("batch_no") and get_batch_qty(row.batch_no, row.s_warehouse) >= row.qty:
-						temp_row = copy.deepcopy(row)
-						rows_to_append += [temp_row]
-					else:
-						rows_to_append += get_fifo_batches(self, row)
+				if frappe.db.get_value("Item", row.item_code, "has_batch_no"):
+					if row.s_warehouse:
+						if row.get("batch_no") and get_batch_qty(row.batch_no, row.s_warehouse) >= row.qty:
+							temp_row = copy.deepcopy(row)
+							rows_to_append += [temp_row]
+						else:
+							rows_to_append += get_fifo_batches(self, row)
+					elif row.t_warehouse:
+						rows_to_append += [row.__dict__]
+				else:
+					rows_to_append += [row.__dict__]
 
 			if rows_to_append:
 				self.items = []

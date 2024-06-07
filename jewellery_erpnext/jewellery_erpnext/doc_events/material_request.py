@@ -1,6 +1,24 @@
 import frappe
+from frappe import _
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils.data import flt
+
+
+def on_submit(self, method=None):
+	if self.custom_reserve_se:
+		se_doc = frappe.get_doc("Stock Entry", self.custom_reserve_se)
+		new_se_doc = frappe.copy_doc(se_doc)
+
+		for row in new_se_doc.items:
+			t_warehouse = frappe.db.get_value(
+				"Material Request Item", row.material_request_item, "warehouse"
+			)
+			row.s_warehouse = row.t_warehouse
+			row.t_warehouse = t_warehouse
+			row.serial_and_batch_bundle = None
+
+		new_se_doc.save()
+		new_se_doc.submit()
 
 
 @frappe.whitelist()
@@ -73,8 +91,8 @@ def make_stock_entry(source_name, target_doc=None):
 
 	def set_missing_values(source, target):
 		target.purpose = source.material_request_type
-		target.from_warehouse = source.set_from_warehouse
-		target.to_warehouse = source.set_warehouse
+		# target.from_warehouse = source.set_from_warehouse
+		# target.to_warehouse = source.set_warehouse
 		# sending doc_id for reference
 		target.custom_material_request_reference = source.name
 
@@ -163,15 +181,25 @@ def make_stock_entry(source_name, target_doc=None):
 
 
 @frappe.whitelist()
-def make_in_transit_stock_entry(source_name, in_transit_warehouse, pmo=None, mnfr=None):
+def make_in_transit_stock_entry(source_name, to_warehouse, transfer_type, pmo=None, mnfr=None):
 	pmo_doc = frappe.get_doc("Parent Manufacturing Order", pmo) if pmo else None
-	to_department = frappe.db.get_value(
-		"Warehouse", {"default_in_transit_warehouse": in_transit_warehouse}, "department"
+	to_department = frappe.db.get_value("Warehouse", to_warehouse, "department")
+	in_transit_warehouse = frappe.db.get_value(
+		"Warehouse", to_warehouse, "default_in_transit_warehouse"
 	)
+
+	if not in_transit_warehouse:
+		frappe.throw(_("Transit warehouse is not mentioned in Target Warehouse"))
+
 	ste_doc = make_stock_entry(source_name)
 	if not ste_doc.employee:
 		ste_doc.add_to_transit = 1
 
+	stock_entry_type = frappe.db.get_value("Transfer Type", transfer_type, "stock_entry_type")
+	if not stock_entry_type:
+		frappe.throw(_("Please mention Stock Entry type for selected Transfer type."))
+
+	ste_doc.stock_entry_type = stock_entry_type
 	ste_doc.to_warehouse = in_transit_warehouse
 	ste_doc.to_department = to_department
 
@@ -197,5 +225,64 @@ def make_in_transit_stock_entry(source_name, in_transit_warehouse, pmo=None, mnf
 
 
 @frappe.whitelist()
-def create_stock_entry(doc, method):
-	pass
+def create_stock_entry(self, method):
+	if (
+		self.workflow_state == "Material Reserved"
+		and not self.custom_reserve_se
+		and self.manufacturing_order
+	):
+		# variant_based_warehouse = {}
+		# warehouse_data = frappe.db.get_all(
+		# 	"Variant based Warehouse", {"parent": self.custom_manufacturer}, ["variant", "department"]
+		# )
+		# for row in warehouse_data:
+		# 	s_warehouse = frappe.db.get_value(
+		# 		"Warehouse", {"department": row.department, "warehouse_type": "Raw Material"}
+		# 	)
+		# 	t_warehouse = frappe.db.get_value(
+		# 		"Warehouse", {"department": row.department, "warehouse_type": "Reserve"}
+		# 	)
+
+		# 	variant_based_warehouse[row.variant] = {"s_warehouse": s_warehouse, "t_warehouse": t_warehouse}
+
+		se_doc = frappe.new_doc("Stock Entry")
+		se_doc.company = self.company
+		stock_entry_type = frappe.db.get_value(
+			"Transfer Type", self.custom_tranfer_type, "stock_entry_type"
+		)
+		if not stock_entry_type:
+			frappe.throw(_("Please mention Stock Entry type for selected Transfer type."))
+		se_doc.stock_entry_type = stock_entry_type
+		se_doc.purpose = "Material Transfer"
+		se_doc.add_to_transit = True
+
+		for row in self.items:
+			department = frappe.db.get_value("Warehouse", row.from_warehouse, "department")
+			t_warehouse = frappe.db.get_value(
+				"Warehouse", {"department": department, "warehouse_type": "Reserve"}, "name"
+			)
+			if not t_warehouse:
+				frappe.throw(_("Transit warehouse not found for {0}").format(department))
+			se_doc.append(
+				"items",
+				{
+					"material_request": self.name,
+					"material_request_item": row.name,
+					"s_warehouse": row.from_warehouse,
+					"t_warehouse": t_warehouse,
+					"item_code": row.custom_alternative_item or row.item_code,
+					"qty": row.qty,
+					"inventory_type": row.inventory_type,
+					"customer": row.customer,
+					"batch_no": row.batch_no,
+					"pcs": row.pcs,
+					"cost_center": row.cost_center,
+					"sub_setting_type": row.custom_sub_setting_type,
+					"use_serial_batch_fields": True,
+				},
+			)
+
+		se_doc.save()
+		self.custom_reserve_se = se_doc.name
+		se_doc.submit()
+		frappe.msgprint(_("Reserved Stock Entry {0} has been created").format(se_doc.name))

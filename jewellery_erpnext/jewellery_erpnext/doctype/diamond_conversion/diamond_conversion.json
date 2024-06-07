@@ -62,6 +62,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "fetch_from": "employee.manufacturer",
    "fieldname": "manufacturer",
    "fieldtype": "Link",
    "label": "Manufacturer",
@@ -186,7 +187,7 @@
    "link_fieldname": "custom_diamond_conversion"
   }
  ],
- "modified": "2024-03-21 16:53:15.515143",
+ "modified": "2024-04-25 12:25:11.978008",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Diamond Conversion",

@@ -3,7 +3,7 @@
 
 frappe.ui.form.on("Main Slip", {
 	refresh(frm) {
-		cur_frm.add_custom_button(
+		frm.add_custom_button(
 			__("Stock Ledger"),
 			async function () {
 				var item = (
@@ -75,7 +75,9 @@ frappe.ui.form.on("Main Slip", {
 			);
 		}
 		if (frm.doc.multicolour == 1 && frm.doc.allowed_colours == null) {
-			frappe.throw("Mandatory fields required in Main Slip: </br><b>Allowed Colours</b>");
+			frappe.throw(
+				__("Mandatory fields required in Main Slip: </br><b>Allowed Colours</b>")
+			);
 		}
 	},
 	powder_wt(frm) {

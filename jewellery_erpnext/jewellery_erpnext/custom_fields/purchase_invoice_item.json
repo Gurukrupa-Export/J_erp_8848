@@ -1,0 +1,12 @@
+{
+    "Purchase Invoice Item": [
+        {
+            "fieldname": "customer",
+            "fieldtype": "Link",
+            "insert_after": "stock_entry",
+            "label": "customer",
+            "options": "Customer",
+            "module": "Jewellery Erpnext"
+        }
+    ]
+}

@@ -4,7 +4,9 @@
 import frappe
 from erpnext.controllers.queries import get_batch_no
 from erpnext.stock.doctype.batch.batch import get_batch_qty
+from frappe import _
 from frappe.model.document import Document
+from frappe.utils import flt
 
 
 class MetalConversions(Document):
@@ -14,21 +16,21 @@ class MetalConversions(Document):
 			make_metal_stock_entry(self)
 		if self.multiple_metal_converter == 1:
 			if self.mc_source_table == []:
-				frappe.throw("Source Item Missing")
+				frappe.throw(_("Source Item Missing"))
 			if self.m_target_qty <= 0 or self.m_target_item == None:
-				frappe.throw("Target Item or Target Qty Missing")
+				frappe.throw(_("Target Item or Target Qty Missing"))
 			if self.alloy_qty <= 0 or self.alloy == None:
-				frappe.throw("Alloy Item or Alloy Qty Missing")
+				frappe.throw(_("Alloy Item or Alloy Qty Missing"))
 			self.get_alloy_bailance()
 			make_multiple_metal_stock_entry(self)
 
 		if self.multiple_metal_converter == 0:
 			if self.target_qty <= 0 or self.source_qty <= 0:
-				frappe.throw("Source Qty or Target Qty not allowed Zero to post transaction")
+				frappe.throw(_("Source Qty or Target Qty not allowed Zero to post transaction"))
 
 	def validate(self):
 		if not self.batch and self.multiple_metal_converter == 0:
-			frappe.throw("Batch Missing")
+			frappe.throw(_("Batch Missing"))
 
 	@frappe.whitelist()
 	def clear_fields(self):
@@ -63,19 +65,19 @@ class MetalConversions(Document):
 		error = []
 		if self.batch:
 			bal_qty = get_batch_qty(batch_no=self.batch, warehouse=self.source_warehouse)
-			reference_doctype, reference_name = frappe.get_value(
-				"Batch", self.batch, ["reference_doctype", "reference_name"]
+			reference_doctype, reference_name, inventory_type = frappe.get_value(
+				"Batch", self.batch, ["reference_doctype", "reference_name", "custom_inventory_type"]
 			)
 			if not bal_qty:
 				error.append("Batch Qty zero")
 			if reference_doctype:
 				if reference_doctype == "Purchase Receipt":
 					supplier = frappe.get_value(reference_doctype, reference_name, "supplier")
-					inventory_type = "Regular Stock"
+					# inventory_type = "Regular Stock"
 				if reference_doctype == "Stock Entry":
 					inventory_type = frappe.get_value(reference_doctype, reference_name, "inventory_type")
 					if inventory_type == "Customer Goods":
-						customer = frappe.get_value(reference_doctype, reference_name, "_customer")
+						customer = frappe.get_value("batch", self.batch, "custom_customer")
 			if error:
 				frappe.throw(", ".join(error))
 
@@ -137,9 +139,13 @@ class MetalConversions(Document):
 		target_item_purity = get_metal_purity_percentage(self.target_item)
 
 		if not source_item_purity:
-			frappe.throw("<b>Source Item</b> in Attribute Value doctype <b>Purity Percentage</b> Missing")
+			frappe.throw(
+				_("<b>Source Item</b> in Attribute Value doctype <b>Purity Percentage</b> Missing")
+			)
 		if not target_item_purity:
-			frappe.throw("<b>Target Item</b> in Attribute Value doctype <b>Purity Percentage</b> Missing")
+			frappe.throw(
+				_("<b>Target Item</b> in Attribute Value doctype <b>Purity Percentage</b> Missing")
+			)
 
 		if source_item_purity:
 			if target_item_purity:
@@ -147,21 +153,23 @@ class MetalConversions(Document):
 					target_qty = float((self.source_qty * source_item_purity) / target_item_purity)
 					alloy_qty = round(float((target_qty - self.source_qty)), 3)
 				else:
-					frappe.throw("Error: Target Item Purity value is zero.")
+					frappe.throw(_("Error: Target Item Purity value is zero."))
 			else:
-				frappe.throw("Error: Target Item Purity not found.")
+				frappe.throw(_("Error: Target Item Purity not found."))
 		else:
-			frappe.throw("Error: Source Item Purity not found.")
+			frappe.throw(_("Error: Source Item Purity not found."))
 		return target_qty, alloy_qty
 
 	@frappe.whitelist()
 	def calculate_Multiple_conversion(self):
 		if not self.m_target_item:
-			frappe.throw("Target Item Code Missing")
+			frappe.throw(_("Target Item Code Missing"))
 
 		target_item_purity = get_metal_purity_percentage(self.m_target_item)
 		if not target_item_purity:
-			frappe.throw("<b>Target Item</b> in Attribute Value doctype <b>Purity Percentage</b> Missing")
+			frappe.throw(
+				_("<b>Target Item</b> in Attribute Value doctype <b>Purity Percentage</b> Missing")
+			)
 
 		sum_total = 0
 		sum_source_qty = 0
@@ -181,13 +189,13 @@ class MetalConversions(Document):
 			if _alloy_qty:
 				_alloy = self.source_alloy or self.target_alloy
 				if not _alloy:
-					frappe.throw("Alloy Missing")
+					frappe.throw(_("Alloy Missing"))
 				alloy_qty_bail = frappe.get_value(
 					"Bin", {"warehouse": self.source_warehouse, "item_code": _alloy}, "actual_qty"
 				)
 
 				if alloy_qty_bail:
-					if _alloy_qty > alloy_qty_bail:
+					if flt(_alloy_qty) > alloy_qty_bail:
 						frappe.throw(
 							f"Alloy <b>{_alloy}</b> Bailance qty is {alloy_qty_bail}</br>We need {_alloy_qty} Respective <b>{self.source_warehouse}</b> Warehouse."
 						)
@@ -198,7 +206,7 @@ class MetalConversions(Document):
 		else:
 			if self.alloy_qty:
 				if not self.alloy:
-					frappe.throw("Alloy Missing")
+					frappe.throw(_("Alloy Missing"))
 				actual_qty = frappe.get_value(
 					"Bin", {"warehouse": self.source_warehouse, "item_code": self.alloy}, "actual_qty"
 				)
@@ -216,14 +224,16 @@ class MetalConversions(Document):
 	@frappe.whitelist()
 	def get_mc_table_purity(self, item_code, qty):
 		if not item_code:
-			frappe.throw("Item Code Missing")
+			frappe.throw(_("Item Code Missing"))
 
 		source_item_purity = get_metal_purity_percentage(item_code)
 		if not source_item_purity:
-			frappe.throw("<b>Source Item</b> in Attribute Value doctype <b>Purity Percentage</b> Missing")
+			frappe.throw(
+				_("<b>Source Item</b> in Attribute Value doctype <b>Purity Percentage</b> Missing")
+			)
 
 		total = qty * source_item_purity
-		return total
+		return total, source_item_purity
 
 
 def get_metal_purity_percentage(item_code):
@@ -233,7 +243,7 @@ def get_metal_purity_percentage(item_code):
 		fields=["parent", "attribute", "attribute_value"],
 	)
 	if not item_variant_attribute_value:
-		frappe.throw("Attribute Value Missing")
+		frappe.throw(_("Attribute Value Missing"))
 	target_purity = float(
 		frappe.get_value(
 			"Attribute Value", item_variant_attribute_value[0].get("attribute_value"), "purity_percentage"
@@ -253,7 +263,7 @@ def make_metal_stock_entry(self):
 			"stock_entry_type": "Repack-Metal Conversion",
 			"purpose": "Repack",
 			"company": self.company,
-			"custom_metal_conversions": self.name,
+			"custom_metal_conversion_reference": self.name,
 			"inventory_type": inventory_type,
 			"_customer": self.customer,
 			"auto_created": 1,
@@ -285,7 +295,7 @@ def make_metal_stock_entry(self):
 			"t_warehouse": target_wh,
 		}
 	)
-	if self.source_alloy and self.source_alloy_qty > 0:
+	if self.source_alloy and flt(self.source_alloy_qty) > 0:
 		source_item.append(
 			{
 				"item_code": self.source_alloy,
@@ -325,6 +335,7 @@ def make_metal_stock_entry(self):
 				"employee": row["employee"],
 				"manufacturer": row["manufacturer"],
 				"s_warehouse": row["s_warehouse"],
+				"use_serial_batch_fields": True,
 			},
 		)
 		inventory_types_source.add(row["inventory_type"])
@@ -345,7 +356,7 @@ def make_metal_stock_entry(self):
 
 	inventory_types_final = inventory_types_source.union(inventory_types_target)
 	if len(inventory_types_final) > 1:
-		frappe.throw("Inventory types in <b>Source Table</b> are not consistent. Please check.")
+		frappe.throw(_("Inventory types in <b>Source Table</b> are not consistent. Please check."))
 	se.save()
 	se.submit()
 	self.stock_entry = se.name
@@ -359,18 +370,23 @@ def make_multiple_metal_stock_entry(self):
 			"stock_entry_type": "Repack-Metal Conversion",
 			"purpose": "Repack",
 			"company": self.company,
-			"custom_metal_conversions": self.name,
+			"custom_metal_conversion_reference": self.name,
 			# "inventory_type": inventory_type,
-			"_customer": self.customer,
+			# "_customer": self.customer,
 			"auto_created": 1,
 			"branch": self.branch,
 		}
 	)
 	se.branch = self.branch
+	inventory_types_source = set()
 	source_item = []
 	target_item = []
-	inventory_types_source = set()
+	inventory_wise_data = {}
 	for row in self.mc_source_table:
+		if inventory_wise_data.get(row.inventory_type):
+			inventory_wise_data[row.inventory_type]["qty"] += row.total
+		else:
+			inventory_wise_data[row.inventory_type] = {"customer": row.get("customer"), "qty": row.total}
 		source_item.append(
 			{
 				"item_code": row.item_code,
@@ -386,19 +402,22 @@ def make_multiple_metal_stock_entry(self):
 		se.inventory_type = row.inventory_type
 		inventory_types_source.add(row.inventory_type)
 	if len(inventory_types_source) > 1:
-		frappe.throw("Inventory types in <b>Source Table</b> are not consistent. Please check.")
+		frappe.throw(_("Inventory types in <b>Source Table</b> are not consistent. Please check."))
 
-	target_item.append(
-		{
-			"item_code": self.m_target_item,
-			"qty": self.m_target_qty,
-			"inventory_type": se.inventory_type,
-			"department": self.department,
-			"employee": self.employee,
-			"manufacturer": self.manufacturer,
-			"t_warehouse": source_wh,
-		}
-	)
+	for row in inventory_wise_data:
+		qty, purity_percentage = self.get_mc_table_purity(self.m_target_item, self.m_target_qty)
+		target_item.append(
+			{
+				"item_code": self.m_target_item,
+				"qty": (inventory_wise_data[row]["qty"] / purity_percentage),
+				"inventory_type": row,
+				"customer": inventory_wise_data[row].get("customer"),
+				"department": self.department,
+				"employee": self.employee,
+				"manufacturer": self.manufacturer,
+				"t_warehouse": source_wh,
+			}
+		)
 	if self.alloy and self.alloy_qty > 0:
 		if self.alloy_check == 0:
 			source_item.append(
@@ -437,6 +456,7 @@ def make_multiple_metal_stock_entry(self):
 				"employee": row["employee"],
 				"manufacturer": row["manufacturer"],
 				"s_warehouse": row["s_warehouse"],
+				"use_serial_batch_fields": True,
 			},
 		)
 	for row in target_item:
@@ -455,7 +475,7 @@ def make_multiple_metal_stock_entry(self):
 
 	se.save()
 	se.submit()
-	self.stock_entry = se.name
+	frappe.db.set_value(self.doctype, self.name, "stock_entry", se.name)
 
 
 @frappe.whitelist()

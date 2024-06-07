@@ -54,21 +54,6 @@
   "column_break_g5rb9",
   "metal_colour",
   "metal_purity",
-  "section_break_nlzla",
-  "prev_gross_wt",
-  "gross_wt",
-  "net_wt",
-  "diamond_wt_in_gram",
-  "gemstone_wt_in_gram",
-  "other_wt",
-  "column_break_oyjmw",
-  "received_gross_wt",
-  "received_net_wt",
-  "loss_wt",
-  "diamond_wt",
-  "gemstone_wt",
-  "diamond_pcs",
-  "gemstone_pcs",
   "section_break_26",
   "stock_entry_details",
   "section_break_dvel5",
@@ -84,6 +69,23 @@
   "estimated_rpt_wt",
   "ref_name",
   "tab_break_fw3mn",
+  "section_break_nlzla",
+  "prev_gross_wt",
+  "gross_wt",
+  "net_wt",
+  "finding_wt",
+  "diamond_wt_in_gram",
+  "gemstone_wt_in_gram",
+  "other_wt",
+  "column_break_oyjmw",
+  "received_gross_wt",
+  "received_net_wt",
+  "loss_wt",
+  "diamond_wt",
+  "gemstone_wt",
+  "gemstone_pcs",
+  "diamond_pcs",
+  "section_break_pnns",
   "mop_balance_table",
   "section_break_sdty",
   "department_source_table",
@@ -147,7 +149,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Not Started\nOn Hold\nWIP\nQC Pending\nQC Completed\nFinished\nRevert"
+   "options": "Not Started\nOn Hold\nWIP\nIn Transit\nQC Pending\nQC Completed\nFinished\nRevert"
   },
   {
    "depends_on": "eval:!doc.for_subcontracting",
@@ -380,6 +382,12 @@
    "read_only": 1
   },
   {
+   "fieldname": "finding_wt",
+   "fieldtype": "Float",
+   "label": "Finding WT",
+   "read_only": 1
+  },
+  {
    "collapsible": 1,
    "fieldname": "section_break_nlzla",
    "fieldtype": "Section Break",
@@ -585,40 +593,47 @@
   },
   {
    "fieldname": "stock_summery",
-   "fieldtype": "HTML"
+   "fieldtype": "HTML",
+   "hidden": 1
   },
   {
    "fieldname": "stock_entry",
-   "fieldtype": "HTML"
+   "fieldtype": "HTML",
+   "hidden": 1
   },
   {
    "fieldname": "department_source_table",
    "fieldtype": "Table",
    "label": "Department Source Table",
-   "options": "Department Source Table"
+   "options": "Department Source Table",
+   "read_only": 1
   },
   {
    "fieldname": "department_target_table",
    "fieldtype": "Table",
    "label": "Department Target Table",
-   "options": "Department Target Table"
+   "options": "Department Target Table",
+   "read_only": 1
   },
   {
    "fieldname": "employee_source_table",
    "fieldtype": "Table",
    "label": "Employee Source Table",
-   "options": "Employee Source Table"
+   "options": "Employee Source Table",
+   "read_only": 1
   },
   {
    "fieldname": "employee_target_table",
    "fieldtype": "Table",
    "label": "Employee Target Table",
-   "options": "Employee Target Table"
+   "options": "Employee Target Table",
+   "read_only": 1
   },
   {
    "collapsible": 1,
    "fieldname": "section_break_vwqj",
    "fieldtype": "Section Break",
+   "hidden": 1,
    "label": "HTML Table's"
   },
   {
@@ -629,7 +644,8 @@
    "fieldname": "mop_balance_table",
    "fieldtype": "Table",
    "label": "Balance Table",
-   "options": "MOP Balance Table"
+   "options": "MOP Balance Table",
+   "read_only": 1
   },
   {
    "fieldname": "time_log_tab",
@@ -652,7 +668,8 @@
   },
   {
    "fieldname": "section_break_fqd2",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "hidden": 1
   },
   {
    "fieldname": "time_logs",
@@ -663,6 +680,7 @@
   {
    "fieldname": "total_minutes",
    "fieldtype": "Float",
+   "hidden": 1,
    "label": "Total Minutes",
    "read_only": 1
   },
@@ -670,6 +688,7 @@
    "default": "0",
    "fieldname": "on_hold",
    "fieldtype": "Check",
+   "hidden": 1,
    "label": "On HOLD"
   },
   {
@@ -677,6 +696,11 @@
    "fieldtype": "Link",
    "label": "Previous MOP",
    "options": "Manufacturing Operation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_pnns",
+   "fieldtype": "Section Break",
    "read_only": 1
   }
  ],
@@ -696,7 +720,7 @@
    "link_fieldname": "manufacturing_operation"
   }
  ],
- "modified": "2024-05-21 10:38:39.040902",
+ "modified": "2024-05-16 18:32:38.828595",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Operation",
@@ -716,11 +740,7 @@
    "write": 1
   }
  ],
- "show_preview_popup": 1,
- "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": [],
- "title_field": "operation",
- "track_changes": 1
+ "states": []
 }

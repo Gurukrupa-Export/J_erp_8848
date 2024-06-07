@@ -13,7 +13,6 @@ from six import itervalues
 from jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.se_utils import (
 	create_repack_for_subcontracting,
 	update_main_slip_se_details,
-	validate_gross_weight_for_unpack,
 )
 from jewellery_erpnext.utils import get_item_from_attribute, get_variant_of_item, update_existing
 
@@ -72,8 +71,6 @@ def validate(self, method):
 	if self.purpose == "Material Transfer":
 		validate_metal_properties(self)
 
-	validate_gross_weight_for_unpack(self)
-
 
 # main slip have validation error for repack and transfer so it was commented
 # validate_main_slip_warehouse(self)
@@ -100,7 +97,8 @@ def validate_main_slip_warehouse(doc):
 		if (row.main_slip and row.s_warehouse != warehouse) or (
 			row.to_main_slip and row.t_warehouse != warehouse
 		):
-			frappe.throw(_(f"Selected warehouse does not belongs to main slip({main_slip})"))
+			# frappe.throw(_(f"Selected warehouse does not belongs to main slip({main_slip})"))
+			frappe.throw(_("Selected warehouse does not belongs to main slip {0}").format(main_slip))
 
 
 def validate_metal_properties(doc):
@@ -112,7 +110,22 @@ def validate_metal_properties(doc):
 			["metal_type", "metal_touch", "metal_purity", "metal_colour", "multicolour", "allowed_colours"],
 			as_dict=1,
 		)
+	final_error_msg = []
 	for row in doc.items:
+		if row.custom_manufacturing_work_order:
+			mwo = frappe.db.get_value(
+				"Manufacturing Work Order",
+				row.custom_manufacturing_work_order,
+				[
+					"metal_type",
+					"metal_touch",
+					"metal_purity",
+					"metal_colour",
+					"multicolour",
+					"allowed_colours",
+				],
+				as_dict=1,
+			)
 		item_template = frappe.db.get_value("Item", row.item_code, "variant_of")
 		main_slip = row.main_slip or row.to_main_slip
 
@@ -150,16 +163,45 @@ def validate_metal_properties(doc):
 
 		item_det = {row.attribute: row.attribute_value for row in attribute_det}
 		if main_slip and not ms.get("for_subcontracting"):
-			if ms.metal_colour:
-				if (
-					ms.metal_touch != item_det.get("Metal Touch")
-					or ms.metal_purity != item_det.get("Metal Purity")
-					or (ms.metal_colour != item_det.get("Metal Colour") and ms.check_color)
-				):
-					frappe.throw(f"Row #{row.idx}: Metal properties do not match with the selected main slip")
+			if row.manufacturing_operation:
+				operation = frappe.db.get_value(
+					"Manufacturing Operation", row.manufacturing_operation, "operation"
+				)
+				if operation:
+					validations = frappe.db.get_value(
+						"Department Operation",
+						operation,
+						[
+							"check_purity_in_main_slip as check_purity",
+							"check_touch_in_main_slip as check_touch",
+							"check_colour_in_main_slip as check_colour",
+						],
+						as_dict=True,
+					)
+					for val in validations:
+						if validations[val]:
+							validations[val] = "Both"
+					m_reason_list = []
+					if ms.metal_colour:
+						if validations.get("check_touch") and validations.get("check_touch") == "Both":
+							if ms.metal_touch != item_det.get("Metal Touch"):
+								m_reason_list.append("Metal Touch")
+						if validations.get("check_purity") and validations.get("check_purity") == "Both":
+							if ms.metal_purity != item_det.get("Metal Purity"):
+								m_reason_list.append("Metal Purity")
+						if validations.get("check_colour") and validations.get("check_colour") == "Both":
+							if ms.metal_colour != item_det.get("Metal Colour") and ms.check_color:
+								m_reason_list.append("Metal Colour")
+						if m_reason_list:
+							final_reason = ", ".join(rsn for rsn in m_reason_list)
+							final_error_msg.append(
+								"Row #{0}: {1} do not match with the selected main slip".format(row.idx, final_reason)
+							)
+					# frappe.throw(f"Row #{row.idx}: {reason} do not match with the selected main slip")
 			if ms.allowed_colours:
 				if mwo.multicolour == 1:
-					allowed_colors = "".join(sorted(map(str.upper, mwo.allowed_colours)))
+					# allowed_colors = "".join(sorted(map(str.upper, mwo.allowed_colours)))
+					allowed_colors = "".join(sorted([color.upper() for color in mwo.allowed_colours]))
 					colour_code = {"P": "Pink", "Y": "Yellow", "W": "White"}
 					color_matched = False  # Flag to check if at least one color matches
 					for char in allowed_colors:
@@ -177,14 +219,57 @@ def validate_metal_properties(doc):
 						)
 		if mwo:
 			# frappe.throw(str([mwo.metal_touch != item_det.get("Metal Touch"), mwo.metal_purity != item_det.get("Metal Purity"), (mwo.metal_colour != item_det.get("Metal Colour"))]))
-			if (
-				mwo.metal_touch != item_det.get("Metal Touch")
-				or mwo.metal_purity != item_det.get("Metal Purity")
-				and (doc.employee or doc.to_employee)
+			validations = frappe.db.get_value(
+				"Manufacturing Setting",
+				doc.company,
+				["check_purity", "check_colour", "check_touch"],
+				as_dict=True,
+			)
+			mw_reason_list = []
+			if validations.get("check_touch") and (
+				validations.get("check_touch") == "Both"
+				or (validations.get("check_touch") == "M" and item_template == "M")
+				or (validations.get("check_touch") == "F" and item_template == "F")
 			):
-				frappe.throw(
-					f"Row #{row.idx}: Metal properties do not match with the selected Manufacturing Work Order"
+				if mwo.metal_touch != item_det.get("Metal Touch"):
+					mw_reason_list.append("Metal Touch")
+
+			if validations.get("check_purity") and (
+				validations.get("check_purity") == "Both"
+				or (validations.get("check_purity") == "M" and item_template == "M")
+				or (validations.get("check_purity") == "F" and item_template == "F")
+			):
+				if mwo.metal_purity != item_det.get("Metal Purity"):
+					mw_reason_list.append("Metal Purity")
+
+			if validations.get("check_colour") and (
+				validations.get("check_colour") == "Both"
+				or (validations.get("check_colour") == "M" and item_template == "M")
+				or (validations.get("check_colour") == "F" and item_template == "F")
+			):
+				if mwo.metal_colour != item_det.get("Metal Colour"):
+					mw_reason_list.append("Metal Colour")
+
+			# if (
+			# 	mwo.metal_touch != item_det.get("Metal Touch")
+			# 	or mwo.metal_purity != item_det.get("Metal Purity")
+			# 	and (doc.employee or doc.to_employee)
+			# ):
+
+			if mw_reason_list:
+				final_reason = ", ".join(rsn for rsn in mw_reason_list)
+				final_error_msg.append(
+					"Row #{0}: {1} does not match with the selected Manufacturing Work Order".format(
+						row.idx, final_reason
+					)
 				)
+				# frappe.throw(
+				# 	f"Row #{row.idx}: {reason} does not match with the selected Manufacturing Work Order"
+				# )
+	final_msg = ""
+	if final_error_msg:
+		final_msg = "<br>".join(row for row in final_error_msg)
+		frappe.throw(_("{0}").format(final_msg))
 
 
 def on_cancel(self, method=None):
@@ -193,6 +278,7 @@ def on_cancel(self, method=None):
 
 
 def before_submit(self, method):
+	# validation_for_stock_entry_submission(self)
 	main_slip = self.to_main_slip or self.main_slip
 	subcontractor = self.subcontractor or self.to_subcontractor
 	if (
@@ -227,7 +313,13 @@ def update_main_slip(doc, is_cancelled=False):
 
 	main_slip_map = frappe._dict()
 
+	child_name = []
 	for entry in doc.items:
+		if is_cancelled:
+			if frappe.db.get_value("Main Slip SE Details", {"se_item": entry.name}):
+				mss_name = frappe.db.get_value("Main Slip SE Details", {"se_item": entry.name})
+				frappe.delete_doc("Main Slip SE Details", mss_name)
+		child_name.append(entry.name)
 		if entry.main_slip and entry.to_main_slip:
 			frappe.throw(_("Select either source or target main slip."))
 		if entry.main_slip:
@@ -521,11 +613,13 @@ def update_manufacturing_operation(doc, is_cancelled=False):
 				wt["diamond_wt_in_gram"] = weight_in_gram
 			elif variant_of == "G":
 				wt["gemstone_wt_in_gram"] = weight_in_gram
+			elif variant_of == "F":
+				wt["finding_wt"] = weight_in_gram
 			wt["gross_wt"] = weight_in_gram
 			item_wt_map[entry.manufacturing_operation] = wt
 
 		for manufacturing_operation, values in item_wt_map.items():
-			_values = {key: f"{key} + {value}" for key, value in values.items() if key != "finding_wt"}
+			_values = {key: f"{key} + {value}" for key, value in values.items()}
 			update_existing("Manufacturing Operation", manufacturing_operation, _values)
 		update_mop_details(doc, is_cancelled)
 
@@ -546,10 +640,10 @@ def update_mop_details(se_doc, is_cancelled=False):
 					"Employee Target Table",
 				]:
 					if frappe.db.exists(row, {"sed_item": entry.name}):
-						to_remove.append(frappe.get_doc(row, {"sed_item": entry.name}))
+						to_remove.append(frappe.db.get_value(row, {"sed_item": entry.name}, "name"))
 
-				# for row in to_remove:
-				# 	mop_doc.remove(row)
+					for rm in to_remove:
+						frappe.delete_doc(row, rm)
 			else:
 				mop_details = {
 					"department_source_table": {},
@@ -576,21 +670,7 @@ def update_mop_details(se_doc, is_cancelled=False):
 						details["idx"] = None
 						details["name"] = None
 						mop_doc.append(table, details)
-
 			mop_doc.save()
-	if se_doc.manufacturing_operation:
-		frappe.enqueue(
-			save_mop,
-			queue="short",
-			event="Update MOP",
-			enqueue_after_commit=True,
-			mop_name=se_doc.manufacturing_operation,
-		)
-
-
-def save_mop(mop_name):
-	doc = frappe.get_doc("Manufacturing Operation", mop_name)
-	doc.save()
 
 
 def get_previous_se_details(mop_doc, d_warehouse, e_warehouse):

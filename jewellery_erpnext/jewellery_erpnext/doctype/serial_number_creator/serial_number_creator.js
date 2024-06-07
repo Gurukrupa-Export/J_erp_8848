@@ -11,6 +11,15 @@ frappe.ui.form.on("SNC FG Details", {
 	refresh: function (frm, cdt, cdn) {
 		var child = locals[cdt][cdn];
 	},
+	row_material: function(frm, cdt, cdn) {
+        var d = locals[cdt][cdn];
+        frappe.db.get_value("Item", d.row_material, "item_group", function(r) {
+            if (r.item_group === "Metal - V") {
+                d.pcs = 1;
+                frm.refresh_field("fg_details");
+            }
+        });
+    }
 });
 
 function set_html(frm) {

@@ -27,6 +27,11 @@ def check_unique_multifield(doc, **kwargs):
 			filters = {key: value for key, value in kwargs.items() if value}
 			filters["name"] = ["!=", doc.name]
 			if existing := frappe.db.exists("Warehouse", filters):
+				# frappe.throw(
+				# 	_(f"Warehouse: <b>{existing}</b> already has set </br><b>{', '.join(existing_fields)}</b>")
+				# )
 				frappe.throw(
-					_(f"Warehouse: <b>{existing}</b> already has set </br><b>{', '.join(existing_fields)}</b>")
+					_("Warehouse: <b>{0}</b> already has set </br><b>{1}</b>").format(
+						existing, ", ".join(existing_fields)
+					)
 				)

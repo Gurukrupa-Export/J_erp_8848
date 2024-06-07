@@ -1,7 +1,9 @@
 import frappe
 from erpnext.controllers.item_variant import create_variant, get_variant
+from frappe import _
 from frappe.utils import flt
 
+from jewellery_erpnext.jewellery_erpnext.customization.bom.doc_events.utils import product_ratio
 from jewellery_erpnext.jewellery_erpnext.doc_events.bom_utils import (
 	calculate_gst_rate,
 	set_bom_item_details,
@@ -24,6 +26,7 @@ def validate(self, method):
 	calculate_diamond_qty(self)
 	calculate_total(self)
 	set_bom_rate(self)
+	product_ratio(self)
 	# set_sepecifications(self)
 	calculate_rates(self)
 	if frappe.db.exists("BOM", self.name):
@@ -39,9 +42,13 @@ def on_update(self, method):
 
 
 def on_update_after_submit(self, method):
-	self.doc_pricision = (
-		2 if frappe.db.get_value("Customer", self.customer, "custom_consider_2_digit_for_bom") else 3
-	)
+	pricision = 3
+	if frappe.db.get_value("Customer", self.customer, "custom_consider_2_digit_for_bom"):
+		pricision = 2
+		self.db_set("doc_pricision", pricision)
+	# self.doc_pricision = (
+	# 	2 if frappe.db.get_value("Customer", self.customer, "custom_consider_2_digit_for_bom") else 3
+	# )
 	set_bom_rate(self)
 	calculate_total(self)
 
@@ -52,13 +59,13 @@ def on_cancel(self, method):
 
 def on_submit(self, method):
 	if self.bom_type == "Template":
-		return frappe.throw("Template BOM Can't Be Submitted")
+		return frappe.throw(_("Template BOM Can't Be Submitted"))
 
 
 def system_item_validation(self):
 	is_system_item = frappe.db.get_value("Item", self.item, "is_system_item")
 	if is_system_item:
-		frappe.throw(f"Cannot create BOM for system item {self.item}.")
+		frappe.throw(_("Cannot create BOM for system item {0}.").format(self.item))
 
 
 def set_item_variant(self):
@@ -107,7 +114,7 @@ def set_bom_items(self):
 	"""
 	# Place a dummy Item if Bom type is Template or Quotation
 	if self.bom_type in ["Template", "Quotation"]:
-		defualt_item = frappe.db.get_value("Jewellery Settings", "Jewellery Settings", "defualt_item")
+		defualt_item = frappe.db.get_single_value("Jewellery Settings", "defualt_item")
 		self.items = []
 		self.append(
 			"items",
@@ -131,7 +138,7 @@ def _set_bom_items_by_child_tables(self):
 	bom_items.update({row.item_variant: row.quantity for row in self.finding_detail if row.quantity})
 
 	if bom_items:
-		defualt_item = frappe.db.get_value("Jewellery Settings", "Jewellery Settings", "defualt_item")
+		defualt_item = frappe.db.get_single_value("Jewellery Settings", "defualt_item")
 		items = frappe.get_all("Jewellery System Item", {"parent": "Jewellery Settings"}, "item_code")
 		item_list = [row.get("item_code") for row in items]
 		to_remove = [
@@ -200,15 +207,27 @@ def calculate_metal_qty(self):
 
 			if row.cad_weight and row.cad_to_finish_ratio:
 				row.quantity = flt(row.cad_weight * row.cad_to_finish_ratio / 100)
-		# if color:
-		# 	condition = " and ".join([f"name like '%{value}%'" for value in color])
-		# 	metal_colours = frappe.db.sql(
-		# 		f"""select name from `tabAttribute Value` where is_metal_colour = 1 and {condition}"""
-		# 	)
-		# 	metal_colour = [i[0] for i in metal_colours if len(i[0].split("+")) == len(color)]
-		# 	if metal_colour:
-		# 		# frappe.throw(f"{metal_colour}")
-		# 		self.metal_colour = metal_colour[0]
+		if color:
+			AV = frappe.qb.DocType("Attribute Value")
+			conditions = []
+			for value in color:
+				condition = (AV.name.like(f'%{value}%'))
+				conditions.append(condition)
+			query = (
+				frappe.qb.from_(AV)
+				.select(AV.name)
+				.where(
+					(AV.is_metal_colour == 1) 
+				)
+			)
+			for cond in conditions:
+				query = query.where(cond)
+
+			metal_colours = query.run()
+
+			metal_colour = [i[0] for i in metal_colours if len(i[0].split("+")) == len(color)]
+			if metal_colour:
+				self.metal_colour = metal_colour[0]
 
 
 def calculate_diamond_qty(self):
@@ -232,9 +251,11 @@ def calculate_total(self):
 	self.gemstone_weight = self.total_gemstone_weight
 	self.total_gemstone_weight_in_gms = sum(row.weight_in_gms for row in self.gemstone_detail)
 	self.finding_weight = sum(row.quantity for row in self.finding_detail)
+	self.finding_weight_ = self.finding_weight
 	self.total_diamond_pcs = sum(flt(row.pcs) for row in self.diamond_detail)
 	self.total_gemstone_pcs = sum(flt(row.pcs) for row in self.gemstone_detail)
 	self.total_other_weight = sum(row.quantity for row in self.other_detail)
+	self.other_weight = self.total_other_weight
 
 	self.metal_and_finding_weight = flt(self.metal_weight) + flt(self.finding_weight)
 	self.gold_to_diamond_ratio = (
@@ -439,7 +460,7 @@ def update_totals(parent_doctype, parent_doctype_name):
 	self.doc_pricision = (
 		2 if frappe.db.get_value("Customer", self.customer, "custom_consider_2_digit_for_bom") else 3
 	)
-	gold_gst_rate = frappe.db.get_value("Jewellery Settings", "Jewellery Settings", "gold_gst_rate")
+	gold_gst_rate = frappe.db.get_single_value("Jewellery Settings", "gold_gst_rate")
 
 	self.db_set("gold_bom_amount", 0)
 	self.db_set("making_fg_purchase", 0)

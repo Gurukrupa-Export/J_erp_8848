@@ -1,4 +1,5 @@
 import frappe
+from frappe import _
 from frappe.utils import flt
 
 
@@ -22,7 +23,7 @@ def update_serial_details(self):
 
 
 def calculate_gst_rate(self):
-	gold_gst_rate = frappe.db.get_value("Jewellery Settings", "Jewellery Settings", "gold_gst_rate")
+	gold_gst_rate = frappe.db.get_single_value("Jewellery Settings", "gold_gst_rate")
 	divide_by = 100 + int(gold_gst_rate)
 	self.gold_rate = self.gold_rate_with_gst * 100 / divide_by
 
@@ -78,7 +79,7 @@ def get_gold_rate(self):
 	# Get the metal purity from the self object or default to 0
 
 	# Get the gold GST rate from the Jewellery Settings doctype
-	gold_gst_rate = frappe.db.get_value("Jewellery Settings", "Jewellery Settings", "gold_gst_rate")
+	gold_gst_rate = frappe.db.get_single_value("Jewellery Settings", "gold_gst_rate")
 
 	# Initialize the amount variable
 	amount = 0
@@ -187,7 +188,7 @@ def _calculate_diamond_amount(self, diamond, cust_diamond_price_list_type, range
 	elif price_list_type == "Size (in mm)":
 		filters["size_in_mm"] = size_in_mm
 	else:
-		frappe.msgprint("Price List Type Not Specified")
+		frappe.msgprint(_("Price List Type Not Specified"))
 		return 0
 
 	# Retrieve the Diamond Price List and calculate the rate

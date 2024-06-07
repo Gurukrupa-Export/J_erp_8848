@@ -7,7 +7,8 @@ frappe.ui.form.on("Manufacturing Operation", {
 		if (
 			frm.doc.is_last_operation &&
 			frm.doc.for_fg &&
-			in_list(["Not Started", "WIP"], frm.doc.status) //"Finished"
+			["Not Started", "WIP"].includes(frm.doc.status)
+			// in_list(["Not Started", "WIP"], frm.doc.status) //"Finished"
 		) {
 			frm.add_custom_button(__("Finish"), async () => {
 				await frappe.call({
@@ -41,7 +42,8 @@ frappe.ui.form.on("Manufacturing Operation", {
 				// frm.save()
 			}).addClass("btn-primary");
 		}
-		if (in_list(["Not Started", "WIP"], frm.doc.status)) {
+		// if (in_list(["Not Started", "WIP"], frm.doc.status)) {
+		if (["Not Started", "WIP"].includes(frm.doc.status)) {
 			frm.add_custom_button(__("Swap Metal"), () => {
 				// const serializedMopBalanceTable = JSON.stringify(frm.doc.mop_balance_table);
 				frappe.route_options = {
@@ -56,13 +58,15 @@ frappe.ui.form.on("Manufacturing Operation", {
 			}).addClass("btn-primary");
 		}
 		if (!frm.doc.__islocal) {
-			if (!in_list(["Finished", "On Hold"], frm.doc.status)) {
+			// if (!in_list(["Finished", "On Hold"], frm.doc.status)) {
+			if (!["Finished", "On Hold"].includes(frm.doc.status)) {
 				frm.add_custom_button(__("On Hold"), () => {
 					frm.set_value("status", "On Hold");
 					frm.save();
 				});
 			}
-			if (in_list(["On Hold"], frm.doc.status)) {
+			// if (in_list(["On Hold"], frm.doc.status)) {
+			if (["On Hold"].includes(frm.doc.status)) {
 				frm.add_custom_button(__("Resume"), () => {
 					frm.set_value(
 						"status",
@@ -367,3 +371,45 @@ frappe.ui.form.on("Manufacturing Operation Time Log", {
 		frm.set_value("started_time", "");
 	},
 });
+
+frappe.ui.form.on("MOP Balance Table", {
+	item_code:function(frm,cdt,cdn){
+		let child = locals[cdt][cdn];
+		frappe.db.get_value("Item", child.item_code, "item_group", function (r) {
+			if(r.item_group=="Metal - V"){
+				child.pcs=1
+			};
+		});
+	},
+})
+
+frappe.ui.form.on("Department Target Table", {
+	item_code:function(frm,cdt,cdn){
+		let child = locals[cdt][cdn];
+		frappe.db.get_value("Item", child.item_code, "item_group", function (r) {
+			if(r.item_group=="Metal - V"){
+				child.pcs=1
+			};
+		});
+	},
+})
+frappe.ui.form.on("Employee Source Table", {
+	item_code:function(frm,cdt,cdn){
+		let child = locals[cdt][cdn];
+		frappe.db.get_value("Item", child.item_code, "item_group", function (r) {
+			if(r.item_group=="Metal - V"){
+				child.pcs=1
+			};
+		});
+	},
+})
+frappe.ui.form.on("Employee Target Table", {
+	item_code:function(frm,cdt,cdn){
+		let child = locals[cdt][cdn];
+		frappe.db.get_value("Item", child.item_code, "item_group", function (r) {
+			if(r.item_group=="Metal - V"){
+				child.pcs=1
+			};
+		});
+	},
+})

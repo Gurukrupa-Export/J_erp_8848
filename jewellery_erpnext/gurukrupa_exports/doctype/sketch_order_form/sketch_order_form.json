@@ -51,7 +51,8 @@
   "usa",
   "usa_states",
   "section_break_9",
-  "amended_from"
+  "amended_from",
+  "repair_order"
  ],
  "fields": [
   {
@@ -329,6 +330,12 @@
    "fieldtype": "Table MultiSelect",
    "label": "Collection",
    "options": "Design Attribute - Multiselect"
+  },
+  {
+   "fieldname": "repair_order",
+   "fieldtype": "Link",
+   "label": "Repair Order",
+   "options": "Repair Order"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -339,7 +346,7 @@
    "link_fieldname": "sketch_order_form"
   }
  ],
- "modified": "2024-02-09 16:33:50.406094",
+ "modified": "2024-04-23 16:47:58.356467",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Sketch Order Form",

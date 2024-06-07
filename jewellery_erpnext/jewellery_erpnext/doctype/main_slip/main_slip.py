@@ -10,7 +10,7 @@ from jewellery_erpnext.utils import get_item_from_attribute
 
 
 class MainSlip(Document):
-	def before_insert(self):
+	def autoname(self):
 		department = frappe.get_value(
 			"Department", self.department, "custom_abbreviation"
 		)  # self.department.split("-")[0]
@@ -19,38 +19,14 @@ class MainSlip(Document):
 			frappe.throw(f"{self.department} please set department abbreviation")
 		self.dep_abbr = department  # "".join([word[0] for word in initials if word])
 		self.type_abbr = self.metal_type[0]
-		frappe.msgprint(f"{self.metal_colour[0]}")
 		if self.metal_colour:
 			self.color_abbr = self.metal_colour[0]
-		
 		elif self.allowed_colours:
 			self.color_abbr = str(self.allowed_colours).upper()
 		else:
 			self.color_abbr = None
 
 	def validate(self):
-		# frappe.throw("HERE")
-		if not self.dep_abbr:
-			department = frappe.get_value(
-				"Department", self.department, "custom_abbreviation"
-			)  # self.department.split("-")[0]
-			# initials = department.split(" ")
-			if not department:
-				frappe.throw(f"{self.department} please set department abbreviation")
-			self.dep_abbr = department  # "".join([word[0] for word in initials if word])
-		if not self.type_abbr:
-			self.type_abbr = self.metal_type[0]
-
-		if not self.color_abbr:
-			if self.metal_colour:
-				self.color_abbr = self.metal_colour[0]
-		
-		elif self.allowed_colours:
-			self.color_abbr = str(self.allowed_colours).upper()
-		else:
-			self.color_abbr = None
-
-
 		if not self.for_subcontracting:
 			self.validate_metal_properties()
 			self.warehouse = frappe.db.get_value(
@@ -68,9 +44,15 @@ class MainSlip(Document):
 				"Warehouse", {"subcontractor": self.subcontractor, "warehouse_type": "Raw Material"}
 			)
 		if not self.warehouse:
+			# frappe.throw(
+			# 	_(
+			# 		f"Please set warehouse for {'subcontractor' if self.for_subcontracting else 'employee'}: {self.subcontractor if self.for_subcontracting else self.employee}"
+			# 	)
+			# )
 			frappe.throw(
-				_(
-					f"Please set warehouse for {'subcontractor' if self.for_subcontracting else 'employee'}: {self.subcontractor if self.for_subcontracting else self.employee}"
+				_("Please set warehouse for {0}: {1}").format(
+					"subcontractor" if self.for_subcontracting else "employee",
+					self.subcontractor if self.for_subcontracting else self.employee,
 				)
 			)
 		field_map = {
@@ -175,8 +157,8 @@ class MainSlip(Document):
 
 		if not_finished_mop:
 			frappe.throw(
-				_(
-					f"Below mentioned Manufacturing Operations are not finished yet. \n {', '.join(not_finished_mop)}"
+				_("Below mentioned Manufacturing Operations are not finished yet.<br> {0}").format(
+					",".join(not_finished_mop)
 				)
 			)
 		for row in self.loss_details:
@@ -236,7 +218,6 @@ class MainSlip(Document):
 					)
 
 	def before_insert(self):
-		
 		if self.is_tree_reqd:
 			self.tree_number = create_tree_number(self)
 
@@ -263,10 +244,12 @@ def create_material_request(doc):
 	mr.save()
 
 
+# def create_tree_number():
+# 	doc = frappe.get_doc({"doctype": "Tree Number"}).insert()
+# 	return doc.name
 def create_tree_number(self):
-	doc = frappe.get_doc({"doctype": "Tree Number","custom_company":self.company}).insert()
-	return doc.name
-
+		doc = frappe.get_doc({"doctype": "Tree Number","company":self.company}).insert()
+		return doc.name
 
 @frappe.whitelist()
 def create_stock_entries(
@@ -274,13 +257,10 @@ def create_stock_entries(
 ):
 	item = get_item_from_attribute(metal_type, metal_touch, metal_purity, metal_colour)
 	if not item:
-		frappe.throw("No Item found for selected atrributes in main slip")
+		frappe.throw(_("No Item found for selected atrributes in main slip"))
 	if flt(actual_qty) <= 0:
 		return
 	doc = frappe.get_doc("Main Slip", main_slip)
-	settings = frappe.db.get_value(
-		"Manufacturing Setting", {"company": doc.company}, ["scrap_item"], as_dict=1
-	)
 
 	batch_data = []
 	for row in doc.batch_details:
@@ -293,7 +273,7 @@ def create_stock_entries(
 				}
 			)
 
-	create_metal_loss(doc, settings, item, flt(metal_loss), batch_data)
+	create_metal_loss(doc, item, flt(metal_loss), batch_data)
 	stock_entry = frappe.new_doc("Stock Entry")
 	stock_entry.stock_entry_type = "Material Transfer to Department"
 	stock_entry.main_slip = doc.name
@@ -328,13 +308,9 @@ def create_stock_entries(
 def create_loss_stock_entries(self, item, actual_qty, metal_loss):
 
 	if not item:
-		frappe.throw("No Item found for selected atrributes in main slip")
-	if flt(actual_qty) <= 0:
+		frappe.throw(_("No Item found for selected atrributes in main slip"))
+	if flt(actual_qty) <= 0 and metal_loss == 0:
 		return
-
-	settings = frappe.db.get_value(
-		"Manufacturing Setting", {"company": self.company}, ["scrap_item"], as_dict=1
-	)
 
 	batch_data = []
 	for row in self.batch_details:
@@ -355,49 +331,50 @@ def create_loss_stock_entries(self, item, actual_qty, metal_loss):
 				}
 			)
 
-	create_metal_loss(self, settings, item, flt(metal_loss, 3), batch_data)
-	stock_entry = frappe.new_doc("Stock Entry")
-	stock_entry.stock_entry_type = "Material Transfer to Department"
-	stock_entry.main_slip = self.name
-	stock_entry.subcontractor = self.subcontractor
-	stock_entry.branch = "GE-BR-00001"
-	stock_entry.auto_created = 1
-	for row in batch_data:
-		if row.get("qty"):
-			warehouse = self.raw_material_warehouse
-			qty = row.get("qty")
-		elif row.get("mop_qty"):
-			warehouse = self.warehouse
-			qty = row.get("mop_qty")
-		if actual_qty > 0:
-			if actual_qty <= qty:
-				se_qty = actual_qty
-				actual_qty = 0
-			else:
-				se_qty = qty
-				actual_qty -= se_qty
+	create_metal_loss(self, item, flt(metal_loss, 3), batch_data)
+	if actual_qty > 0:
+		stock_entry = frappe.new_doc("Stock Entry")
+		stock_entry.stock_entry_type = "Material Transfer to Department"
+		stock_entry.main_slip = self.name
+		stock_entry.subcontractor = self.subcontractor
+		stock_entry.branch = "GE-BR-00001"
+		stock_entry.auto_created = 1
+		for row in batch_data:
+			if row.get("qty"):
+				warehouse = self.raw_material_warehouse
+				qty = row.get("qty")
+			elif row.get("mop_qty"):
+				warehouse = self.warehouse
+				qty = row.get("mop_qty")
+			if actual_qty > 0:
+				if actual_qty <= qty:
+					se_qty = actual_qty
+					actual_qty = 0
+				else:
+					se_qty = qty
+					actual_qty -= se_qty
 
-			stock_entry.append(
-				"items",
-				{
-					"item_code": item,
-					"qty": flt(se_qty, 3),
-					"s_warehouse": warehouse,
-					"t_warehouse": self.loss_warehouse,
-					"main_slip": self.name,
-					"to_department": self.department,
-					"manufacturer": self.manufacturer,
-					"inventory_type": row["inventory_type"],
-					"batch_no": row["batch_no"],
-					"use_serial_batch_fields": 1,
-				},
-			)
+				stock_entry.append(
+					"items",
+					{
+						"item_code": item,
+						"qty": flt(se_qty, 3),
+						"s_warehouse": warehouse,
+						"t_warehouse": self.loss_warehouse,
+						"main_slip": self.name,
+						"to_department": self.department,
+						"manufacturer": self.manufacturer,
+						"inventory_type": row["inventory_type"],
+						"batch_no": row["batch_no"],
+						"use_serial_batch_fields": 1,
+					},
+				)
 
-	stock_entry.save()
-	stock_entry.submit()
+		stock_entry.save()
+		stock_entry.submit()
 
 
-def create_metal_loss(doc, settings, item, metal_loss, batch_data):
+def create_metal_loss(doc, item, metal_loss, batch_data):
 	loss_warehouse = frappe.db.get_value("Manufacturer", doc.manufacturer, "default_loss_warehouse")
 
 	if not loss_warehouse:
@@ -407,7 +384,9 @@ def create_metal_loss(doc, settings, item, metal_loss, batch_data):
 	metal_loss_item = get_item_loss_item(doc.company, item, "M")
 
 	if not item:
-		frappe.msgprint("Please set item for metal loss in Manufacturing Setting for selected company")
+		frappe.msgprint(
+			_("Please set item for metal loss in Manufacturing Setting for selected company")
+		)
 		return
 	se = frappe.new_doc("Stock Entry")
 	se.stock_entry_type = "Repack"
@@ -468,17 +447,14 @@ def create_metal_loss(doc, settings, item, metal_loss, batch_data):
 	se.submit()
 
 
-def get_item_loss_item(company, item, variant_of="M"):
-	if variant_of == "M":
-		variant_name = frappe.db.get_value("Manufacturing Setting", company, "metal_variant")
-	elif variant_of == "D":
-		variant_name = frappe.db.get_value("Manufacturing Setting", company, "diamond_variant")
-	elif variant_of == "G":
-		variant_name = frappe.db.get_value("Manufacturing Setting", company, "gemstone_variant")
-	elif variant_of == "F":
-		variant_name = frappe.db.get_value("Manufacturing Setting", company, "finding_variant")
-	elif variant_of == "O":
-		variant_name = frappe.db.get_value("Manufacturing Setting", company, "other_variant")
+def get_item_loss_item(company, item, variant_of="M", loss_type=None):
+
+	if loss_type:
+		variant_name = frappe.db.get_value(
+			"Variant Loss Table", {"variant": variant_of, "loss_type": loss_type}, "loss_variant"
+		)
+	else:
+		variant_name = frappe.db.get_value("Variant Loss Table", {"variant": variant_of}, "loss_variant")
 
 	item_attr_dict = {}
 	for row in frappe.db.get_all(
@@ -546,4 +522,3 @@ def get_any_item_from_attribute(variant_of, attributes):
 	if data:
 		return data[0][0]
 	return None
-

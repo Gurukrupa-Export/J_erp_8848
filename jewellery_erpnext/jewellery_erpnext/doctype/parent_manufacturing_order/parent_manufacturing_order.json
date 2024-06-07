@@ -17,6 +17,9 @@
   "department",
   "section_break_ahpbp",
   "sales_order_item",
+  "new_item",
+  "repair_type",
+  "product_type",
   "abbr",
   "customer",
   "item_code",
@@ -30,7 +33,13 @@
   "serial_id_bom",
   "item_sub_category",
   "setting_type",
+  "customer_details_section",
+  "is_customer_gold",
+  "is_customer_diamond",
+  "is_customer_gemstone",
+  "is_customer_material",
   "customer_provided_material_section",
+  "customer_weight",
   "customer_sample",
   "customer_voucher_no",
   "customer_gold",
@@ -49,6 +58,7 @@
   "column_break_zpp9f",
   "metal_department",
   "section_break_cuzmc",
+  "type",
   "diamond_quality",
   "manufacturer",
   "column_break_tfrsq",
@@ -62,14 +72,6 @@
   "column_break_dk0s1",
   "metal_colour",
   "metal_purity",
-  "item_weight_detail_section",
-  "gross_weight",
-  "net_weight",
-  "diamond_weight",
-  "column_break_nw2np",
-  "gemstone_weight",
-  "finding_weight",
-  "other_weight",
   "gold_section",
   "metal_product_tolerance",
   "diamond_product_tolerance",
@@ -77,7 +79,6 @@
   "section_break_royco",
   "order_remarks",
   "order_details_tab",
-  "section_break_hwml7",
   "order_form_id",
   "quotation",
   "sales_order",
@@ -92,7 +93,6 @@
   "salesman_name",
   "service_type",
   "delivery_details_tab",
-  "section_break_k9cm0",
   "delivery_date",
   "estimated_delivery_date",
   "manufacturing_end_date",
@@ -105,6 +105,14 @@
   "finish_good_image",
   "preview",
   "mop_details_tab",
+  "item_weight_detail_section",
+  "gross_weight",
+  "net_weight",
+  "diamond_weight",
+  "column_break_kuzf",
+  "gemstone_weight",
+  "finding_weight",
+  "other_weight",
   "section_break_okxuw",
   "stock_summery",
   "show_details_section",
@@ -156,6 +164,7 @@
   },
   {
    "fetch_from": "sales_order_item.serial_no",
+   "fetch_if_empty": 1,
    "fieldname": "serial_no",
    "fieldtype": "Link",
    "label": "Serial No",
@@ -292,7 +301,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "fetch_from": "sales_order_item.metal_purity",
    "fetch_if_empty": 1,
    "fieldname": "metal_purity",
    "fieldtype": "Link",
@@ -311,11 +319,13 @@
    "collapsible": 1,
    "fieldname": "section_break_royco",
    "fieldtype": "Section Break",
+   "hidden": 1,
    "label": "Remark"
   },
   {
    "fieldname": "order_remarks",
    "fieldtype": "Small Text",
+   "hidden": 1,
    "label": "Parent Manufacturing Order Remarks"
   },
   {
@@ -397,7 +407,6 @@
    "label": "Est. MFG End Date"
   },
   {
-   "fetch_from": "sales_order_item.metal_purity",
    "fieldname": "metal_touch",
    "fieldtype": "Link",
    "label": "Metal Touch",
@@ -473,12 +482,6 @@
    "label": "Est. Delivery Days"
   },
   {
-   "collapsible": 1,
-   "fieldname": "section_break_k9cm0",
-   "fieldtype": "Section Break",
-   "label": "Delivery Details"
-  },
-  {
    "fieldname": "section_break_1xrgj",
    "fieldtype": "Section Break"
   },
@@ -500,12 +503,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "collapsible": 1,
-   "fieldname": "section_break_hwml7",
-   "fieldtype": "Section Break",
-   "label": "Order Details"
-  },
-  {
    "fieldname": "huid",
    "fieldtype": "Data",
    "label": "HUID/Certification No",
@@ -514,61 +511,14 @@
   {
    "fieldname": "gemstone_details_section",
    "fieldtype": "Section Break",
+   "hidden": 1,
    "label": "Gemstone Details"
   },
   {
    "fieldname": "gemstone_table",
    "fieldtype": "Table",
+   "hidden": 1,
    "options": "PMO Gemstone Table"
-  },
-  {
-   "fieldname": "item_weight_detail_section",
-   "fieldtype": "Section Break",
-   "label": "ITEM WEIGHT DETAIL"
-  },
-  {
-   "description": "Sum of all { MFG WORK ORDER GROSS WEIGHT }",
-   "fieldname": "gross_weight",
-   "fieldtype": "Float",
-   "label": "Gross Weight",
-   "precision": "2"
-  },
-  {
-   "description": "Sum of all { MFG WORK ORDER NET WEIGHT }",
-   "fieldname": "net_weight",
-   "fieldtype": "Float",
-   "label": "Net Weight",
-   "precision": "2"
-  },
-  {
-   "description": "Sum of all { MFG WORK ORDER DIAMOND WEIGHT }",
-   "fieldname": "diamond_weight",
-   "fieldtype": "Float",
-   "label": "Diamond Weight",
-   "precision": "2"
-  },
-  {
-   "description": "Sum of all { MFG WORK ORDER GEMSTONE WEIGHT }",
-   "fieldname": "gemstone_weight",
-   "fieldtype": "Float",
-   "label": "Gemstone Weight",
-   "precision": "2"
-  },
-  {
-   "fieldname": "finding_weight",
-   "fieldtype": "Float",
-   "label": "Finding Weight",
-   "precision": "2"
-  },
-  {
-   "fieldname": "other_weight",
-   "fieldtype": "Float",
-   "label": "Other Weight",
-   "precision": "2"
-  },
-  {
-   "fieldname": "column_break_nw2np",
-   "fieldtype": "Column Break"
   },
   {
    "fieldname": "mop_details_tab",
@@ -577,21 +527,25 @@
   },
   {
    "fieldname": "stock_entry_details",
-   "fieldtype": "HTML"
+   "fieldtype": "HTML",
+   "hidden": 1
   },
   {
    "collapsible": 1,
    "fieldname": "show_details_section",
    "fieldtype": "Section Break",
+   "hidden": 1,
    "label": "Operation Movement"
   },
   {
    "fieldname": "stock_summery",
-   "fieldtype": "HTML"
+   "fieldtype": "HTML",
+   "hidden": 1
   },
   {
    "fieldname": "section_break_okxuw",
    "fieldtype": "Section Break",
+   "hidden": 1,
    "label": "Summary"
   },
   {
@@ -724,6 +678,114 @@
    "fieldtype": "Data",
    "label": "Customer Good",
    "read_only": 1
+  },
+  {
+   "fieldname": "new_item",
+   "fieldtype": "Link",
+   "label": "New Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "repair_type",
+   "fieldtype": "Link",
+   "label": "Repair Type",
+   "options": "Attribute Value"
+  },
+  {
+   "fieldname": "product_type",
+   "fieldtype": "Link",
+   "label": "Product Type",
+   "options": "Attribute Value"
+  },
+  {
+   "fieldname": "customer_weight",
+   "fieldtype": "Float",
+   "label": "Customer Weight"
+  },
+  {
+   "fieldname": "customer_details_section",
+   "fieldtype": "Section Break",
+   "label": "Customer Details"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_customer_gold",
+   "fieldtype": "Check",
+   "label": "Is Customer Gold"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_customer_diamond",
+   "fieldtype": "Check",
+   "label": "Is Customer Diamond"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_customer_gemstone",
+   "fieldtype": "Check",
+   "label": "Is Customer Gemstone"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_customer_material",
+   "fieldtype": "Check",
+   "label": "Is Customer Material"
+  },
+  {
+   "fieldname": "type",
+   "fieldtype": "Select",
+   "label": "Type",
+   "options": "\nManufacturing\nRepair"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "item_weight_detail_section",
+   "fieldtype": "Section Break",
+   "label": "ITEM WEIGHT DETAIL"
+  },
+  {
+   "description": "Sum of all { MFG WORK ORDER GROSS WEIGHT }",
+   "fieldname": "gross_weight",
+   "fieldtype": "Float",
+   "label": "Gross Weight",
+   "precision": "2"
+  },
+  {
+   "description": "Sum of all { MFG WORK ORDER NET WEIGHT }",
+   "fieldname": "net_weight",
+   "fieldtype": "Float",
+   "label": "Net Weight",
+   "precision": "2"
+  },
+  {
+   "description": "Sum of all { MFG WORK ORDER DIAMOND WEIGHT }",
+   "fieldname": "diamond_weight",
+   "fieldtype": "Float",
+   "label": "Diamond Weight",
+   "precision": "2"
+  },
+  {
+   "fieldname": "column_break_kuzf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Sum of all { MFG WORK ORDER GEMSTONE WEIGHT }",
+   "fieldname": "gemstone_weight",
+   "fieldtype": "Float",
+   "label": "Gemstone Weight",
+   "precision": "2"
+  },
+  {
+   "fieldname": "finding_weight",
+   "fieldtype": "Float",
+   "label": "Finding Weight",
+   "precision": "2"
+  },
+  {
+   "fieldname": "other_weight",
+   "fieldtype": "Float",
+   "label": "Other Weight",
+   "precision": "2"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -742,7 +804,7 @@
    "link_fieldname": "manufacturing_order"
   }
  ],
- "modified": "2024-03-28 18:06:22.963950",
+ "modified": "2024-05-20 10:35:28.049354",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Parent Manufacturing Order",

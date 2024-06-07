@@ -39,6 +39,7 @@ frappe.ui.form.on("Department IR", {
 				};
 			}
 		);
+		frm.ignore_doctypes_on_cancel_all = ["Stock Entry", "Serial and Batch Bundle"];
 	},
 	// refresh:function(frm){
 	// 	frm.add_custom_button(__('End Transit'), function() {
@@ -94,7 +95,7 @@ frappe.ui.form.on("Department IR", {
 	scan_mwo(frm) {
 		if (frm.doc.scan_mwo) {
 			if (!frm.doc.current_department) {
-				frappe.throw("Please select current department first");
+				frappe.throw(__("Please select current department first"));
 			}
 			var query_filters = {
 				company: frm.doc.company,
@@ -115,19 +116,33 @@ frappe.ui.form.on("Department IR", {
 					"name",
 					"manufacturing_work_order",
 					"status",
+					"gross_wt",
+					"diamond_wt",
+					"previous_mop",
 				])
 				.then((r) => {
 					let values = r.message;
-					if (values.manufacturing_work_order) {
-						console.log(values);
-						let row = frm.add_child("department_ir_operation", {
-							manufacturing_work_order: values.manufacturing_work_order,
-							manufacturing_operation: values.name,
-							status: values.status,
-						});
-						frm.refresh_field("department_ir_operation");
-					} else {
-						frappe.throw("No Manufacturing Operation Found");
+					if (!values.gross_wt) {
+						frappe.db
+							.get_value(
+								"Manufacturing Operation",
+								values.previous_mop,
+								"previous_mop"
+							)
+							.then((v) => {
+								if (values.manufacturing_work_order) {
+									let row = frm.add_child("department_ir_operation", {
+										manufacturing_work_order: values.manufacturing_work_order,
+										manufacturing_operation: values.name,
+										status: values.status,
+										custom_gross_weight: v.message.gross_wt || values.gross_wt,
+										custom_dia_wt: values.diamond_wt,
+									});
+									frm.refresh_field("department_ir_operation");
+								} else {
+									frappe.throw(__("No Manufacturing Operation Found"));
+								}
+							});
 					}
 					frm.set_value("scan_mwo", "");
 				});
@@ -135,7 +150,7 @@ frappe.ui.form.on("Department IR", {
 	},
 	get_operations(frm) {
 		if (!frm.doc.current_department) {
-			frappe.throw("Please select current department first");
+			frappe.throw(__("Please select current department first"));
 		}
 		var query_filters = {
 			company: frm.doc.company,
@@ -163,7 +178,6 @@ frappe.ui.form.on("Department IR", {
 		});
 	},
 });
-
 var department_filter = function (frm) {
 	return {
 		filters: {

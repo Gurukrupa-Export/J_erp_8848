@@ -28,6 +28,7 @@
   "order_form_date",
   "diamond_quality",
   "section_break_p9a7o",
+  "customer_weight",
   "customer_sample",
   "customer_voucher_no",
   "customer_gold",
@@ -290,12 +291,17 @@
    "fieldtype": "Link",
    "label": "Serial ID BOM",
    "options": "BOM"
+  },
+  {
+   "fieldname": "customer_weight",
+   "fieldtype": "Float",
+   "label": "Customer Weight"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-03-26 13:19:33.510527",
+ "modified": "2024-04-25 17:27:06.345300",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Plan Table",

@@ -162,7 +162,26 @@ class ManufacturingOperation(Document):
 		self.update_weights()
 		self.validate_loss()
 		self.get_previous_se_details()
+		self.remove_duplicate()
 		self.set_mop_balance_table()  # To Set MOP Bailance Table on update source & target Table.
+
+	def remove_duplicate(self):
+		existing_data = {
+			"department_source_table": [],
+			"department_target_table": [],
+			"employee_source_table": [],
+			"employee_target_table": [],
+		}
+		to_remove = []
+		for row in existing_data:
+			for entry in self.get(row):
+				if entry.get("sed_item") and entry.get("sed_item") not in existing_data[row]:
+					existing_data[row].append(entry.get("sed_item"))
+				elif entry.get("sed_item") in existing_data[row]:
+					to_remove.append(entry)
+
+		for row in to_remove:
+			self.remove(row)
 
 	def on_update(self):
 		self.attach_cad_cam_file_into_item_master()  # To set MOP doctype CAD-CAM Attachment's & respective details into Item Master.
@@ -423,11 +442,18 @@ class ManufacturingOperation(Document):
 			if row.item_code not in items.keys():
 				frappe.throw(_("Row #{0}: Invalid item for loss").format(row.idx), title=_("Loss Details"))
 			if row.stock_uom != items[row.item_code].get("uom"):
+				# frappe.throw(
+				# 	_(f"Row #{row.idx}: UOM should be {items[row.item_code].get('uom')}"), title="Loss Details"
+				# )
 				frappe.throw(
 					_("Row #{0}: UOM should be {1}").format(row.idx, items[row.item_code].get("uom")),
 					title=_("Loss Details"),
 				)
 			if row.stock_qty > items[row.item_code].get("qty", 0):
+				# frappe.throw(
+				# 	_(f"Row #{row.idx}: qty cannot be greater than {items[row.item_code].get('qty',0)}"),
+				# 	title="Loss Details",
+				# )
 				frappe.throw(
 					_("Row #{0}: qty cannot be greater than {1}").format(
 						row.idx, items[row.item_code].get("qty", 0)
@@ -573,7 +599,9 @@ class ManufacturingOperation(Document):
 
 	@frappe.whitelist()
 	def get_linked_stock_entries_for_serial_number_creator(self):
-		target_wh = frappe.db.get_value("Warehouse", {"department": self.department})
+		target_wh = frappe.db.get_value(
+			"Warehouse", {"department": self.department, "warehouse_type": "Manufacturing"}
+		)
 		pmo = frappe.db.get_value(
 			"Manufacturing Work Order", self.manufacturing_work_order, "manufacturing_order"
 		)
@@ -590,10 +618,10 @@ class ManufacturingOperation(Document):
 			pluck="name",
 		)
 		data = frappe.db.sql(
-			f"""select se.manufacturing_work_order, se.manufacturing_operation, sed.parent, sed.item_code,sed.item_name, sed.batch_no, sed.qty, sed.uom,
+			f"""select sed.custom_manufacturing_work_order, se.manufacturing_operation, sed.name, sed.parent, sed.item_code,sed.item_name, sed.batch_no, sed.qty, sed.uom, sed.inventory_type, sed.custom_sub_setting_type,
 					   			ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt
 			   				from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name where
-							se.docstatus = 1 and se.manufacturing_work_order in ('{"', '".join(mwo)}') and sed.t_warehouse = '{target_wh}'
+							se.docstatus = 1 and sed.custom_manufacturing_work_order in ('{"', '".join(mwo)}') and sed.t_warehouse = '{target_wh}'
 							group by sed.manufacturing_operation,  sed.item_code, sed.qty, sed.uom """,
 			as_dict=1,
 		)
@@ -678,6 +706,7 @@ class ManufacturingOperation(Document):
 				"net_wt",
 				"diamond_wt",
 				"gemstone_wt",
+				"finding_wt",
 				"other_wt",
 				"received_gross_wt",
 				"received_net_wt",
@@ -698,6 +727,7 @@ class ManufacturingOperation(Document):
 				{
 					"gross_wt": get_wop_weight.gross_wt,
 					"net_wt": get_wop_weight.net_wt,
+					"finding_wt": get_wop_weight.finding_wt,
 					"diamond_wt": get_wop_weight.diamond_wt,
 					"gemstone_wt": get_wop_weight.gemstone_wt,
 					"other_wt": get_wop_weight.other_wt,
@@ -717,6 +747,7 @@ class ManufacturingOperation(Document):
 			f"""select
 											sum(gross_wt) as gross_wt,
 											sum(net_wt) as net_wt,
+											sum(finding_wt) as finding_wt,
 											sum(diamond_wt) as diamond_wt,
 											sum(gemstone_wt)as gemstone_wt,
 											sum(other_wt) as other_wt,
@@ -738,12 +769,12 @@ class ManufacturingOperation(Document):
 				"Parent Manufacturing Order",
 				doc.manufacturing_order,
 				{
-					"gross_weight": get_mwo_weight[0].gross_wt,
-					"net_weight": get_mwo_weight[0].net_wt,
-					"diamond_weight": get_mwo_weight[0].diamond_wt,
-					"gemstone_weight": get_mwo_weight[0].gemstone_wt,
-					# "finding_weight"		:get_mwo_weight[0].,
-					"other_weight": get_mwo_weight[0].other_wt,
+					"gross_weight": get_mwo_weight[0].gross_wt or 0,
+					"net_weight": get_mwo_weight[0].net_wt or 0,
+					"diamond_weight": get_mwo_weight[0].diamond_wt or 0,
+					"gemstone_weight": get_mwo_weight[0].gemstone_wt or 0,
+					"finding_weight": get_mwo_weight[0].finding_wt or 0,
+					"other_weight": get_mwo_weight[0].other_wt or 0,
 				},
 				update_modified=False,
 			)
@@ -759,7 +790,7 @@ class ManufacturingOperation(Document):
 						"Metal Product Tolerance",
 						row_doc.name,
 						"product_wt",
-						get_mwo_weight[0].gross_wt or get_mwo_weight[0].net_wt,
+						get_mwo_weight[0].gross_wt or get_mwo_weight[0].net_wt or 0,
 					)
 
 			for row in frappe.get_all(
@@ -768,7 +799,7 @@ class ManufacturingOperation(Document):
 				if row:
 					row_doc = frappe.get_doc("Diamond Product Tolerance", row.name)
 					frappe.db.set_value(
-						"Diamond Product Tolerance", row_doc.name, "product_wt", get_mwo_weight[0].diamond_wt
+						"Diamond Product Tolerance", row_doc.name, "product_wt", get_mwo_weight[0].diamond_wt or 0
 					)
 
 			for row in frappe.get_all(
@@ -777,7 +808,7 @@ class ManufacturingOperation(Document):
 				if row:
 					row_doc = frappe.get_doc("Gemstone Product Tolerance", row.name)
 					frappe.db.set_value(
-						"Gemstone Product Tolerance", row_doc.name, "product_wt", get_mwo_weight[0].gemstone_wt
+						"Gemstone Product Tolerance", row_doc.name, "product_wt", get_mwo_weight[0].gemstone_wt or 0
 					)
 
 	def set_mop_balance_table(self):
@@ -831,21 +862,39 @@ class ManufacturingOperation(Document):
 			if row.get("item_code") not in added_item_codes:
 				self.append("mop_balance_table", row)
 
+		# if frappe.db.exists("Manufacturing Operation", {'previous_mop': self.name}):
+		# 	new_mop = frappe.db.get_value("Manufacturing Operation", {'previous_mop': self.name}, "name")
+		# 	new_mop_doc = frappe.get_doc("Manufacturing Operation", new_mop)
+		# 	update_new_mop(new_mop_doc, self)
+		# 	new_mop_doc.save()
+
 
 def create_manufacturing_entry(doc, row_data):
-	target_wh = frappe.db.get_value("Warehouse", {"department": doc.department})
+	target_wh = frappe.db.get_value(
+		"Warehouse", {"department": doc.department, "warehouse_type": "Manufacturing"}
+	)
 	to_wh = frappe.db.get_value(
 		"Manufacturing Setting", {"company": doc.company}, "default_fg_warehouse"
 	)
 	if not to_wh:
-		frappe.throw("<b>Manufacturing Setting</b> Default FG Warehouse Missing...!")
+		frappe.throw(_("<b>Manufacturing Setting</b> Default FG Warehouse Missing...!"))
 	pmo = frappe.db.get_value(
 		"Manufacturing Work Order", doc.manufacturing_work_order, "manufacturing_order"
 	)
 	pmo_det = frappe.db.get_value(
 		"Parent Manufacturing Order",
 		pmo,
-		["name", "sales_order_item", "manufacturing_plan", "item_code", "qty"],
+		[
+			"name",
+			"sales_order_item",
+			"manufacturing_plan",
+			"item_code",
+			"qty",
+			"new_item",
+			"serial_no",
+			"repair_type",
+			"product_type",
+		],
 		as_dict=1,
 	)
 	if not pmo_det.qty:
@@ -856,6 +905,15 @@ def create_manufacturing_entry(doc, row_data):
 		frappe.throw(f"The Item {pmo_det.name} does not have Serial No plese check item master")
 
 	finish_other_tagging_operations(doc, pmo)
+
+	finish_item = pmo_det.get("item_code")
+
+	doc.serial_no = pmo_det.get("serial_no")
+	doc.new_item = pmo_det.get("new_item")
+	if pmo_det.get("repair_type") != "Refresh & Replace Defective Material" and pmo_det.get(
+		"new_item"
+	):
+		finish_item = pmo_det.get("new_item")
 
 	se = frappe.get_doc(
 		{
@@ -868,8 +926,9 @@ def create_manufacturing_entry(doc, row_data):
 			"manufacturing_work_order": doc.manufacturing_work_order,
 			"manufacturing_operation": doc.manufacturing_operation,
 			"custom_serial_number_creator": doc.name,
-			"inventory_type": "Regular Stock",
+			# "inventory_type": "Regular Stock",
 			"auto_created": 1,
+			"branch": "GE-BR-00001",
 		}
 	)
 	for entry in row_data:
@@ -879,9 +938,12 @@ def create_manufacturing_entry(doc, row_data):
 				"item_code": entry["item_code"],
 				"qty": entry["qty"],
 				"uom": entry["uom"],
+				"batch_no": entry.get("batch_no"),
+				"inventory_type": entry.get("inventory_type"),
+				"custom_sub_setting_type": entry.get("sub_setting_type"),
 				"manufacturing_operation": doc.manufacturing_operation,
 				"department": doc.department,
-				"inventory_type": "Regular Stock",
+				# "inventory_type": "Regular Stock",
 				"use_serial_batch_fields": 1,
 				"to_department": doc.department,
 				"s_warehouse": target_wh,
@@ -895,7 +957,7 @@ def create_manufacturing_entry(doc, row_data):
 	se.append(
 		"items",
 		{
-			"item_code": pmo_det.item_code,
+			"item_code": finish_item,
 			"qty": 1,
 			"t_warehouse": to_wh,
 			"department": doc.department,
@@ -910,8 +972,9 @@ def create_manufacturing_entry(doc, row_data):
 	se.save()
 	se.submit()
 	update_produced_qty(pmo_det)
-	frappe.msgprint("Finished Good created successfully")
-
+	frappe.msgprint(_("Finished Good created successfully"))
+	frappe.db.set_value("Serial No", sr_no, "custom_product_type", pmo_det.get("product_type"))
+	frappe.db.set_value("Serial No", sr_no, "custom_repair_type", pmo_det.get("repair_type"))
 	if doc.for_fg:
 		for row in doc.fg_details:
 			for entry in row_data:
@@ -1097,18 +1160,23 @@ def get_material_wt(doc):
 			where sed.t_warehouse = "{t_warehouse}" and sed.manufacturing_operation = "{doc.name}" and se.docstatus = 1""",
 		as_dict=1,
 	)
-	los = frappe.db.sql(
-		f"""select ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt, ifnull(sum(if(i.variant_of = 'M',sed.qty,0)),0) as net_wt,
-		ifnull(sum(if(i.variant_of = 'D',sed.qty,0)),0) as diamond_wt, ifnull(sum(if(i.variant_of = 'D',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as diamond_wt_in_gram,
-		ifnull(sum(if(i.variant_of = 'G',sed.qty,0)),0) as gemstone_wt, ifnull(sum(if(i.variant_of = 'G',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as gemstone_wt_in_gram,
-		ifnull(sum(if(i.variant_of = 'O',sed.qty,0)),0) as other_wt
-		from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name left join `tabItem` i on i.name = sed.item_code
-			where sed.s_warehouse = "{t_warehouse}" and sed.manufacturing_operation = "{doc.name}" and se.docstatus = 1""",
-		as_dict=1,
-	)
-	result = {}
-	for key in res[0].keys():
-		result[key] = res[0][key] - los[0][key]
+	if doc.status == "Not Started":
+		los = frappe.db.sql(
+			f"""select ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt, ifnull(sum(if(i.variant_of = 'M',sed.qty,0)),0) as net_wt,
+			ifnull(sum(if(i.variant_of = 'D',sed.qty,0)),0) as diamond_wt, ifnull(sum(if(i.variant_of = 'D',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as diamond_wt_in_gram,
+			ifnull(sum(if(i.variant_of = 'G',sed.qty,0)),0) as gemstone_wt, ifnull(sum(if(i.variant_of = 'G',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as gemstone_wt_in_gram,
+			ifnull(sum(if(i.variant_of = 'O',sed.qty,0)),0) as other_wt
+			from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name left join `tabItem` i on i.name = sed.item_code
+				where sed.s_warehouse = "{t_warehouse}" and sed.manufacturing_operation = "{doc.name}" and se.docstatus = 1""",
+			as_dict=1,
+		)
+		result = {}
+		for key in res[0].keys():
+			result[key] = res[0][key] - los[0][key]
+	else:
+		result = {}
+		for key in res[0].keys():
+			result[key] = res[0][key]
 
 	if result:
 		return result
@@ -1118,7 +1186,14 @@ def get_material_wt(doc):
 def create_finished_goods_bom(self, se_name, mo_data, total_time=0):
 	data = get_stock_entry_data(self)
 
-	new_bom = frappe.copy_doc(frappe.get_doc("BOM", self.design_id_bom))
+	bom_doc = frappe.get_doc("BOM", self.design_id_bom)
+	if self.get("new_item"):
+		if frappe.db.exists("BOM", {"is_default": 1, "item": self.new_item}):
+			bom_doc = frappe.get_doc("BOM", {"is_default": 1, "item": self.new_item})
+		else:
+			frappe.throw(_("Create default BOM for New Item"))
+
+	new_bom = frappe.copy_doc(bom_doc)
 	new_bom.bom_type = "Finish Goods"
 	new_bom.tag_no = get_serial_no(se_name)
 	new_bom.custom_serial_number_creator = self.name
@@ -1157,6 +1232,8 @@ def create_finished_goods_bom(self, se_name, mo_data, total_time=0):
 				atrribute_name = format_attrbute_name(attribute.attribute)
 				row[atrribute_name] = attribute.attribute_value
 				row["quantity"] = item["qty"]
+				if item.get("inventory_type") and item.get("inventory_type") == "Customer Goods":
+					row["is_customer_item"] = 1
 			new_bom.append("metal_detail", row)
 
 		elif item_row.variant_of == "F":
@@ -1165,6 +1242,8 @@ def create_finished_goods_bom(self, se_name, mo_data, total_time=0):
 				atrribute_name = format_attrbute_name(attribute.attribute)
 				row[atrribute_name] = attribute.attribute_value
 				row["quantity"] = item["qty"]
+				if item.get("inventory_type") and item.get("inventory_type") == "Customer Goods":
+					row["is_customer_item"] = 1
 			new_bom.append("finding_detail", row)
 
 		elif item_row.variant_of == "D":
@@ -1173,6 +1252,8 @@ def create_finished_goods_bom(self, se_name, mo_data, total_time=0):
 				atrribute_name = format_attrbute_name(attribute.attribute)
 				row[atrribute_name] = attribute.attribute_value
 				row["quantity"] = item["qty"]
+				if item.get("inventory_type") and item.get("inventory_type") == "Customer Goods":
+					row["is_customer_item"] = 1
 			new_bom.append("diamond_detail", row)
 
 		elif item_row.variant_of == "G":
@@ -1181,6 +1262,8 @@ def create_finished_goods_bom(self, se_name, mo_data, total_time=0):
 				atrribute_name = format_attrbute_name(attribute.attribute)
 				row[atrribute_name] = attribute.attribute_value
 				row["quantity"] = item["qty"]
+				if item.get("inventory_type") and item.get("inventory_type") == "Customer Goods":
+					row["is_customer_item"] = 1
 			new_bom.append("gemstone_detail", row)
 
 		elif item_row.variant_of == "O":
@@ -1195,6 +1278,8 @@ def create_finished_goods_bom(self, se_name, mo_data, total_time=0):
 			new_bom.append("other_detail", row)
 
 	new_bom.insert(ignore_mandatory=True)
+	new_bom.submit()
+	frappe.db.set_value("Serial No", new_bom.tag_no, "custom_bom_no", new_bom.name)
 	self.fg_bom = new_bom.name
 
 
@@ -1216,9 +1301,9 @@ def get_stock_entry_data(self):
 		pluck="name",
 	)
 	data = frappe.db.sql(
-		f"""select se.manufacturing_work_order, se.manufacturing_operation, sed.parent, sed.item_code,sed.item_name, sed.qty, sed.uom
+		f"""select sed.custom_manufacturing_work_order, se.manufacturing_operation, sed.parent, sed.item_code,sed.item_name, sed.qty, sed.uom, sed.inventory_type
 						from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name where
-						se.docstatus = 1 and se.manufacturing_work_order in ('{"', '".join(mwo)}') and sed.t_warehouse = '{target_wh}'
+						se.docstatus = 1 and sed.custom_manufacturing_work_order in ('{"', '".join(mwo)}') and sed.t_warehouse = '{target_wh}'
 						group by sed.manufacturing_operation,  sed.item_code, sed.qty, sed.uom """,
 		as_dict=1,
 	)
@@ -1264,10 +1349,86 @@ def finish_other_tagging_operations(doc, pmo):
 
 # timer code
 @frappe.whitelist()
-def make_time_log(args):
-	if isinstance(args, str):
-		args = json.loads(args)
+def make_time_log(data):
+	if isinstance(data, str):
+		args = json.loads(data)
 	args = frappe._dict(args)
 	doc = frappe.get_doc("Manufacturing Operation", args.job_card_id)
 	# doc.validate_sequence_id()
 	doc.add_time_log(args)
+
+
+def update_new_mop(self, old_mop):
+	import copy
+
+	d_warehouse = None
+	e_warehouse = None
+	if self.department:
+		d_warehouse = frappe.db.get_value(
+			"Warehouse", {"department": self.department, "warehouse_type": "Manufacturing"}
+		)
+	if self.employee:
+		e_warehouse = frappe.db.get_value(
+			"Warehouse", {"employee": self.employee, "warehouse_type": "Manufacturing"}
+		)
+
+	if self.previous_mop:
+
+		existing_data = {
+			"department_source_table": [],
+			"department_target_table": [],
+			"employee_source_table": [],
+			"employee_target_table": [],
+		}
+
+		department_source_table = []
+		department_target_table = []
+		employee_source_table = []
+		employee_target_table = []
+
+		for row in existing_data:
+			for entry in self.get(row):
+				if entry.get("sed_item") and entry.get("sed_item") not in existing_data[row]:
+					existing_data[row].append(entry.get("sed_item"))
+
+			for entry in old_mop.get(row):
+				if entry.s_warehouse == d_warehouse:
+					entry.name = None
+					department_source_table.append(entry.__dict__)
+				if entry.t_warehouse == d_warehouse:
+					entry.name = None
+					department_target_table.append(entry.__dict__)
+				if entry.s_warehouse == e_warehouse:
+					entry.name = None
+					employee_source_table.append(entry.__dict__)
+				if entry.t_warehouse == e_warehouse:
+					entry.name = None
+					employee_target_table.append(entry.__dict__)
+
+		for row in department_source_table:
+			temp_row = copy.deepcopy(row)
+			if temp_row["sed_item"] not in existing_data["department_source_table"]:
+				temp_row["name"] = None
+				temp_row["idx"] = None
+				self.append("department_source_table", row)
+
+		for row in department_target_table:
+			temp_row = copy.deepcopy(row)
+			if temp_row["sed_item"] not in existing_data["department_target_table"]:
+				temp_row["name"] = None
+				temp_row["idx"] = None
+				self.append("department_target_table", row)
+
+		for row in employee_source_table:
+			temp_row = copy.deepcopy(row)
+			if temp_row["sed_item"] not in existing_data["employee_source_table"]:
+				temp_row["name"] = None
+				temp_row["idx"] = None
+				self.append("employee_source_table", row)
+
+		for row in employee_target_table:
+			temp_row = copy.deepcopy(row)
+			if temp_row["sed_item"] not in existing_data["employee_target_table"]:
+				temp_row["name"] = None
+				temp_row["idx"] = None
+				self.append("employee_target_table", row)

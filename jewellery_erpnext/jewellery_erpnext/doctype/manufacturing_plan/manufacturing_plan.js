@@ -84,15 +84,15 @@ frappe.ui.form.on("Manufacturing Plan", {
 });
 
 var map_current_doc = function (opts) {
-	function _map() {
-		if ($.isArray(cur_frm.doc.items) && cur_frm.doc.items.length > 0) {
+	function _map(frm) {
+		if ($.isArray(frm.doc.items) && frm.doc.items.length > 0) {
 			// remove first item row if empty
-			if (!cur_frm.doc.items[0].item_code) {
-				cur_frm.doc.items = cur_frm.doc.items.splice(1);
+			if (!frm.doc.items[0].item_code) {
+				frm.doc.items = frm.doc.items.splice(1);
 			}
 
 			// find the doctype of the items table
-			var items_doctype = frappe.meta.get_docfield(cur_frm.doctype, "items").options;
+			var items_doctype = frappe.meta.get_docfield(frm.doctype, "items").options;
 
 			// find the link fieldname from items table for the given
 			// source_doctype
@@ -105,7 +105,7 @@ var map_current_doc = function (opts) {
 			var already_set = false;
 			var item_qty_map = {};
 
-			$.each(cur_frm.doc.items, function (i, d) {
+			$.each(frm.doc.items, function (i, d) {
 				opts.source_name.forEach(function (src) {
 					if (d[link_fieldname] == src) {
 						already_set = true;
@@ -148,14 +148,14 @@ var map_current_doc = function (opts) {
 			args: {
 				method: opts.method,
 				source_names: opts.source_name,
-				target_doc: cur_frm.doc,
+				target_doc: frm.doc,
 				args: opts.args,
 			},
 			callback: function (r) {
 				if (!r.exc) {
 					var doc = frappe.model.sync(r.message);
-					cur_frm.dirty();
-					cur_frm.refresh();
+					frm.dirty();
+					frm.refresh();
 				}
 			},
 		});
@@ -197,7 +197,7 @@ var map_current_doc = function (opts) {
 					opts.args = args;
 				}
 				d.dialog.hide();
-				_map();
+				_map(opts.target);
 			},
 		});
 

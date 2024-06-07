@@ -6,6 +6,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils import get_link_to_form
+from frappe.query_builder import DocType
 
 
 class SketchOrderForm(Document):
@@ -25,7 +26,8 @@ class SketchOrderForm(Document):
 			if row.subcategory:
 				parent = frappe.db.get_value("Attribute Value", row.subcategory, "parent_attribute_value")
 				if row.category != parent:
-					frappe.throw(_(f"Category & Sub Category mismatched in row #{row.idx}"))
+					# frappe.throw(_(f"Category & Sub Category mismatched in row #{row.idx}"))
+					frappe.throw(_("Category & Sub Category mismatched in row #{0}").format(row.idx))
 
 
 def create_sketch_order(self):
@@ -132,8 +134,13 @@ def make_sketch_order(doctype, source_name, parent_doc=None, target_doc=None):
 
 @frappe.whitelist()
 def get_customer_orderType(customer_code):
-	order_type = frappe.db.sql(
-		f""" select order_type from `tabOrder Type` where parent= '{customer_code}' """, as_dict=1
-	)
+	OrderType = DocType('Order Type')
+	order_type = (
+        frappe.qb
+            .from_(OrderType)
+            .select(OrderType.order_type)
+            .where(OrderType.parent == customer_code)
+            .run(as_dict=True)
+    )
 
 	return order_type

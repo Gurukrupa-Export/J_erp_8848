@@ -98,6 +98,7 @@ class ManufacturingPlan(Document):
 								soi.custom_customer_diamond as customer_diamond,
 								soi.custom_customer_stone as customer_stone,
 								soi.custom_customer_good as customer_good,
+								soi.custom_customer_weight as customer_weight,
 								(soi.qty - soi.manufacturing_order_qty) as pending_qty,
 								soi.order_form_type as order_form_type,
 								soi.custom_repair_type as repair_type,
@@ -186,7 +187,7 @@ def create_manufacturing_order(doc, row):
 	cnt = int(row.manufacturing_order_qty / row.qty_per_manufacturing_order)
 	for i in range(0, cnt):
 		make_manufacturing_order(doc, row)
-	frappe.msgprint("Parent Manufacturing Order Created")
+	frappe.msgprint(_("Parent Manufacturing Order Created"))
 
 
 def create_subcontracting_order(doc):
@@ -251,7 +252,7 @@ def get_pending_ppo_sales_order(doctype, txt, searchfield, start, page_len, filt
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
 def get_repair_pending_ppo_sales_order(doctype, txt, searchfield, start, page_len, filters):
-	conditions = " and soi.qty > soi.manufacturing_order_qty and soi.order_form_type='Repair Order'  and so.status='Draft'"  # and so.custom_repair_order_form <> ''
+	conditions = " and soi.qty > soi.manufacturing_order_qty and soi.order_form_type='Repair Order'"  # and so.custom_repair_order_form <> ''
 	if txt:
 		conditions += " and so.name like '%%" + txt + "%%' "
 	if customer := filters.get("customer"):

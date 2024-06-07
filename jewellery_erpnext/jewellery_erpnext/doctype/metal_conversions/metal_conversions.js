@@ -111,14 +111,13 @@ frappe.ui.form.on("MC Source Table", {
 					qty: child.qty,
 				},
 				callback: (r) => {
-					console.log(r.message);
 					if (r.message) {
 						var child_doc = locals[cdt][cdn];
 						frappe.model.set_value(
 							child_doc.doctype,
 							child_doc.name,
 							"total",
-							r.message
+							r.message[0]
 						);
 					}
 				},
@@ -302,6 +301,8 @@ function calculate_Multiple_conversion(frm) {
 					// frm.save();
 				}
 				if (r.message[1] > 0) {
+					frm.set_value("alloy_check", 0);
+					frm.refresh_field("alloy_check");
 					frm.set_value("alloy_qty", r.message[1]);
 					frm.refresh_field("alloy_qty");
 					// frm.save();
@@ -312,10 +313,10 @@ function calculate_Multiple_conversion(frm) {
 }
 function validate_alloy(frm) {
 	if (frm.doc.source_alloy_check == 1 && frm.doc.source_alloy == null) {
-		frappe.throw("Source Alloy is Missing");
+		frappe.throw(__("Source Alloy is Missing"));
 	}
 	if (frm.doc.target_alloy_check == 1 && frm.doc.target_alloy == null) {
-		frappe.throw("Target Alloy is Missing");
+		frappe.throw(__("Target Alloy is Missing"));
 	}
 }
 function clear_metal_field(frm) {

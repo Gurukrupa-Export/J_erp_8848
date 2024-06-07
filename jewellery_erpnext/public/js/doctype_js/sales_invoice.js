@@ -70,7 +70,7 @@ frappe.ui.form.on("Sales Invoice Item", {
 		var row = locals[cdt][cdn];
 
 		if (frm.doc.__islocal) {
-			frappe.throw("Please save document to edit the BOM.");
+			frappe.throw(__("Please save document to edit the BOM."));
 		}
 
 		// child table data variables
@@ -1178,7 +1178,7 @@ frappe.ui.form.on("Sales Invoice Item", {
 					{
 						tag_no: dialog.get_value("serial_no"),
 						is_active: 1,
-						customer: cur_frm.doc.customer,
+						customer: frm.doc.customer,
 					},
 					"name"
 				)
@@ -1198,7 +1198,7 @@ frappe.ui.form.on("Sales Invoice Item", {
 		dialog.$wrapper.find(".modal-dialog").css("max-width", "90%");
 
 		// hide update button
-		if (cur_frm.doc.docstatus == 1) dialog.$wrapper.find(".btn-modal-primary").remove();
+		if (frm.doc.docstatus == 1) dialog.$wrapper.find(".btn-modal-primary").remove();
 	},
 });
 
@@ -1451,7 +1451,7 @@ let set_edit_bom_details = (
 let filter_customer = (frm) => {
 	if (frm.doc.sales_type) {
 		//filtering customer with sales type
-		cur_frm.set_query("customer", function (doc) {
+		frm.set_query("customer", function (doc) {
 			return {
 				query: "jewellery_erpnext.utils.customer_query",
 				filters: {
@@ -1461,7 +1461,7 @@ let filter_customer = (frm) => {
 		});
 	} else {
 		// removing filters
-		cur_frm.set_query("customer", function (doc) {
+		frm.set_query("customer", function (doc) {
 			return {};
 		});
 	}
@@ -1507,7 +1507,7 @@ let add_row = (serial_no, frm, row) => {
 			freeze: true,
 			args: {
 				serial_no: serial_no,
-				customer: cur_frm.doc.customer,
+				customer: frm.doc.customer,
 			},
 			callback: function (r) {
 				if (r.message) {
@@ -1551,7 +1551,7 @@ let get_sales_type = (frm) => {
 let edit_bom_after_submit = (frm) => {
 	// funtion to enable edit bom button after submit
 
-	frappe.meta.get_docfield("Sales Invoice", "items", cur_frm.doc.name).allow_on_submit = 1;
+	frappe.meta.get_docfield("Sales Invoice", "items", frm.doc.name).allow_on_submit = 1;
 
 	// removing add row option
 	frm.get_field("items").grid.cannot_add_rows = true;

@@ -10,6 +10,7 @@ app_email = "nirali@ascratech.com"
 app_license = "MIT"
 
 app_include_css = "/assets/jewellery_erpnext/css/jewellery.css"
+after_migrate = "jewellery_erpnext.migrate.after_migrate"
 
 doctype_js = {
 	"Quotation": "public/js/doctype_js/quotation.js",
@@ -30,6 +31,7 @@ doctype_js = {
 	"Purchase Order": "public/js/doctype_js/purchase_order.js",
 	"Purchase Receipt": "public/js/doctype_js/purchase_receipt.js",
 	"Purchase Invoice": "public/js/doctype_js/purchase_invoice.js",
+	"Stock Reconciliation": "public/js/doctype_js/stock_reconciliation.js",
 }
 
 from erpnext.stock.doctype.stock_entry.stock_entry import StockEntry
@@ -85,7 +87,10 @@ doc_events = {
 		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.validate",
 		"before_validate": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.before_validate",
 		"before_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.before_submit",
-		"on_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.onsubmit",
+		"on_submit": [
+			"jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.onsubmit",
+			"jewellery_erpnext.jewellery_erpnext.customization.stock_entry.stock_entry.on_submit",
+		],
 		"on_cancel": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.on_cancel",
 		"on_update_after_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.on_update_after_submit",
 	},
@@ -100,10 +105,6 @@ doc_events = {
 	"Gemstone Weight": {
 		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.gemstone_weight.validate"
 	},
-	"Mould": {
-		"autoname": "jewellery_erpnext.jewellery_erpnext.doc_events.mould.autoname",
-		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.mould.validate",
-	},
 	"Warehouse": {"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.warehouse.validate"},
 	"Purchase Order": {
 		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.purchase_order.validate",
@@ -117,8 +118,15 @@ doc_events = {
 	},
 	"Material Request": {
 		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.material_request.create_stock_entry",
-		# "on_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.material_request.create_stock_entry",
+		"on_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.material_request.on_submit",
 	},
+	"Serial and Batch Bundle": {
+		"after_insert": "jewellery_erpnext.jewellery_erpnext.customization.serial_and_batch_bundle.serial_and_batch_bundle.after_insert"
+	},
+	"Purchase Receipt": {
+		"before_validate": "jewellery_erpnext.jewellery_erpnext.customization.purchase_receipt.purchase_receipt.before_validate"
+	},
+	"Batch": {"validate": "jewellery_erpnext.jewellery_erpnext.customization.batch.batch.validate"},
 }
 
 override_whitelisted_methods = {
@@ -193,8 +201,17 @@ fixtures = [
 ]
 
 override_doctype_class = {
-	"Stock Entry": "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.stock_entry.CustomStockEntry"
+	"Stock Entry": "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.stock_entry.CustomStockEntry",
+	"Stock Reconciliation": "jewellery_erpnext.jewellery_erpnext.doctype.stock_reconciliation_template.stock_reconciliation_template_utils.CustomStockReconciliation",
+	"Stock Ledger Entry": "jewellery_erpnext.jewellery_erpnext.customization.stock_ledger_entry.stock_ledger_entry.CustomStockLedgerEntry",
 }
+
+
+# scheduler_events = {
+#     "all": [
+#         "jewellery_erpnext.jewellery_erpnext.doctype.stock_reconciliation_template.stock_reconciliation_template_utils.CustomStockReconciliation"
+#     ],
+# }
 
 # from erpnext.stock import get_item_details
 # from jewellery_erpnext.erpnext_override import get_price_list_rate_for

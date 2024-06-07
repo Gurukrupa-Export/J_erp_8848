@@ -89,6 +89,7 @@ frappe.ui.form.on("Sales Order", {
 			"Maintenance",
 			"Shopping Cart",
 			"Stock Order",
+			"Repair",
 		]);
 
 		if (frm.doc.docstatus == 1) {
@@ -142,7 +143,7 @@ frappe.ui.form.on("Sales Order", {
 let filter_customer = (frm) => {
 	if (frm.doc.sales_type) {
 		//filtering customer with sales type
-		cur_frm.set_query("customer", function (doc) {
+		frm.set_query("customer", function (doc) {
 			return {
 				query: "jewellery_erpnext.utils.customer_query",
 				filters: {
@@ -152,7 +153,7 @@ let filter_customer = (frm) => {
 		});
 	} else {
 		// removing filters
-		cur_frm.set_query("customer", function (doc) {
+		frm.set_query("customer", function (doc) {
 			return {};
 		});
 	}
@@ -163,7 +164,7 @@ frappe.ui.form.on("Sales Order Item", {
 		var row = locals[cdt][cdn];
 
 		if (frm.doc.__islocal) {
-			frappe.throw("Please save document to edit the BOM.");
+			frappe.throw(__("Please save document to edit the BOM."));
 		}
 
 		// child table data variables
@@ -1217,7 +1218,7 @@ frappe.ui.form.on("Sales Order Item", {
 					{
 						tag_no: dialog.get_value("serial_no"),
 						is_active: 1,
-						customer: cur_frm.doc.customer,
+						customer: frm.doc.customer,
 					},
 					"name"
 				)
@@ -1514,7 +1515,7 @@ let add_row = (serial_no, frm, row) => {
 			freeze: true,
 			args: {
 				serial_no: serial_no,
-				customer: cur_frm.doc.customer,
+				customer: frm.doc.customer,
 			},
 			callback: function (r) {
 				if (r.message) {

@@ -22,7 +22,7 @@ frappe.ui.form.on("Purchase Order", {
 		}
 	},
 	refresh(frm) {
-		set_si_reference_field_filter();
+		set_si_reference_field_filter(frm);
 		get_items(frm);
 	},
 	purchase_type(frm) {
@@ -45,7 +45,7 @@ frappe.ui.form.on("Purchase Order Item", {
 	form_render(frm, cdt, cdn) {
 		if (frm.doc.from_sales_invoice === 1) {
 			hide_table_button(frm);
-			var grid_row = cur_frm.open_grid_row();
+			var grid_row = frm.open_grid_row();
 			grid_row.grid_form.fields_dict.item_code.df.read_only = true;
 			grid_row.grid_form.fields_dict.item_code.refresh();
 			grid_row.grid_form.fields_dict.item_name.df.read_only = true;
@@ -60,7 +60,7 @@ frappe.ui.form.on("Purchase Order Item", {
 		var row = locals[cdt][cdn];
 
 		if (frm.doc.__islocal) {
-			frappe.throw("Please save document to edit the BOM.");
+			frappe.throw(__("Please save document to edit the BOM."));
 		}
 
 		// child table data variables
@@ -1167,7 +1167,7 @@ frappe.ui.form.on("Purchase Order Item", {
 					{
 						tag_no: dialog.get_value("serial_no"),
 						is_active: 1,
-						customer: cur_frm.doc.customer,
+						customer: frm.doc.customer,
 					},
 					"name"
 				)
@@ -1187,7 +1187,7 @@ frappe.ui.form.on("Purchase Order Item", {
 		dialog.$wrapper.find(".modal-dialog").css("max-width", "90%");
 
 		// hide update button
-		if (cur_frm.doc.docstatus == 1) dialog.$wrapper.find(".btn-modal-primary").remove();
+		if (frm.doc.docstatus == 1) dialog.$wrapper.find(".btn-modal-primary").remove();
 	},
 });
 
@@ -1206,7 +1206,7 @@ let add_row = (serial_no, frm, row) => {
 			freeze: true,
 			args: {
 				serial_no: serial_no,
-				customer: cur_frm.doc.customer,
+				customer: frm.doc.customer,
 			},
 			callback: function (r) {
 				if (r.message) {
@@ -1500,8 +1500,8 @@ function update_dialog_values(dialog, scanned_item, r, row) {
 	}
 }
 
-let set_si_reference_field_filter = () => {
-	cur_frm.set_query("si_reference_field", function () {
+let set_si_reference_field_filter = (frm) => {
+	frm.set_query("si_reference_field", function () {
 		return {
 			filters: {
 				sales_type: "Branch Sales",
@@ -1514,18 +1514,18 @@ let get_items = (frm) => {
 	/* Function to add custom button for sales invoice in get items and appending table with selected invoice items */
 	frm.add_custom_button(
 		__("Sales Invoice"),
-		function () {
+		function (frm) {
 			let query_args = {
 				filters: {
 					docstatus: ["!=", 2],
 					sales_type:
-						cur_frm.doc.purchase_type === "FG Purchase" ? "FG Sales" : "Branch Sales",
+						frm.doc.purchase_type === "FG Purchase" ? "FG Sales" : "Branch Sales",
 				},
 			};
 
 			let d = new frappe.ui.form.MultiSelectDialog({
 				doctype: "Sales Invoice",
-				target: cur_frm,
+				target: frm,
 				setters: {
 					posting_date: null,
 					status: "",
@@ -1576,7 +1576,7 @@ let get_items = (frm) => {
 let filter_supplier = (frm) => {
 	if (frm.doc.purchase_type) {
 		//filtering supplier with sales type
-		cur_frm.set_query("supplier", function (doc) {
+		frm.set_query("supplier", function (doc) {
 			return {
 				query: "jewellery_erpnext.utils.supplier_query",
 				filters: {
@@ -1586,7 +1586,7 @@ let filter_supplier = (frm) => {
 		});
 	} else {
 		// removing filters
-		cur_frm.set_query("supplier", function (doc) {
+		frm.set_query("supplier", function (doc) {
 			return {};
 		});
 	}
@@ -1619,13 +1619,13 @@ let hide_table_button = (frm) => {
 	$("small form-clickable-section grid-footer").remove();
 	let fields = ["item_code", "item_name", "qty"];
 	fields.forEach((item) => {
-		change_df(item);
+		change_df(frm, item);
 	});
 	frm.refresh_fields("items");
 };
 
-let change_df = (field) => {
-	var df = frappe.meta.get_docfield("Purchase Order Item", field, cur_frm.doc.name);
+let change_df = (frm, field) => {
+	var df = frappe.meta.get_docfield("Purchase Order Item", field, frm.doc.name);
 	console.log(field);
 	df.read_only = 1;
 };

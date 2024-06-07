@@ -13,6 +13,7 @@
   "bom",
   "metal_touch",
   "metal_colour",
+  "tree_no",
   "column_break_xsw31",
   "docname",
   "supply_raw_material",
@@ -22,6 +23,7 @@
   "category",
   "sub_category",
   "setting_type",
+  "amount",
   "weight_details_section",
   "gross_weight",
   "gold_weight",
@@ -32,8 +34,10 @@
   "diamond_pcs",
   "diamond_color",
   "diamond_purity",
+  "receive_metal_purity",
   "stone_pcs",
-  "stone_weight"
+  "stone_weight",
+  "main_slip"
  ],
  "fields": [
   {
@@ -42,7 +46,8 @@
    "in_list_view": 1,
    "label": "Item Code",
    "options": "Item",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "docname",
@@ -73,7 +78,7 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "HUID",
-   "mandatory_depends_on": "eval:parent.type == \"Receive\" && !parent.__islocal",
+   "mandatory_depends_on": "eval:parent.type == \"Receive\" && parent.__islocal == 0",
    "read_only_depends_on": "eval:parent.type == \"Issue\""
   },
   {
@@ -128,26 +133,22 @@
    "label": "Weight Details"
   },
   {
-   "fetch_from": "bom.gross_weight",
    "fieldname": "gross_weight",
    "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Gross Weight"
   },
   {
-   "fetch_from": "bom.metal_and_finding_weight",
    "fieldname": "gold_weight",
    "fieldtype": "Float",
    "label": "Gold Weight"
   },
   {
-   "fetch_from": "bom.chain_weight",
    "fieldname": "chain_weight",
    "fieldtype": "Float",
    "label": "Chain Weight"
   },
   {
-   "fetch_from": "bom.other_weight",
    "fieldname": "other_weight",
    "fieldtype": "Float",
    "label": "Other Weight"
@@ -157,7 +158,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "fetch_from": "bom.diamond_weight",
    "fieldname": "diamond_weight",
    "fieldtype": "Float",
    "label": "Diamond weight"
@@ -211,14 +211,37 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Certification",
-   "mandatory_depends_on": "eval:parent.type == \"Receive\" && !parent.__islocal",
+   "mandatory_depends_on": "eval:parent.type == \"Receive\" && parent.__islocal == 0",
    "read_only_depends_on": "eval:parent.type == \"Issue\""
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount"
+  },
+  {
+   "fieldname": "tree_no",
+   "fieldtype": "Link",
+   "label": "Tree No",
+   "options": "Tree Number"
+  },
+  {
+   "fieldname": "main_slip",
+   "fieldtype": "Link",
+   "label": "Main Slip",
+   "options": "Main Slip"
+  },
+  {
+   "fieldname": "receive_metal_purity",
+   "fieldtype": "Link",
+   "label": "Receive Metal Purity",
+   "options": "Item"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2023-10-17 18:08:34.464460",
+ "modified": "2024-06-05 17:56:55.607734",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Exploded Product Details",

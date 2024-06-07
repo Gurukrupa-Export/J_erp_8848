@@ -30,6 +30,7 @@
   "g_source_item",
   "g_source_qty",
   "batch",
+  "loss_type",
   "column_break_ynarw",
   "g_target_item",
   "g_target_qty",
@@ -248,6 +249,13 @@
    "label": "Branch",
    "options": "Branch",
    "reqd": 1
+  },
+  {
+   "fieldname": "loss_type",
+   "fieldtype": "Link",
+   "label": "Loss Type",
+   "options": "Loss Type",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -258,7 +266,7 @@
    "link_fieldname": "custom_gemstone_conversion"
   }
  ],
- "modified": "2024-03-21 16:10:10.513302",
+ "modified": "2024-05-13 17:06:40.361772",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Gemstone Conversion",

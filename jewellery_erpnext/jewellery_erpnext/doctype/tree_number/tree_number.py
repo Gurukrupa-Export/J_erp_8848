@@ -9,6 +9,3 @@ class TreeNumber(Document):
 	def after_insert(self):
 		counter = cint(frappe.db.get_value("Tree Number",{},"max(counter)"))
 		self.db_set("counter", counter+1)
-
-	def autoname(self):
-		return

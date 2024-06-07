@@ -115,7 +115,7 @@ function get_detail_tab_value(frm) {
 
 function validate_diamond(frm) {
 	if (frm.doc.sum_source_table != frm.doc.sum_target_table) {
-		frappe.throw("Source & Target Sum Must be Equal");
+		frappe.throw(__("Source & Target Sum Must be Equal"));
 	}
 }
 function calculateSum(frm) {

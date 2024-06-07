@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 
 
@@ -13,17 +14,17 @@ class CustomerApproval(Document):
 			for qty in quantity:
 				if qty[0] == item.item_code:
 					if qty[1] < item.quantity:
-						frappe.throw("Error: Quantity cannot be greater than the remaining quantity.")
+						frappe.throw(_("Error: Quantity cannot be greater than the remaining quantity."))
 
 			serial_item = []
 			if item.serial_no:
 				serial_item.extend(item.serial_no.split("\n"))
 
 			if len(serial_item) > item.quantity:
-				frappe.throw("Error: There is mismatch in Quantity and Serial Nos, Please recheck it")
+				frappe.throw(_("Error: There is mismatch in Quantity and Serial Nos, Please recheck it"))
 
 			elif len(serial_item) < item.quantity:
-				frappe.throw("Error: There are less serial no. Please add")
+				frappe.throw(_("Error: There are less serial no. Please add"))
 
 
 @frappe.whitelist()

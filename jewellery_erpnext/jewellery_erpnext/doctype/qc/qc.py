@@ -71,6 +71,9 @@ class QC(Document):
 				row.db_set("status", "Force Approved")
 		self.on_submit()
 
+		if self.duplicate_qc:
+			frappe.get_doc("QC", self.duplicate_qc).force_approve()
+
 	@frappe.whitelist()
 	def get_specification_details(self):
 		if not self.quality_inspection_template:

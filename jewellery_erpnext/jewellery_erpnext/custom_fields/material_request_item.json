@@ -1,0 +1,35 @@
+{
+	"Material Request Item": [
+		{
+			"fieldname": "custom_variant_of",
+			"fieldtype": "Link",
+			"insert_after": "schedule_date",
+			"label": "Variant Of",
+			"options": "Item",
+			"module": "Jewellery Erpnext"
+		},
+		{
+			"fieldname": "inventory_dimensions",
+			"fieldtype": "Section Break",
+			"insert_after": "section_break_46",
+			"label": "Inventory Dimensions",
+			"module": "Jewellery Erpnext"
+		},
+		{
+			"fieldname": "inventory_type",
+			"fieldtype": "Link",
+			"insert_after": "inventory_detail",
+			"label": "Inventory Type",
+			"options": "Inventory Type",
+			"module": "Jewellery Erpnext"
+		},
+		{
+			"fieldname": "customer",
+			"fieldtype": "Link",
+			"insert_after": "inventory_type",
+			"label": "Customer",
+			"options": "Customer",
+			"module": "Jewellery Erpnext"
+		}
+	]
+}

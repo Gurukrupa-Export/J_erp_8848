@@ -11,8 +11,21 @@ frappe.ui.form.on("Gemstone Conversion", {
 		clear_gemstone_field(frm);
 		set_batch_filter(frm, "batch");
 		frm.set_value("g_source_qty", null);
-		frm.set_value("g_loss_item", frm.doc.g_source_item);
-		frm.refresh_field("g_loss_item");
+		// frm.set_value("g_loss_item", frm.doc.g_source_item);
+		if (frm.doc.g_source_item) {
+			frappe.call({
+				method: "jewellery_erpnext.jewellery_erpnext.doctype.gemstone_conversion.gemstone_conversion.get_loss_item",
+				args: {
+					company: frm.doc.company,
+					souce_item: frm.doc.g_source_item,
+					loss_type: frm.doc.loss_type,
+				},
+				callback: (r) => {
+					frm.set_value("g_loss_item", r.message);
+				},
+			});
+			frm.refresh_field("g_loss_item");
+		}
 	},
 	validate(frm) {
 		calculate_Gemstone(frm);
@@ -126,7 +139,7 @@ function calculate_Gemstone(frm) {
 }
 function clear_gemstone_field(frm) {
 	frm.set_value("g_target_item", null);
-	frm.set_value("g_target_qty", null);
+	frm.set_value("g_target_qty", 0);
 	frm.set_value("g_loss_item", null);
-	frm.set_value("g_loss_qty", null);
+	frm.set_value("g_loss_qty", 0);
 }

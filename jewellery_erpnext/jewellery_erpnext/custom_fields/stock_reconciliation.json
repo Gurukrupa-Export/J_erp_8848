@@ -1,0 +1,18 @@
+{
+    "Stock Reconciliation": [
+     {
+      "fieldname": "custom_get_child_stock_reconcilliation",
+      "fieldtype": "Button",
+      "insert_after": "sb9",
+      "label": "Get Child Stock Reconcilliation",
+      "module": "Jewellery Erpnext"
+     },
+     {
+        "fieldname": "custom_auto_creation",
+        "fieldtype": "Check",
+        "insert_after": "custom_get_child_stock_reconcilliation",
+        "label": "Auto Creation",
+        "module": "Jewellery Erpnext"
+       }
+    ]
+}

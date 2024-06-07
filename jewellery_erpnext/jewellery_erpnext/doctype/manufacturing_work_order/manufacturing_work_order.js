@@ -4,12 +4,12 @@
 frappe.ui.form.on("Manufacturing Work Order", {
 	refresh: function (frm) {
 		if (frm.doc.docstatus == 1 && ["In Process", "Not Started"].includes(frm.doc.status)) {
-			frm.add_custom_button("Split Work Order", function () {
+			frm.add_custom_button(__("Split Work Order"), function () {
 				frm.trigger("split_work_order");
 			});
 		}
 		if (frm.doc.docstatus == 1 && frm.doc.serial_no) {
-			frm.add_custom_button("Unpack Raw Material", function () {
+			frm.add_custom_button(__("Unpack Raw Material"), function () {
 				frm.trigger("unpack_raw_material");
 			});
 		}

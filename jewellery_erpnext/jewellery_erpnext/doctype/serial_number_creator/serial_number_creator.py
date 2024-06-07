@@ -23,6 +23,7 @@ class SerialNumberCreator(Document):
 		validate_qty(self)
 		calulate_id_wise_sum_up(self)
 		to_prepare_data_for_make_mnf_stock_entry(self)
+		update_new_serial_no(self)
 
 	@frappe.whitelist()
 	def get_serial_summary(self):
@@ -69,11 +70,25 @@ def to_prepare_data_for_make_mnf_stock_entry(self):
 			if key not in id_wise_data_split:
 				id_wise_data_split[key] = []
 				id_wise_data_split[key].append(
-					{"item_code": row.row_material, "qty": row.qty, "uom": row.uom, "id": row.id}
+					{
+						"item_code": row.row_material,
+						"qty": row.qty,
+						"uom": row.uom,
+						"id": row.id,
+						"inventory_type": row.inventory_type,
+						"batch_no": row.batch_no,
+					}
 				)
 			else:
 				id_wise_data_split[key].append(
-					{"item_code": row.row_material, "qty": row.qty, "uom": row.uom, "id": row.id}
+					{
+						"item_code": row.row_material,
+						"qty": row.qty,
+						"uom": row.uom,
+						"id": row.id,
+						"inventory_type": row.inventory_type,
+						"batch_no": row.batch_no,
+					}
 				)
 	for key, row_data in id_wise_data_split.items():
 		se_name = create_manufacturing_entry(self, row_data)
@@ -203,20 +218,27 @@ def get_operation_details(data, docname, mwo, pmo, company, mnf, dpt, for_fg, de
 	bom_id = data_dict[1]
 	mnf_qty = data_dict[2]
 	total_qty = data_dict[3]
+
+	existing_se_item = []
 	for mnf_id in range(1, mnf_qty + 1):
 		for data_entry in stock_data:
 			_qty = round(data_entry["qty"] / mnf_qty, 4)
-			snc_doc.append(
-				"fg_details",
-				{
-					"row_material": data_entry["item_code"],
-					"id": mnf_id,
-					"batch_no": data_entry["batch_no"],
-					"qty": _qty,  # data_entry["qty"],
-					"uom": data_entry["uom"],
-					"gross_wt": data_entry["gross_wt"],
-				},
-			)
+			if data_entry["name"] not in existing_se_item:
+				existing_se_item.append(data_entry["name"])
+				snc_doc.append(
+					"fg_details",
+					{
+						"row_material": data_entry["item_code"],
+						"id": mnf_id,
+						"batch_no": data_entry["batch_no"],
+						"qty": _qty,  # data_entry["qty"],
+						"uom": data_entry["uom"],
+						"gross_wt": data_entry["gross_wt"],
+						"inventory_type": data_entry["inventory_type"],
+						"sub_setting_type": data_entry.get("custom_sub_setting_type"),
+						"sed_item": data_entry["name"],
+					},
+				)
 	if mnf_qty > 1:
 		for data_entry in stock_data:
 			snc_doc.append(
@@ -275,3 +297,53 @@ def calulate_id_wise_sum_up(self):
 				frappe.throw(
 					f"Row Material in FG Details <b>{row_material}</b> does not match </br></br>ID Wise Row Material SUM: <b>{round(qty_sum, 3)}</b></br>Must be equal of row <b>#{row.get('idx')}</b> in source table<b>: {row.get('qty')}</b>"
 				)
+
+
+import copy
+
+
+def update_new_serial_no(self):
+	if self.serial_no and self.fg_details:
+		serial_doc = frappe.get_doc("Serial No", self.fg_details[0].serial_no)
+		previos_sr = frappe.db.get_value(
+			"Serial No",
+			self.serial_no,
+			["purchase_document_no", "item_code", "custom_repair_type", "custom_product_type"],
+			as_dict=1,
+		)
+
+		huid_details = ""
+		certificate_details = ""
+		for row in frappe.db.get_all("HUID Detail", {"parent": self.serial_no}, ["*"]):
+			if row.huid:
+				huid_details += """
+								{0} - {1}""".format(
+					row.huid, row.date
+				)
+			if row.certification_no:
+				certificate_details += """
+								{0} - {1}""".format(
+					row.certification_no, row.certification_date
+				)
+
+		for row in frappe.db.get_all("Serial No Table", {"parent": self.serial_no}, ["*"]):
+			temp_row = copy.deepcopy(row)
+			temp_row["name"] = None
+			serial_doc.append("custom_serial_no_table", temp_row)
+
+		serial_doc.append(
+			"custom_serial_no_table",
+			{
+				"serial_no": self.serial_no,
+				"item_code": previos_sr.item_code,
+				"purchase_document_no": previos_sr.purchase_document_no,
+				"pmo": self.parent_manufacturing_order,
+				"mwo": self.manufacturing_work_order,
+				"bom": self.design_id_bom,
+				"huid_details": huid_details,
+				"certification_details": certificate_details,
+				"repair_type": previos_sr.get("repair_type"),
+				"product_type": previos_sr.get("product_type"),
+			},
+		)
+		serial_doc.save()

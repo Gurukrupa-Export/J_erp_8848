@@ -12,9 +12,11 @@
   "batch",
   "batch_available_qty",
   "inventory_type",
+  "column_break_srdw",
   "customer",
   "supplier",
-  "total"
+  "total",
+  "purity_percentage"
  ],
  "fields": [
   {
@@ -79,12 +81,21 @@
    "fieldtype": "Float",
    "label": "Total",
    "read_only": 1
+  },
+  {
+   "fieldname": "column_break_srdw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "purity_percentage",
+   "fieldtype": "Float",
+   "label": "Purity Percentage"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-02-09 23:43:56.737594",
+ "modified": "2024-05-01 19:35:35.986744",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "MC Source Table",

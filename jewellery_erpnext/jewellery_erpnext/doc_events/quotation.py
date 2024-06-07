@@ -93,14 +93,20 @@ def create_quotation_bom(self, row, bom):
 	)
 	metal_criteria = {row.metal_touch: row.metal_purity for row in metal_criteria}
 	for item in doc.metal_detail:
+		if row.custom_customer_gold == "Yes":
+			item.is_customer_item = 1
 		if item.metal_touch:
 			item.metal_purity = metal_criteria.get(item.metal_touch)
 	for item in doc.finding_detail:
+		if row.custom_customer_gold == "Yes":
+			item.is_customer_item = 1
 		if item.metal_touch:
 			item.metal_purity = metal_criteria.get(item.metal_touch)
 
 	# doc.save(ignore_permissions = True) # This Save will Call before_save and validate method in BOM
 	for diamond in doc.diamond_detail:
+		if row.custom_customer_diamond == "Yes":
+			diamond.is_customer_item = 1
 		diamond_grade_1 = frappe.db.get_value(
 			"Customer Diamond Grade",
 			{"parent": doc.customer, "diamond_quality": row.diamond_quality},
@@ -111,6 +117,15 @@ def create_quotation_bom(self, row, bom):
 			diamond.diamond_grade = diamond_grade_1
 		if row.diamond_quality:
 			diamond.quality = row.diamond_quality
+
+	for gem in doc.gemstone_detail:
+		if row.custom_customer_stone == "Yes":
+			gem.is_customer_item = 1
+
+	for other in doc.other_detail:
+		if row.custom_customer_good == "Yes":
+			other.is_customer_item = 1
+
 	# This Save will Call before_save and validate method in BOM and Rates Will be Calculated as diamond_quality is calculated too
 	doc.save(ignore_permissions=True)
 	row.quotation_bom = doc.name

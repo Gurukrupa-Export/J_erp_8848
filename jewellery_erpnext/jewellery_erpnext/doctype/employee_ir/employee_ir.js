@@ -16,10 +16,11 @@ frappe.ui.form.on("Employee IR", {
 		}
 	},
 	setup(frm) {
+		frm.ignore_doctypes_on_cancel_all = ["Stock Entry", "Serial and Batch Bundle"];
 		frm.set_query("operation", function () {
 			return {
 				filters: [
-					["Department Operation", "department", "=", cur_frm.doc.department],
+					["Department Operation", "department", "=", frm.doc.department],
 					[
 						"Department Operation",
 						"is_subcontracted",
@@ -31,7 +32,7 @@ frappe.ui.form.on("Employee IR", {
 		});
 		frm.set_query("department", function () {
 			return {
-				filters: [["Department", "company", "=", cur_frm.doc.company]],
+				filters: [["Department", "company", "=", frm.doc.company]],
 			};
 		});
 		frm.set_query("main_slip", function (doc) {
@@ -76,7 +77,7 @@ frappe.ui.form.on("Employee IR", {
 				filters: [["Operation MultiSelect", "operation", "=", frm.doc.operation]],
 			};
 		});
-		var parent_fields = [["custom_transfer_type", "Employee IR Reason"]];
+		var parent_fields = [["transfer_type", "Employee IR Reason"]];
 		set_filters_on_parent_table_fields(frm, parent_fields);
 
 		set_filters_on_manually_book_loss(frm);
@@ -93,6 +94,7 @@ frappe.ui.form.on("Employee IR", {
 				manufacturing_work_order: frm.doc.scan_mwo,
 			};
 			if (frm.doc.type == "Issue") {
+				query_filters["department_ir_status"] = ["not in", ["In-Transit", "Revert"]];
 				query_filters["status"] = ["in", ["Not Started"]];
 				query_filters["operation"] = ["is", "not set"];
 				// query_filters["department_ir_status"] = ["=", "Received"]
@@ -120,14 +122,31 @@ frappe.ui.form.on("Employee IR", {
 					let values = r.message;
 
 					if (values.manufacturing_work_order) {
-						let row = frm.add_child("employee_ir_operations", {
-							manufacturing_work_order: values.manufacturing_work_order,
-							manufacturing_operation: values.name,
-							// "status":values.status
-						});
-						frm.refresh_field("employee_ir_operations");
+						frappe.db.get_value(
+							"QC",
+							{
+								manufacturing_work_order: values.manufacturing_work_order,
+								manufacturing_operation: values.name,
+								status: ["!=", "Rejected"],
+								docstatus: 1,
+							},
+							["name", "received_gross_wt"],
+							function (r) {
+								let row = frm.add_child("employee_ir_operations", {
+									manufacturing_work_order: values.manufacturing_work_order,
+									manufacturing_operation: values.name,
+									qc: r.name,
+									received_gross_wt: r.received_gross_wt,
+								});
+								frm.refresh_field("employee_ir_operations");
+							}
+						);
 					} else {
-						frappe.throw("No Manufacturing Operation Found");
+						// frappe.throw("No Manufacturing Operation Found");
+						frappe.throw({
+							title: __("Message"),
+							message: __("No Manufacturing Operation Found"),
+						});
 					}
 					frm.set_value("scan_mwo", "");
 				});
@@ -139,6 +158,7 @@ frappe.ui.form.on("Employee IR", {
 		};
 		if (frm.doc.main_slip == null) {
 			if (frm.doc.type == "Issue") {
+				query_filters["department_ir_status"] = ["not in", ["In-Transit", "Revert"]];
 				query_filters["status"] = ["in", ["Not Started"]];
 				query_filters["operation"] = ["is", "not set"];
 
@@ -233,7 +253,7 @@ frappe.ui.form.on("Employee IR Operation", {
 		var child = locals[cdt][cdn];
 		// console.log(child.manufacturing_operation);
 		if (frm.doc.type == "Issue") {
-			frappe.throw("Transaction type must be a <b>Receive</b>");
+			frappe.throw(__("Transaction type must be a <b>Receive</b>"));
 		}
 		if (child.received_gross_wt && frm.doc.type == "Receive") {
 			var mwo = child.manufacturing_work_order;
@@ -259,6 +279,11 @@ frappe.ui.form.on("Manually Book Loss Details", {
 			frm.set_df_property("pcs", "reqd", 1);
 			frm.set_df_property("sub_setting_type", "reqd", 1);
 		}
+		frappe.db.get_value("Item", d.item_code, "item_group", function (r) {
+			if(r.item_group=="Metal - V"){
+				d.pcs=1
+			};
+		});
 	},
 });
 
@@ -322,7 +347,7 @@ function add_subcon_button(frm) {
 				});
 				frappe.set_route("Form", "Subcontracting", "new-subcontracting");
 			} else {
-				frappe.msgprint("Please Scan Work Order first");
+				frappe.msgprint(__("Please Scan Work Order first"));
 			}
 		}).addClass("btn-primary");
 	}

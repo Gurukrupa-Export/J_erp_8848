@@ -12,7 +12,9 @@
   "batch_no",
   "column_break_3",
   "description",
+  "variant_of",
   "manufacturing_operation",
+  "loss_type",
   "quantity_and_rate",
   "net_weight",
   "proportionally_loss",
@@ -113,7 +115,8 @@
   {
    "fieldname": "pcs",
    "fieldtype": "Data",
-   "label": "pcs"
+   "label": "pcs",
+   "reqd": 1
   },
   {
    "fieldname": "sub_setting_type",
@@ -138,12 +141,26 @@
    "fieldtype": "Link",
    "label": "Manufacturing Operation",
    "options": "Manufacturing Operation"
+  },
+  {
+   "fetch_from": "item_code.variant_of",
+   "fieldname": "variant_of",
+   "fieldtype": "Link",
+   "label": "Variant Of",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "loss_type",
+   "fieldtype": "Link",
+   "label": "Loss Type",
+   "options": "Loss Type"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-04-04 17:02:04.895656",
+ "modified": "2024-05-20 15:31:10.612099",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manually Book Loss Details",

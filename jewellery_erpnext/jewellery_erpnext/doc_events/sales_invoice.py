@@ -185,9 +185,10 @@ def update_payment_terms(self):
 
 
 def update_income_account(self):
-	income_account = frappe.db.get_value(
-		"Account", {"company": self.company, "custom_sales_type": self.sales_type}, "name"
-	)
-	if income_account:
-		for row in self.items:
-			row.income_account = income_account
+	if self.is_opening == "No":
+		income_account = frappe.db.get_value(
+			"Account", {"company": self.company, "custom_sales_type": self.sales_type}, "name"
+		)
+		if income_account:
+			for row in self.items:
+				row.income_account = income_account

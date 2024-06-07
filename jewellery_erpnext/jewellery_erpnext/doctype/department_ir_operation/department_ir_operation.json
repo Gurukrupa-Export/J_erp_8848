@@ -10,7 +10,9 @@
   "manufacturing_work_order",
   "manufacturing_operation",
   "status",
-  "parent_manufacturing_order"
+  "parent_manufacturing_order",
+  "gross_wt",
+  "diamond_wt"
  ],
  "fields": [
   {
@@ -45,12 +47,22 @@
    "label": "Parent Manufacturing Order",
    "options": "Parent Manufacturing Order",
    "read_only": 1
+  },
+  {
+   "fieldname": "gross_wt",
+   "fieldtype": "Float",
+   "label": "Gross Wt"
+  },
+  {
+   "fieldname": "diamond_wt",
+   "fieldtype": "Float",
+   "label": "Diamond Wt"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-03-27 11:45:49.582279",
+ "modified": "2024-05-15 13:01:35.749169",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Department IR Operation",

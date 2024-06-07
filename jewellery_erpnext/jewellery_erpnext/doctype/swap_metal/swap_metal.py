@@ -12,6 +12,7 @@ from erpnext.stock.get_item_details import (
 	get_conversion_factor,
 	get_default_cost_center,
 )
+from frappe import _
 from frappe.model.document import Document
 from frappe.utils import (
 	cint,
@@ -131,14 +132,14 @@ class SwapMetal(Document):
 				)
 
 				if not item_variant_attribute_value:
-					frappe.throw("Attribute Value Missing")
+					frappe.throw(_("Attribute Value Missing"))
 
 				target_purity = float(
 					frappe.get_value("Attribute Value", item_variant_attribute_value, "purity_percentage")
 				)
 
 				if not target_purity:
-					frappe.throw("Purity Percentage Missing")
+					frappe.throw(_("Purity Percentage Missing"))
 
 				qty = (self.sum_source_table * source_purity) / target_purity
 
@@ -149,7 +150,7 @@ class SwapMetal(Document):
 					return qty
 			# Check if more than one unique item code exists
 			if len(unique_item_codes) > 1:
-				frappe.throw("All rows must have the same item code")
+				frappe.throw(_("All rows must have the same item code"))
 		else:
 			self.purity_wise_allowed_qty = 0
 
@@ -161,7 +162,7 @@ class SwapMetal(Document):
 		)
 		# frappe.throw(f"{swap_inventroy_type}")
 		if not swap_inventroy_type:
-			frappe.throw("inventory type missing please check Manufacturing setting")
+			frappe.throw(_("Inventory type missing please check Manufacturing setting"))
 		se = frappe.get_doc(
 			{
 				"doctype": "Stock Entry",
