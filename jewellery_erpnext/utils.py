@@ -3,6 +3,8 @@ import json
 import frappe
 from erpnext.controllers.item_variant import create_variant, get_variant
 from frappe.desk.reportview import get_filters_cond, get_match_cond
+from frappe.query_builder import CustomFunction
+from frappe.query_builder.functions import Locate
 from frappe.utils import now
 
 
@@ -29,22 +31,58 @@ def set_items_from_attribute(item_template, item_template_attribute):
 @frappe.whitelist()
 def get_item_from_attribute(metal_type, metal_touch, metal_purity, metal_colour=None):
 	# items are created without metal_touch as attribute so not considering it in condition for now
-	condition = ""
-	if metal_colour:
-		condition += f"and metal_colour = '{metal_colour}'"
-	data = frappe.db.sql(
-		f"""select mtp.parent as item_code from
-						(select _mtp.parent, _mtp.attribute_value as metal_type from `tabItem Variant Attribute` _mtp where _mtp.attribute = "Metal Type") mtp
-						left join
-						(select _mt.parent, _mt.attribute_value as metal_touch from `tabItem Variant Attribute` _mt where _mt.attribute = "Metal Touch") mt
-						on mt.parent = mtp.parent left join
-						(select _mp.parent, _mp.attribute_value as metal_purity from `tabItem Variant Attribute` _mp where _mp.attribute = "Metal Purity") mp
-						on mp.parent = mtp.parent left join
-						(select _mc.parent, _mc.attribute_value as metal_colour from `tabItem Variant Attribute` _mc where _mc.attribute = "Metal Colour") mc
-						on mtp.parent = mc.parent right join
-		      			(select name from `tabItem` where variant_of = 'M') itm on itm.name = mtp.parent
-		       where metal_type = '{metal_type}' and metal_touch = '{metal_touch}' and metal_purity = '{metal_purity}' {condition}"""
+	ItemVariantAttribute = frappe.qb.DocType("Item Variant Attribute")
+	Item = frappe.qb.DocType("Item")
+
+	# Subqueries for each attribute
+	mtp = (
+		frappe.qb.from_(ItemVariantAttribute)
+		.select(ItemVariantAttribute.parent, ItemVariantAttribute.attribute_value.as_("metal_type"))
+		.where(ItemVariantAttribute.attribute == "Metal Type")
+	).as_("mtp")
+
+	mt = (
+		frappe.qb.from_(ItemVariantAttribute)
+		.select(ItemVariantAttribute.parent, ItemVariantAttribute.attribute_value.as_("metal_touch"))
+		.where(ItemVariantAttribute.attribute == "Metal Touch")
+	).as_("mt")
+
+	mp = (
+		frappe.qb.from_(ItemVariantAttribute)
+		.select(ItemVariantAttribute.parent, ItemVariantAttribute.attribute_value.as_("metal_purity"))
+		.where(ItemVariantAttribute.attribute == "Metal Purity")
+	).as_("mp")
+
+	mc = (
+		frappe.qb.from_(ItemVariantAttribute)
+		.select(ItemVariantAttribute.parent, ItemVariantAttribute.attribute_value.as_("metal_colour"))
+		.where(ItemVariantAttribute.attribute == "Metal Colour")
+	).as_("mc")
+
+	# Main query with joins and conditions
+	query = (
+		frappe.qb.from_(mtp)
+		.join(mt)
+		.on(mt.parent == mtp.parent)
+		.join(mp)
+		.on(mp.parent == mtp.parent)
+		.join(mc)
+		.on(mc.parent == mtp.parent)
+		.join(Item)
+		.on(Item.name == mtp.parent)
+		.select(mtp.parent.as_("item_code"))
+		.where(
+			(Item.variant_of == "M")
+			& (mtp.metal_type == metal_type)
+			& (mt.metal_touch == metal_touch)
+			& (mp.metal_purity == metal_purity)
+		)
 	)
+
+	if metal_colour:
+		query = query.where(mc.metal_colour == metal_colour)
+
+	data = query.run()
 	if data:
 		return data[0][0]
 	return None
@@ -53,22 +91,58 @@ def get_item_from_attribute(metal_type, metal_touch, metal_purity, metal_colour=
 @frappe.whitelist()
 def get_item_from_attribute_full(metal_type, metal_touch, metal_purity, metal_colour=None):
 	# items are created without metal_touch as attribute so not considering it in condition for now
-	condition = ""
-	if metal_colour:
-		condition += f"and metal_colour = '{metal_colour}'"
-	data = frappe.db.sql(
-		f"""select mtp.parent as item_code from
-						(select _mtp.parent, _mtp.attribute_value as metal_type from `tabItem Variant Attribute` _mtp where _mtp.attribute = "Metal Type") mtp
-						left join
-						(select _mt.parent, _mt.attribute_value as metal_touch from `tabItem Variant Attribute` _mt where _mt.attribute = "Metal Touch") mt
-						on mt.parent = mtp.parent left join
-						(select _mp.parent, _mp.attribute_value as metal_purity from `tabItem Variant Attribute` _mp where _mp.attribute = "Metal Purity") mp
-						on mp.parent = mtp.parent left join
-						(select _mc.parent, _mc.attribute_value as metal_colour from `tabItem Variant Attribute` _mc where _mc.attribute = "Metal Colour") mc
-						on mtp.parent = mc.parent right join
-		      			(select name from `tabItem` where variant_of = 'M') itm on itm.name = mtp.parent
-		       where metal_type = '{metal_type}' and metal_touch = '{metal_touch}' and metal_purity = '{metal_purity}' {condition}"""
+	ItemVariantAttribute = frappe.qb.DocType("Item Variant Attribute")
+	Item = frappe.qb.DocType("Item")
+
+	# Subqueries for each attribute
+	mtp = (
+		frappe.qb.from_(ItemVariantAttribute)
+		.select(ItemVariantAttribute.parent, ItemVariantAttribute.attribute_value.as_("metal_type"))
+		.where(ItemVariantAttribute.attribute == "Metal Type")
+	).as_("mtp")
+
+	mt = (
+		frappe.qb.from_(ItemVariantAttribute)
+		.select(ItemVariantAttribute.parent, ItemVariantAttribute.attribute_value.as_("metal_touch"))
+		.where(ItemVariantAttribute.attribute == "Metal Touch")
+	).as_("mt")
+
+	mp = (
+		frappe.qb.from_(ItemVariantAttribute)
+		.select(ItemVariantAttribute.parent, ItemVariantAttribute.attribute_value.as_("metal_purity"))
+		.where(ItemVariantAttribute.attribute == "Metal Purity")
+	).as_("mp")
+
+	mc = (
+		frappe.qb.from_(ItemVariantAttribute)
+		.select(ItemVariantAttribute.parent, ItemVariantAttribute.attribute_value.as_("metal_colour"))
+		.where(ItemVariantAttribute.attribute == "Metal Colour")
+	).as_("mc")
+
+	# Main query with left joins and conditions
+	query = (
+		frappe.qb.from_(mtp)
+		.left_join(mt)
+		.on(mt.parent == mtp.parent)
+		.left_join(mp)
+		.on(mp.parent == mtp.parent)
+		.left_join(mc)
+		.on(mc.parent == mtp.parent)
+		.right_join(Item)
+		.on(Item.name == mtp.parent)
+		.select(mtp.parent.as_("item_code"))
+		.where(
+			(Item.variant_of == "M")
+			& (mtp.metal_type == metal_type)
+			& (mt.metal_touch == metal_touch)
+			& (mp.metal_purity == metal_purity)
+		)
 	)
+	if metal_colour:
+		query = query.where(mc.metal_colour == metal_colour)
+
+	data = query.run()
+
 	if data:
 		return data
 	return None
@@ -78,37 +152,80 @@ def get_variant_of_item(item_code):
 	return frappe.db.get_value("Item", item_code, "variant_of")
 
 
-def update_existing(doctype, name, field, value=None, debug=0):
-	modified = now()
+def update_existing(doctype, name, field, value=None, debug=False):
+	modified = frappe.utils.now()
 	modified_by = frappe.session.user
+	Doc = frappe.qb.DocType(doctype)
+
+	query = (
+		frappe.qb.update(Doc)
+		.set(Doc.modified, modified)
+		.set(Doc.modified_by, modified_by)
+		.where(Doc.name == name)
+	)
+
 	if isinstance(field, dict):
-		values = ", ".join([f"{key} = {_value}" for key, _value in field.items()])
+		# If field is a dictionary, prepare multiple field updates
+		for key, _value in field.items():
+			if isinstance(_value, str) and ("+" in _value or "-" in _value):
+				operation = _value.split()
+				if (
+					len(operation) == 3
+					and operation[0] == key
+					and operation[2].lstrip("-").replace(".", "", 1).isdigit()
+				):
+					query = query.set(getattr(Doc, key), getattr(Doc, key) + float(operation[2]))
+				else:
+					query = query.set(getattr(Doc, key), _value)
+			else:
+				query = query.set(getattr(Doc, key), _value)
 	else:
-		values = f"{field} = {value}"
-	query = f"""UPDATE `tab{doctype}` SET {values},`modified`='{modified}',`modified_by`='{modified_by}' WHERE `name`='{name}'"""
-	frappe.db.sql(query, debug=debug)
+		# Single field update
+		if isinstance(value, str) and ("+" in value or "-" in value):
+			operation = value.split()
+			if (
+				len(operation) == 3
+				and operation[0] == field
+				and operation[2].lstrip("-").replace(".", "", 1).isdigit()
+			):
+				query = query.set(getattr(Doc, field), getattr(Doc, field) + float(operation[2]))
+			else:
+				query = query.set(getattr(Doc, field), value)
+		else:
+			query = query.set(getattr(Doc, field), value)
+
+	query.run(debug=debug)
 
 
 def set_values_in_bulk(doctype, doclist, values):
-	value = []
+	Doc = frappe.qb.DocType(doctype)
+	query = frappe.qb.update(Doc)
+
 	for key, val in values.items():
-		value.append(f"{key} = '{val}'")
-	query1 = (
-		f"""update `tab{doctype}` set { ', '.join(value) } where name in ('{"', '".join(doclist)}')"""
-	)
-	print(query1)
-	frappe.db.sql(query1)
+		query = query.set(key, val)
+
+	query = query.where(Doc.name.isin(doclist))
+	query = query.run()
 
 
 def get_value(doctype, filters, fields, default=None, debug=0):
-	fields = ", ".join(fields) if isinstance(fields, list) else fields
-	_filters = " and ".join(
-		[
-			f"{key} = {value if not isinstance(value, str) else frappe.db.escape(value)}"
-			for key, value in filters.items()
-		]
-	)
-	res = frappe.db.sql(f"""select {fields} from `tab{doctype}` where {_filters}""", debug=debug)
+	Doc = frappe.qb.DocType(doctype)
+
+	fields = fields if isinstance(fields, list) else [fields]
+
+	query = frappe.qb.from_(Doc).select(*fields)
+
+	conditions = []
+	for key, value in filters.items():
+		if isinstance(value, str):
+			value = frappe.db.escape(value)
+		conditions.append(Doc[key] == value)
+
+	for condition in conditions:
+		query = query.where(condition)
+
+	res = query.run(debug=debug)
+
 	if res:
 		return res[0][0] or default
 
@@ -129,44 +246,52 @@ def db_get_value(doctype, docname, fields):
 @frappe.validate_and_sanitize_search_inputs
 def customer_query(doctype, txt, searchfield, start, page_len, filters):
 	"""query to filter customers with sales type"""
-	query_filters = ""
 
-	if filters and filters["sales_type"]:
-		# adding filters of sales type
-		query_filters = f"""
-        AND name IN
-            (SELECT c.name FROM `tabCustomer` AS c, `tabSales Type` AS st
-            WHERE st.parent = c.name AND st.sales_type = "{filters['sales_type']}")
-        """
+	Customer = frappe.qb.DocType("Customer")
+	SalesType = frappe.qb.DocType("Sales Type")
 
-	query = """
-		SELECT
-			name, customer_name, customer_group, territory
-		FROM
-			`tabCustomer`
-		WHERE
-			docstatus < 2
-			{query_filters}
-			AND ({key} LIKE %(txt)s
-			OR customer_name LIKE %(txt)s
-			OR territory LIKE %(txt)s
-			OR customer_group LIKE %(txt)s)
-			{mcond}
-		ORDER BY
-			IF(LOCATE(%(_txt)s, name), LOCATE(%(_txt)s, name), 99999),
-			IF(LOCATE(%(_txt)s, customer_name), LOCATE(%(_txt)s, customer_name), 99999),
-			IF(LOCATE(%(_txt)s, customer_group), LOCATE(%(_txt)s, customer_group), 99999),
-			IF(LOCATE(%(_txt)s, territory), LOCATE(%(_txt)s, territory), 99999),
-			customer_name, name
-		LIMIT %(start)s, %(page_len)s
-	"""
+	txt = f"%{txt}%"
+	_txt = txt.replace("%", "")
 
-	customers = frappe.db.sql(
-		query.format(
-			**{"key": searchfield, "mcond": get_match_cond(doctype), "query_filters": query_filters}
-		),
-		{"txt": "%{}%".format(txt), "_txt": txt.replace("%", ""), "start": start, "page_len": page_len},
+	IF = CustomFunction("IF", ["condition", "true_expr", "false_expr"])
+
+	sales_type_subquery = (
+		frappe.qb.from_(SalesType)
+		.select(SalesType.parent)
+		.where(SalesType.sales_type == filters["sales_type"])
 	)
+
+	query = (
+		frappe.qb.from_(Customer)
+		.select(Customer.name, Customer.customer_name, Customer.customer_group, Customer.territory)
+		.where(
+			(Customer.docstatus < 2)
+			& (Customer.name.isin(sales_type_subquery))
+			& (frappe.qb.Field(searchfield).like(txt))
+			| (Customer.customer_name.like(txt))
+			| (Customer.territory.like(txt))
+			| (Customer.customer_group.like(txt))
+		)
+		.limit(page_len)
+		.offset(start)
+	)
+	# Add match conditions
+	match_cond = get_match_cond(doctype)
+	if match_cond:
+		query = query.where(match_cond)
+
+	# Add ordering conditions
+	order_by_conditions = [
+		IF(Locate(_txt, Customer.name), Locate(_txt, Customer.name), 99999),
+		IF(Locate(_txt, Customer.customer_name), Locate(_txt, Customer.customer_name), 99999),
+		IF(Locate(_txt, Customer.customer_group), Locate(_txt, Customer.customer_group), 99999),
+		IF(Locate(_txt, Customer.territory), Locate(_txt, Customer.territory), 99999),
+		Customer.customer_name,
+		Customer.name,
+	]
+	query = query.orderby(*order_by_conditions)
+
+	customers = query.run()
 
 	return customers
 
@@ -176,9 +301,9 @@ def get_sales_invoice_items(sales_invoices):
 	"""
 	method to get sales invoice item code, qty, rate and serial no
 	args:
-	        sales_invoices: list of names of sales invoices
+	                sales_invoices: list of names of sales invoices
 	return:
-	        List of item details
+	                List of item details
 	"""
 	if isinstance(sales_invoices, str):
 		sales_invoices = json.loads(sales_invoices)
@@ -194,43 +319,56 @@ def get_sales_invoice_items(sales_invoices):
 @frappe.validate_and_sanitize_search_inputs
 def supplier_query(doctype, txt, searchfield, start, page_len, filters):
 	"""query to filter suppliers with purchase type"""
-	query_filters = ""
+	Supplier = frappe.qb.DocType("Supplier")
+	PurchaseType = frappe.qb.DocType("Purchase Type")
 
-	if filters and filters["purchase_type"]:
-		# adding filters of purchase type
-		query_filters = f"""
-        AND name IN
-            (SELECT s.name FROM `tabSupplier` AS s, `tabPurchase Type` AS pt
-            WHERE pt.parent = s.name AND pt.purchase_type = "{filters['purchase_type']}")
-        """
+	txt = f"%{txt}%"
+	_txt = txt.replace("%", "")
 
-	query = """
-		SELECT
-			name, supplier_name, supplier_group
-		FROM
-			`tabSupplier`
-		WHERE
-			docstatus < 2
-			{query_filters}
-			AND ({key} LIKE %(txt)s
-			OR supplier_name LIKE %(txt)s
-			OR supplier_group LIKE %(txt)s)
-			{mcond}
-		ORDER BY
-			IF(LOCATE(%(_txt)s, name), LOCATE(%(_txt)s, name), 99999),
-			IF(LOCATE(%(_txt)s, supplier_name), LOCATE(%(_txt)s, supplier_name), 99999),
-			IF(LOCATE(%(_txt)s, supplier_group), LOCATE(%(_txt)s, supplier_group), 99999),
-			supplier_name, name
-		LIMIT %(start)s, %(page_len)s
-	"""
+	IF = CustomFunction("IF", ["condition", "true_expr", "false_expr"])
+	Locate = CustomFunction("LOCATE", ["substr", "str"])
 
-	suppliers = frappe.db.sql(
-		query.format(
-			**{"key": searchfield, "mcond": get_match_cond(doctype), "query_filters": query_filters}
-		),
-		{"txt": "%{}%".format(txt), "_txt": txt.replace("%", ""), "start": start, "page_len": page_len},
+	query_filters = None
+	if filters and filters.get("purchase_type"):
+		# Subquery to filter suppliers with the specified purchase type
+		purchase_type_subquery = (
+			frappe.qb.from_(PurchaseType)
+			.select(PurchaseType.parent)
+			.where(PurchaseType.purchase_type == filters["purchase_type"])
+		)
+		query_filters = Supplier.name.isin(purchase_type_subquery)
+
+	query = (
+		frappe.qb.from_(Supplier)
+		.select(Supplier.name, Supplier.supplier_name, Supplier.supplier_group)
+		.where(
+			(Supplier.docstatus < 2)
+			& (
+				frappe.qb.Field(searchfield).like(txt)
+				| Supplier.supplier_name.like(txt)
+				| Supplier.supplier_group.like(txt)
+			)
+		)
 	)
 
+	if query_filters:
+		query = query.where(query_filters)
+
+	match_cond = get_match_cond(doctype)
+	if match_cond:
+		query = query.where(match_cond)
+
+	# Add ordering conditions
+	order_by_conditions = [
+		IF(Locate(_txt, Supplier.name), Locate(_txt, Supplier.name), 99999),
+		IF(Locate(_txt, Supplier.supplier_name), Locate(_txt, Supplier.supplier_name), 99999),
+		IF(Locate(_txt, Supplier.supplier_group), Locate(_txt, Supplier.supplier_group), 99999),
+		Supplier.supplier_name,
+		Supplier.name,
+	]
+	query = query.orderby(*order_by_conditions).limit(page_len).offset(start)
+
+	suppliers = query.run()
 	return suppliers
 
 

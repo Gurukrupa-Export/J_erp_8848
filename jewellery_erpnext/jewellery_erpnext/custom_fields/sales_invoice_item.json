@@ -4,10 +4,21 @@
    "dt": "Sales Invoice Item",
    "fieldname": "custom_diamond_quality",
    "fieldtype": "Link",
-   "insert_after": "customer_item_code",
+   "insert_after": "item_category",
    "label": "Diamond Quality",
    "module": "Jewellery Erpnext",
    "options": "Attribute Value"
+  },
+  {
+   "dt": "Sales Invoice Item",
+   "fetch_from": "item_code.item_category",
+   "fieldname": "item_category",
+   "fieldtype": "Link",
+   "insert_after": "customer_item_code",
+   "label": "Item Category",
+   "module": "Jewellery Erpnext",
+   "options": "Attribute Value",
+   "read_only": 1
   },
   {
    "dt": "Sales Invoice Item",

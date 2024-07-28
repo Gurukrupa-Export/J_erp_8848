@@ -12,28 +12,20 @@ def update_metal_loss(data):
 
 	oper_list = frappe.db.get_list("Operation", {}, "name")
 
-	template = """
-        SELECT name
-        FROM `tabOperation Metal Loss`
-        WHERE operation = %s
-        AND (
-            (date_from BETWEEN %s AND %s)
-            OR
-            (date_to BETWEEN %s AND %s)
-        )
-    """
-
 	for oper in oper_list:
-		data = frappe.db.sql(
-			template,
-			(
-				oper.name,
-				dates.get("from_date"),
-				dates.get("to_date"),
-				dates.get("from_date"),
-				dates.get("to_date"),
-			),
+		OML = frappe.qb.DocType("Operation Metal Loss")
+		query = (
+			frappe.qb.from_(OML)
+			.select(OML.name)
+			.where(
+				(OML.operation == oper.name) &
+				(
+					(OML.date_from.between(dates.get("from_date"), dates.get("to_date"))) |
+					(OML.date_to.between(dates.get("from_date"), dates.get("to_date")))
+				)
+			)
 		)
+		data = query.run()
 		if data:
 			frappe.msgprint(_("Record Already Exists Within Date Range"))
 		else:

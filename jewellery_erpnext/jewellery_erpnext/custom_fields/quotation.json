@@ -33,17 +33,6 @@
   },
   {
    "dt": "Quotation",
-   "fetch_from": "company_address.gstin",
-   "fieldname": "company_gstin",
-   "fieldtype": "Data",
-   "insert_after": "company_address",
-   "is_system_generated": 1,
-   "label": "Company GSTIN",
-   "module": "Jewellery Erpnext",
-   "read_only": 1
-  },
-  {
-   "dt": "Quotation",
    "fieldname": "place_of_supply",
    "fieldtype": "Autocomplete",
    "insert_after": "gst_category",
@@ -200,6 +189,15 @@
    "fieldtype": "Currency",
    "insert_after": "gold_rate_with_gst",
    "label": "Gold Rate",
+   "module": "Jewellery Erpnext"
+  },
+  {
+   "dt": "Quotation",
+   "fieldname": "exempt_from_sales_tax",
+   "fieldtype": "Check",
+   "insert_after": "taxes_and_charges",
+   "is_system_generated": 1,
+   "label": "Is customer exempted from sales tax?",
    "module": "Jewellery Erpnext"
   }
  ]

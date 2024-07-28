@@ -26,7 +26,15 @@
   "rate",
   "handling_rate",
   "currency",
-  "effective_from"
+  "effective_from",
+  "gemstone_grade",
+  "section_break_yc6y",
+  "from_stone_size",
+  "column_break_hf3d",
+  "to_stone_size",
+  "section_break_et0i",
+  "gemstone_multiplier",
+  "supplier_fg_multiplier"
  ],
  "fields": [
   {
@@ -49,6 +57,7 @@
    "label": "Stone Code"
   },
   {
+   "depends_on": "eval: doc.price_list_type != \"Multiplier\";",
    "fieldname": "gemstone_type",
    "fieldtype": "Link",
    "label": "Stone Type",
@@ -61,18 +70,21 @@
    "options": "Attribute Value"
   },
   {
+   "depends_on": "eval: doc.price_list_type != \"Multiplier\";",
    "fieldname": "stone_shape",
    "fieldtype": "Link",
    "label": "Stone Shape",
    "options": "Attribute Value"
   },
   {
+   "depends_on": "eval: doc.price_list_type != \"Multiplier\";",
    "fieldname": "gemstone_quality",
    "fieldtype": "Link",
    "label": "Stone Quality",
    "options": "Attribute Value"
   },
   {
+   "depends_on": "eval: doc.price_list_type != \"Multiplier\";",
    "fieldname": "gemstone_size",
    "fieldtype": "Link",
    "label": "Stone Size",
@@ -83,14 +95,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "price_list_type",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "label": "Price List Type",
-   "options": "Weight (in cts)\nFixed"
-  },
-  {
-   "depends_on": "eval:doc.price_list_type=='Weight (in cts)'",
+   "depends_on": "eval:doc.price_list_type =='Weight (in cts)'",
    "fieldname": "from_weight",
    "fieldtype": "Float",
    "label": "From Weight (in cts)"
@@ -112,10 +117,12 @@
    "depends_on": "eval:doc.price_list_type=='Fixed'",
    "fieldname": "bom",
    "fieldtype": "Link",
+   "hidden": 1,
    "label": "BOM",
    "options": "BOM"
   },
   {
+   "depends_on": "eval: doc.price_list_type != \"Multiplier\";",
    "fieldname": "rate",
    "fieldtype": "Float",
    "in_list_view": 1,
@@ -127,6 +134,8 @@
    "label": "Gemstone Handling Rate"
   },
   {
+   "depends_on": "eval: doc.price_list_type != \"Multiplier\";",
+   "fetch_from": "customer.default_currency",
    "fieldname": "currency",
    "fieldtype": "Link",
    "label": "Currency",
@@ -142,11 +151,62 @@
    "fieldtype": "Currency",
    "label": "Supplier FG Purchase Rate",
    "precision": "3"
+  },
+  {
+   "fieldname": "gemstone_grade",
+   "fieldtype": "Link",
+   "label": "Gemstone Grade",
+   "options": "Attribute Value"
+  },
+  {
+   "fieldname": "to_stone_size",
+   "fieldtype": "Link",
+   "label": "To Stone size",
+   "options": "Attribute Value"
+  },
+  {
+   "fieldname": "from_stone_size",
+   "fieldtype": "Link",
+   "label": "From Stone size",
+   "options": "Attribute Value"
+  },
+  {
+   "fieldname": "price_list_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Price List Type",
+   "options": "Weight (in cts)\nFixed\nMultiplier"
+  },
+  {
+   "fieldname": "column_break_hf3d",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval: doc.price_list_type == \"Multiplier\";",
+   "fieldname": "section_break_et0i",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "gemstone_multiplier",
+   "fieldtype": "Table",
+   "label": "Gemstone Multiplier",
+   "options": "Gemstone Multiplier"
+  },
+  {
+   "depends_on": "eval: doc.price_list_type == \"Multiplier\";",
+   "fieldname": "section_break_yc6y",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "supplier_fg_multiplier",
+   "fieldtype": "Table",
+   "label": "Supplier FG Multiplier",
+   "options": "Gemstone Multiplier"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-02-19 17:36:13.890151",
+ "modified": "2024-07-22 13:18:02.693583",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Gemstone Price List",

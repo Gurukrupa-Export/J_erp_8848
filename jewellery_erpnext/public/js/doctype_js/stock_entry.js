@@ -2,6 +2,7 @@ frappe.ui.form.off("Stock Entry", "get_items_from_transit_entry");
 
 frappe.ui.form.on("Stock Entry", {
 	refresh(frm) {
+		set_html(frm);
 		if (
 			frm.doc.stock_entry_type == "Material Transfer to Department" &&
 			frm.doc.docstatus == 1
@@ -324,7 +325,6 @@ frappe.ui.form.on("Stock Entry", {
 		});
 	},
 	stock_entry_type(frm) {
-		// if (in_list(["Customer Goods Issue", "Customer Goods Received", "Customer Goods Transfer"],frm.doc.stock_entry_type)
 		if (
 			[
 				"Customer Goods Issue",
@@ -337,7 +337,6 @@ frappe.ui.form.on("Stock Entry", {
 			return;
 		}
 		if (
-			// in_list(["Material Transfer to Department"], frm.doc.stock_entry_type) &&
 			["Material Transfer to Department"].includes(frm.doc.stock_entry_type) &&
 			frm.doc.auto_created === 0 &&
 			frm.doc.docstatus != 1
@@ -373,7 +372,6 @@ frappe.ui.form.on("Stock Entry", {
 				cdt,
 				cdn
 			) {
-				var child = locals[cdt][cdn];
 				return {
 					query: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.se_utils.warehouse_query_filters",
 					filters: {
@@ -387,7 +385,6 @@ frappe.ui.form.on("Stock Entry", {
 				cdt,
 				cdn
 			) {
-				var child = locals[cdt][cdn];
 				return {
 					query: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.se_utils.warehouse_query_filters",
 					filters: {
@@ -396,13 +393,46 @@ frappe.ui.form.on("Stock Entry", {
 					},
 				};
 			};
+			if (frm.doc.stock_entry_type != "Material Transfer (DEPARTMENT)") {
+				frm.fields_dict["items"].grid.get_field("item_code").get_query = function (
+					frm,
+					cdt,
+					cdn
+				) {
+					return {
+						query: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.filters.item_query_filters",
+					};
+				};
+			} else {
+				frm.fields_dict["items"].grid.get_field("item_code").get_query = function (
+					frm,
+					cdt,
+					cdn
+				) {
+					return {
+						filters: {
+							is_stock_item: 1,
+						},
+					};
+				};
+			}
 		} else {
+			frm.fields_dict["items"].grid.get_field("item_code").get_query = function (
+				frm,
+				cdt,
+				cdn
+			) {
+				return {
+					filters: {
+						is_stock_item: 1,
+					},
+				};
+			};
 			frm.fields_dict["items"].grid.get_field("s_warehouse").get_query = function (
 				frm,
 				cdt,
 				cdn
 			) {
-				var child = locals[cdt][cdn];
 				return {
 					filters: {
 						company: company,
@@ -415,7 +445,6 @@ frappe.ui.form.on("Stock Entry", {
 				cdt,
 				cdn
 			) {
-				var child = locals[cdt][cdn];
 				return {
 					filters: {
 						company: company,
@@ -560,6 +589,31 @@ frappe.ui.form.on("Stock Entry", {
 		$.each(frm.doc.items || [], function (i, d) {
 			d.manufacturing_operation = frm.doc.manufacturing_operation;
 		});
+	},
+	custom_get_pmo(frm) {
+		let type_list = [];
+
+		if (frm.doc.stock_entry_type == "Work Order for Customer Approval Issue") {
+			type_list = ["Issue", "Receive"];
+		} else if (frm.doc.stock_entry_type == "Work Order for Customer Approval Receive") {
+			type_list = ["Issue", "", null];
+		}
+
+		erpnext.utils.map_current_doc({
+			method: "jewellery_erpnext.jewellery_erpnext.doctype.parent_manufacturing_order.doc_events.finding_mwo.get_items_for_pmo",
+			source_doctype: "Parent Manufacturing Order",
+			target: frm,
+			setters: {
+				customer: frm.doc.customer || undefined,
+			},
+			get_query_filters: {
+				docstatus: 1,
+				sent_for_customer_approval: 1,
+				customer_status: ["NOT IN", type_list],
+			},
+		});
+		refresh_field("items");
+		// frappe.db.get_value("Parent Manufacturing Order", source_name, "customer_status", "Issue")
 	},
 });
 
@@ -755,4 +809,37 @@ function return_receipt_button_click(frm) {
 function disableSaveButton() {
 	var saveButton = $(".btn.btn-primary.btn-sm.primary-action");
 	saveButton.prop("disabled", true);
+}
+
+function set_html(frm) {
+	var template = `
+		<table class="table table-bordered table-hover" width="100%" style="border: 1px solid #d1d8dd;">
+			<thead>
+				<tr style = "text-align:center">
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Item Code</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Qty</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">PCs</th>
+				</tr>
+			</thead>
+			<tbody>
+			{% for item in data %}
+				<tr>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.item_code }}</td>
+					<td style="text-align:center;border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.qty }}</td>
+					<td style="text-align:center;border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.pcs }} </td>
+				</tr>
+			{% endfor %}
+			</tbody>
+		</table>`;
+	frappe.call({
+		doc: frm.doc,
+		method: "get_html_data",
+		callback: function (r) {
+			if (r.message) {
+				frm.get_field("custom_item_wise_data").$wrapper.html(
+					frappe.render_template(template, { data: r.message })
+				);
+			}
+		},
+	});
 }

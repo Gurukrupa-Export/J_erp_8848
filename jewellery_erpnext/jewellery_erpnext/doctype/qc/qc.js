@@ -1,6 +1,6 @@
 // Copyright (c) 2023, Nirali and contributors
 // For license information, please see license.txt
-cur_frm.cscript.refresh = cur_frm.cscript.inspection_type;
+// cur_frm.cscript.refresh = cur_frm.cscript.inspection_type;
 frappe.ui.form.on("QC", {
 	refresh: function (frm) {
 		// Ignore cancellation of reference doctype on cancel all.

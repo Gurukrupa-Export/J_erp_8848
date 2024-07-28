@@ -3,6 +3,8 @@
 
 import frappe
 from frappe import _
+from frappe.query_builder.functions import TimeDiff
+from pypika.terms import Function
 
 
 def execute(filters=None):
@@ -12,23 +14,45 @@ def execute(filters=None):
 
 
 def get_data(filters):
-	condition = get_conditions(filters)
-	data = frappe.db.sql(f"""select completed_by, status, reference_name, creation, workflow_state, completed_on, 
-					TIMESTAMPDIFF(SECOND, creation, completed_on) / 3600 as time_taken
-	 				 from (SELECT completed_by, status, reference_name, creation, workflow_state, 
-						(
-							SELECT creation FROM `tabWorkflow Action` w 
-							WHERE w.reference_name = wa.reference_name 
-								AND w.workflow_state != wa.workflow_state 
-								AND w.creation > wa.creation 
-							ORDER BY w.creation ASC 
-							LIMIT 1
-						) AS completed_on
-					FROM 
-						`tabWorkflow Action` wa
-					WHERE
-						reference_doctype = 'CAD Order' {condition}) as workflow  order by creation desc""", as_dict=1)
+	WorkflowAction = frappe.qb.DocType("Workflow Action")
+	main_query = WorkflowAction.as_("main_query")
+	sub_query = WorkflowAction.as_("subquery")
+	# Construct the subquery
+	subquery = (
+		frappe.qb.from_(sub_query)
+		.select(sub_query.creation)
+		.where(
+			(sub_query.reference_name == main_query.reference_name)
+			& (sub_query.workflow_state != main_query.workflow_state)
+			& (sub_query.creation > main_query.creation)
+		)
+		.orderby(sub_query.creation, order=frappe.qb.asc)
+		.limit(1)
+	)
+	# Construct the main query
+	query = (
+		frappe.qb.from_(main_query)
+		.select(
+			main_query.completed_by,
+			main_query.status,
+			main_query.reference_name,
+			main_query.creation,
+			main_query.workflow_state,
+			subquery.as_("completed_on"),
+			TimeDiff(main_query.creation, main_query.completed_on).as_("time_taken"),
+		)
+		.where(main_query.reference_doctype == "CAD Order")
+		.orderby(main_query.creation, order=frappe.qb.desc)
+	)
+	# conditions
+	conditions = get_conditions(filters, main_query)
+	for condition in conditions:
+		query = query.where(condition)
+
+	data = query.run(as_dict=True)
+
 	return data
+
 
 def get_columns(filters):
 	columns = [
@@ -36,40 +60,21 @@ def get_columns(filters):
 			"label": _("CAD Order"),
 			"fieldname": "reference_name",
 			"fieldtype": "Link",
-			"options": "CAD Order"
+			"options": "CAD Order",
 		},
-		{
-			"label": _("Workflow State"),
-			"fieldname": "workflow_state",
-			"fieldtype": "Data"
-		},
-		{
-			"label": _("Status"),
-			"fieldname": "status",
-			"fieldtype": "Data"
-		},
-		{
-			"label": _("Start Time"),
-			"fieldname": "creation",
-			"fieldtype": "Datetime"
-		},
-		{
-			"label": _("End Time"),
-			"fieldname": "completed_on",
-			"fieldtype": "Datetime"
-		},
-		{
-			"label": _("Time Taken(in Hrs)"),
-			"fieldname": "time_taken",
-			"fieldtype": "Float"
-		}
+		{"label": _("Workflow State"), "fieldname": "workflow_state", "fieldtype": "Data"},
+		{"label": _("Status"), "fieldname": "status", "fieldtype": "Data"},
+		{"label": _("Start Time"), "fieldname": "creation", "fieldtype": "Datetime"},
+		{"label": _("End Time"), "fieldname": "completed_on", "fieldtype": "Datetime"},
+		{"label": _("Time Taken(in Hrs)"), "fieldname": "time_taken", "fieldtype": "Float"},
 	]
 	return columns
 
-def get_conditions(filters):
-	condition = ''
-	if order:=filters.get("cad_order"):
-		condition += f"and reference_name = '{order}'"
-	if state:=filters.get("workflow_state"):
-		condition += f"and workflow_state like '%{state}%'"
-	return condition
+
+def get_conditions(filters, WorkflowAction):
+	conditions = []
+	if order := filters.get("cad_order"):
+		conditions.append(WorkflowAction.reference_name == order)
+	if state := filters.get("workflow_state"):
+		conditions.append(WorkflowAction.workflow_state.like(f"%{state}%"))
+	return conditions

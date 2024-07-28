@@ -143,29 +143,50 @@ def get_columns(filters):
 
 
 def get_data(filters):
-	conditions = get_conditions(filters)
-
-	data = frappe.db.sql(
-		f"""
-		select name, status as job_card_status, work_order, operation, production_item, metal_purity,
-		in_gold_weight, in_diamond_weight, in_gemstone_weight, in_other_weight,
-		loss_gold_weight, loss_diamond_weight, loss_gemstone_weight, out_gross_weight,
-		total_in_gross_weight, total_in_fine_weight, total_out_gross_weight, total_out_fine_weight,
-		balance_gross, balance_fine
-		from `tabJob Card` where status != "Cancelled" {conditions}
-	""",
-		as_dict=True,
+	
+	JobCard = frappe.qb.DocType("Job Card")
+	conditions = get_conditions(filters, JobCard)
+	
+	query = (
+		frappe.qb.from_(JobCard)
+		.select(
+			JobCard.name,
+			JobCard.status.as_("job_card_status"),
+			JobCard.work_order,
+			JobCard.operation,
+			JobCard.production_item,
+			JobCard.metal_purity,
+			JobCard.in_gold_weight,
+			JobCard.in_diamond_weight,
+			JobCard.in_gemstone_weight,
+			JobCard.in_other_weight,
+			JobCard.loss_gold_weight,
+			JobCard.loss_diamond_weight,
+			JobCard.loss_gemstone_weight,
+			JobCard.out_gross_weight,
+			JobCard.total_in_gross_weight,
+			JobCard.total_in_fine_weight,
+			JobCard.total_out_gross_weight,
+			JobCard.total_out_fine_weight,
+			JobCard.balance_gross,
+			JobCard.balance_fine
+		)
+		.where(JobCard.status != "Cancelled")
 	)
-	return data
+    # Apply additional conditions
+	for condition in conditions:
+		query = query.where(condition)
+	
+	data = query.run(as_dict=True)	
+	return data	
 
+def get_conditions(filters, JobCard):
+    conditions = []
 
-def get_conditions(filters):
-	conditions = ""
+    if not filters.get("work_order"):
+        frappe.throw(_("Please select work order."))
 
-	if not filters.get("work_order"):
-		frappe.throw(_("Please select work order."))
+    if filters.get("work_order"):
+        conditions.append(JobCard.work_order == filters.get("work_order"))
 
-	if filters.get("work_order"):
-		conditions += " and work_order = '%s'" % filters.get("work_order")
-
-	return conditions
+    return conditions

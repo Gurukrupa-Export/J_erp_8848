@@ -94,6 +94,7 @@ class MainSlip(Document):
 					"mop_qty": row.mop_qty,
 					"mop_consume_qty": row.mop_consume_qty,
 					"inventory_type": row.inventory_type,
+					"customer": row.customer,
 				}
 
 		self.batch_details = []
@@ -121,6 +122,7 @@ class MainSlip(Document):
 					"mop_qty": batch_details[row]["mop_qty"],
 					"mop_consume_qty": batch_details[row]["mop_consume_qty"],
 					"inventory_type": batch_details[row]["inventory_type"],
+					"customer": batch_details[row].get("customer"),
 				},
 			)
 
@@ -248,8 +250,9 @@ def create_material_request(doc):
 # 	doc = frappe.get_doc({"doctype": "Tree Number"}).insert()
 # 	return doc.name
 def create_tree_number(self):
-		doc = frappe.get_doc({"doctype": "Tree Number","company":self.company}).insert()
-		return doc.name
+	doc = frappe.get_doc({"doctype": "Tree Number", "company": self.company}).insert()
+	return doc.name
+
 
 @frappe.whitelist()
 def create_stock_entries(
@@ -374,7 +377,113 @@ def create_loss_stock_entries(self, item, actual_qty, metal_loss):
 		stock_entry.submit()
 
 
-def create_metal_loss(doc, item, metal_loss, batch_data):
+@frappe.whitelist()
+def create_process_loss(
+	main_slip, mop, item, qty, consume_qty, metal_loss, batch_no, inventory_type, customer=None
+):
+
+	qty = flt(qty, 3)
+	consume_qty = flt(qty, 3)
+	metal_loss = flt(metal_loss, 3)
+
+	doc = frappe.get_doc("Main Slip", main_slip)
+
+	se_doc = frappe.new_doc("Stock Entry")
+	se_doc.stock_entry_type = "Process Loss"
+	se_doc.purpose = "Repack"
+	se_doc.manufacturing_operation = mop
+	se_doc.department = doc.department
+	se_doc.to_department = doc.department
+	se_doc.employee = doc.employee
+	se_doc.subcontractor = doc.subcontractor
+	se_doc.auto_created = 1
+
+	dust_item = get_item_loss_item(
+		doc.company,
+		item,
+		item[0],
+	)
+	variant_of = item[0]
+
+	variant_loss_details = frappe.db.get_value(
+		"Variant Loss Warehouse",
+		{"parent": doc.manufacturer, "variant": variant_of},
+		["loss_warehouse", "consider_department_warehouse", "warehouse_type"],
+		as_dict=1,
+	)
+
+	loss_warehouse = None
+	if variant_loss_details:
+		if variant_loss_details.get("loss_warehouse"):
+			loss_warehouse = variant_loss_details.get("loss_warehouse")
+
+		elif variant_loss_details.get("consider_department_warehouse") and variant_loss_details.get(
+			"warehouse_type"
+		):
+			loss_warehouse = frappe.db.get_value(
+				"Warehouse",
+				{"department": doc.department, "warehouse_type": variant_loss_details.get("warehouse_type")},
+			)
+
+	if not loss_warehouse:
+		frappe.throw(_("Default loss warehouse is not set in Manufacturer loss table"))
+
+	se_doc.append(
+		"items",
+		{
+			"item_code": item,
+			"s_warehouse": doc.raw_material_warehouse,
+			"t_warehouse": None,
+			"to_employee": None,
+			"employee": doc.employee,
+			"to_subcontractor": None,
+			"use_serial_batch_fields": True,
+			"serial_and_batch_bundle": None,
+			"subcontractor": doc.subcontractor,
+			"main_slip": doc.name,
+			"qty": abs(metal_loss),
+			"manufacturing_operation": mop,
+			"department": doc.department,
+			"to_department": doc.department,
+			"manufacturer": doc.manufacturer,
+			"material_request": None,
+			"material_request_item": None,
+			"inventory_type": inventory_type,
+			"batch_no": batch_no,
+		},
+	)
+	if frappe.db.get_value("Item", dust_item, "valuation_rate") == 0:
+		frappe.db.set_value("Item", dust_item, "valuation_rate", se_doc.items[0].get("basic_rate") or 1)
+	se_doc.append(
+		"items",
+		{
+			"item_code": dust_item,
+			"s_warehouse": None,
+			"t_warehouse": loss_warehouse,
+			"to_employee": None,
+			"employee": doc.employee,
+			"to_subcontractor": None,
+			"use_serial_batch_fields": True,
+			"serial_and_batch_bundle": None,
+			"subcontractor": doc.subcontractor,
+			"to_main_slip": None,
+			"qty": abs(metal_loss),
+			"department": doc.department,
+			"to_department": doc.department,
+			"manufacturer": doc.manufacturer,
+			"material_request": None,
+			"material_request_item": None,
+			"inventory_type": inventory_type,
+		},
+	)
+
+	se_doc.save()
+	se_doc.submit()
+
+	return se_doc.name
+
+
+def create_metal_loss(doc, item, metal_loss, batch_data, mop=None):
 	loss_warehouse = frappe.db.get_value("Manufacturer", doc.manufacturer, "default_loss_warehouse")
 
 	if not loss_warehouse:
@@ -393,6 +502,7 @@ def create_metal_loss(doc, item, metal_loss, batch_data):
 	se.main_slip = doc.name
 	se.subcontractor = doc.subcontractor
 	se.auto_created = 1
+	se.manufacturing_opeartion = mop
 	se.branch = "GE-BR-00001"
 
 	repack_qty = metal_loss
@@ -501,24 +611,33 @@ def create_loss_item(item, item_attr_dict):
 
 @frappe.whitelist()
 def get_any_item_from_attribute(variant_of, attributes):
-	condition = ""
-	join_tables = ""
+	Item = frappe.qb.DocType("Item")
+	ItemVariantAttribute = frappe.qb.DocType("Item Variant Attribute")
+	conditions = []
+	join_tables = []
 
 	for row in attributes:
 		table_name = frappe.scrub(row)
-		join_tables += f"""LEFT JOIN `tabItem Variant Attribute` {table_name} ON itm.name = {table_name}.parent and {table_name}.attribute = '{row}' """
-		condition += f"AND {table_name}.attribute_value = '{attributes[row]}' "
+		alias = ItemVariantAttribute.as_(table_name)
+		join_tables.append(alias)
+		conditions.append((alias.attribute == row) & (alias.attribute_value == attributes[row]))
 
-	data = frappe.db.sql(
-		f"""SELECT
-							itm.name AS item_code
-						FROM `tabItem` as itm
-						{join_tables}
-						WHERE itm.variant_of = '{variant_of}'
-						{condition}
-						GROUP BY
-							itm.name"""
+	# Construct the main query
+	query = (
+		frappe.qb.from_(Item).select(Item.name.as_("item_code")).where(Item.variant_of == variant_of)
 	)
+	# Add joins
+	for alias in join_tables:
+		query = query.left_join(alias).on(Item.name == alias.parent)
+
+	# Apply conditions
+	for condition in conditions:
+		query = query.where(condition)
+
+	query = query.groupby(Item.name)
+	# Execute query
+	data = query.run()
+
 	if data:
 		return data[0][0]
 	return None

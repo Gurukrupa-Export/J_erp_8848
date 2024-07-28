@@ -184,7 +184,7 @@ def item_conversion_repack(self, row, s_warehouse, t_warehouse):
 	)
 	items.append(
 		{
-			"item_code": row.receive_metal_purity or row.item_code,
+			"item_code": row.item_code,
 			"qty": row.gross_weight,
 			"s_warehouse": None,
 			"t_warehouse": s_warehouse,

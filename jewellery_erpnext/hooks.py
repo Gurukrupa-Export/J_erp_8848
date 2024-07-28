@@ -34,20 +34,20 @@ doctype_js = {
 	"Stock Reconciliation": "public/js/doctype_js/stock_reconciliation.js",
 }
 
-from erpnext.stock.doctype.stock_entry.stock_entry import StockEntry
+# from erpnext.stock.doctype.stock_entry.stock_entry import StockEntry
 
-from jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry import (
-	get_bom_scrap_material,
-	get_scrap_items_from_job_card,
-)
+# from jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry import (
+# 	get_bom_scrap_material,
+# 	get_scrap_items_from_job_card,
+# )
 
-StockEntry.get_scrap_items_from_job_card = get_scrap_items_from_job_card
-StockEntry.get_bom_scrap_material = get_bom_scrap_material
-from erpnext.manufacturing.doctype.work_order.work_order import WorkOrder
+# StockEntry.get_scrap_items_from_job_card = get_scrap_items_from_job_card
+# StockEntry.get_bom_scrap_material = get_bom_scrap_material
+# from erpnext.manufacturing.doctype.work_order.work_order import WorkOrder
 
-from jewellery_erpnext.jewellery_erpnext.doc_events.work_order import get_work_orders
+# from jewellery_erpnext.jewellery_erpnext.doc_events.work_order import get_work_orders
 
-WorkOrder.get_work_orders = get_work_orders
+# WorkOrder.get_work_orders = get_work_orders
 
 doc_events = {
 	"Quotation": {
@@ -57,9 +57,11 @@ doc_events = {
 		"onload": "jewellery_erpnext.jewellery_erpnext.doc_events.quotation.onload",
 	},
 	"Sales Order": {
+		"before_validate": "jewellery_erpnext.jewellery_erpnext.customization.sales_order.sales_order.before_validate",
 		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.sales_order.validate",
 		"on_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.sales_order.on_submit",
 		"on_cancel": "jewellery_erpnext.jewellery_erpnext.doc_events.sales_order.on_cancel",
+		"on_update_after_submit": "jewellery_erpnext.jewellery_erpnext.customization.sales_order.sales_order.on_update_after_submit",
 	},
 	"BOM": {
 		"before_validate": "jewellery_erpnext.jewellery_erpnext.doc_events.bom.before_validate",
@@ -85,7 +87,10 @@ doc_events = {
 	},
 	"Stock Entry": {
 		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.validate",
-		"before_validate": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.before_validate",
+		"before_validate": [
+			"jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.before_validate",
+			"jewellery_erpnext.jewellery_erpnext.customization.stock_entry.stock_entry.before_validate",
+		],
 		"before_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.before_submit",
 		"on_submit": [
 			"jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry.onsubmit",
@@ -111,12 +116,17 @@ doc_events = {
 		"on_cancel": "jewellery_erpnext.jewellery_erpnext.doc_events.purchase_order.on_cancel",
 	},
 	"Sales Invoice": {
-		"before_validate": "jewellery_erpnext.jewellery_erpnext.doc_events.sales_invoice.before_validate"
+		"before_validate": [
+			"jewellery_erpnext.jewellery_erpnext.doc_events.sales_invoice.before_validate",
+			"jewellery_erpnext.jewellery_erpnext.customization.sales_invoice.sales_invoice.before_validate",
+		],
+		"on_submit": "jewellery_erpnext.jewellery_erpnext.customization.sales_invoice.sales_invoice.on_submit",
 	},
 	"Serial No": {
 		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.serial_no.update_table"
 	},
 	"Material Request": {
+		"before_validate": "jewellery_erpnext.jewellery_erpnext.doc_events.material_request.before_validate",
 		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.material_request.create_stock_entry",
 		"on_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.material_request.on_submit",
 	},
@@ -124,7 +134,8 @@ doc_events = {
 		"after_insert": "jewellery_erpnext.jewellery_erpnext.customization.serial_and_batch_bundle.serial_and_batch_bundle.after_insert"
 	},
 	"Purchase Receipt": {
-		"before_validate": "jewellery_erpnext.jewellery_erpnext.customization.purchase_receipt.purchase_receipt.before_validate"
+		"before_validate": "jewellery_erpnext.jewellery_erpnext.customization.purchase_receipt.purchase_receipt.before_validate",
+		"on_submit": "jewellery_erpnext.jewellery_erpnext.customization.purchase_receipt.purchase_receipt.on_submit",
 	},
 	"Batch": {"validate": "jewellery_erpnext.jewellery_erpnext.customization.batch.batch.validate"},
 }

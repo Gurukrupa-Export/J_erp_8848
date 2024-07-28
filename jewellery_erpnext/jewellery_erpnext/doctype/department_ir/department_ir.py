@@ -7,6 +7,9 @@ import frappe
 from frappe import _, scrub
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
+from frappe.query_builder import CustomFunction
+from frappe.query_builder.functions import IfNull, Sum
+from frappe.utils import get_datetime
 
 from jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry import (
 	update_manufacturing_operation,
@@ -41,6 +44,7 @@ class DepartmentIR(Document):
 			self.on_submit_receive()
 
 	def validate(self):
+		self.validate_operation()
 		valid_reparing_or_next_operation(self)
 		for row in self.department_ir_operation:
 			save_mop(row.manufacturing_operation)
@@ -58,15 +62,43 @@ class DepartmentIR(Document):
 					_("Department IR: {0} already exists for Issue: {1}").format(existing, self.receive_against)
 				)
 		for row in self.department_ir_operation:
-			existing = frappe.db.sql(
-				f"""select di.name from `tabDepartment IR Operation` dip left join `tabDepartment IR` di on dip.parent = di.name
-			    					where di.docstatus != 2 and di.type = '{self.type}' and dip.name != '{row.name}' and dip.manufacturing_operation = '{row.manufacturing_operation}'"""
-			)
+			DIP = frappe.qb.DocType("Department IR Operation")
+			DI = frappe.qb.DocType("Department IR")
+			existing = (
+				frappe.qb.from_(DIP)
+				.left_join(DI)
+				.on(DIP.parent == DI.name)
+				.select(DI.name)
+				.where(
+					(DI.docstatus != 2)
+					& (DI.name != self.name)
+					& (DI.type == self.type)
+					& (DIP.name == row.name)
+					& (DIP.manufacturing_operation == row.manufacturing_operation)
+				)
+			).run()
+
 			if existing:
 				# frappe.throw(_(f"Row #{row.idx}: Found duplicate entry in Department IR: {existing[0][0]}"))
 				frappe.throw(
 					_("Row #{0}: Found duplicate entry in Department IR: {1}").format(row.idx, existing[0][0])
 				)
+
+	def validate_operation(self):
+		for row in self.department_ir_operation:
+			customer = frappe.db.get_value(
+				"Manufacturing Work Order", row.manufacturing_work_order, "customer"
+			)
+
+			ignored_department = []
+			if customer:
+				ignored_department = frappe.db.get_all(
+					"Ignore Department For MOP", {"parent": customer}, ["department"]
+				)
+
+			ignored_department = [row.department for row in ignored_department]
+			if self.next_department in ignored_department:
+				frappe.throw(_("Customer not requireed this operation"))
 
 	def on_cancel(self):
 		if self.type == "Issue":
@@ -84,6 +116,8 @@ class DepartmentIR(Document):
 		values["department_ir_status"] = "Received"
 
 		se_item_list = []
+		dt_string = get_datetime()
+
 		in_transit_wh = frappe.db.get_value(
 			"Warehouse",
 			{"department": self.current_department, "warehouse_type": "Manufacturing"},
@@ -119,18 +153,18 @@ class DepartmentIR(Document):
 				se_item_list += [temp_row]
 
 			# changes
-			values["gross_wt"] = get_value(
-				"Stock Entry Detail",
-				{
-					"manufacturing_operation": row.manufacturing_operation,
-					"s_warehouse": in_transit_wh,
-					"docstatus": 1,
-				},
-				'sum(if(uom="Carat",qty*0.2,qty))',
-				0,
-			)
-			res = get_material_wt(self, row.manufacturing_operation)
-			values.update(res)
+			# values["gross_wt"] = get_value(
+			# 	"Stock Entry Detail",
+			# 	{
+			# 		"manufacturing_operation": row.manufacturing_operation,
+			# 		"s_warehouse": in_transit_wh,
+			# 		"docstatus": 1,
+			# 	},
+			# 	'sum(if(uom="Carat",qty*0.2,qty))',
+			# 	0,
+			# )
+			# res = get_material_wt(self, row.manufacturing_operation)
+			# values.update(res)
 			if cancel:
 				values.update({"department_receive_id": None, "department_ir_status": "In-Transit"})
 			frappe.db.set_value("Manufacturing Operation", row.manufacturing_operation, values)
@@ -138,6 +172,12 @@ class DepartmentIR(Document):
 				"Manufacturing Work Order", row.manufacturing_work_order, "department", self.current_department
 			)
 
+			doc = frappe.get_doc("Manufacturing Operation", row.manufacturing_operation)
+			doc.set("department_time_logs", [])
+			doc.save()
+			time_values = copy.deepcopy(values)
+			time_values["department_start_time"] = dt_string
+			add_time_log(doc, time_values)
 		if not se_item_list:
 			frappe.msgprint(_("No Stock Entries were generated during this Department IR"))
 			return
@@ -176,7 +216,13 @@ class DepartmentIR(Document):
 		# default_department = frappe.db.get_value(
 		# 	"Manufacturing Setting", {"company": self.company}, "default_department"
 		# )
-		mop_data = frappe._dict()
+
+		# timer code
+		dt_string = get_datetime()
+		status = "Not Started" if cancel else "Finished"
+		values = {"status": status}
+
+		mop_data = frappe._dict({})
 		for row in self.department_ir_operation:
 			if cancel:
 				new_operation = frappe.db.get_value(
@@ -235,6 +281,7 @@ class DepartmentIR(Document):
 			# 		"Manufacturing Operation", row.manufacturing_operation, "status", "Finished"
 			# 	)
 			else:
+				values["complete_time"] = dt_string
 				new_operation = create_operation_for_next_dept(
 					self.name, row.manufacturing_work_order, row.manufacturing_operation, self.next_department
 				)
@@ -251,6 +298,8 @@ class DepartmentIR(Document):
 				frappe.db.set_value(
 					"Manufacturing Operation", row.manufacturing_operation, "status", "Finished"
 				)
+				doc = frappe.get_doc("Manufacturing Operation", row.manufacturing_operation)
+				add_time_log(doc, values)
 
 		add_to_transit = []
 		strat_transit = []
@@ -326,6 +375,19 @@ class DepartmentIR(Document):
 def save_mop(mop_name):
 	doc = frappe.get_doc("Manufacturing Operation", mop_name)
 	doc.save()
+
+	previous_data = frappe.db.get_value(
+		"Manufacturing Operation", doc.previous_mop, ["received_gross_wt", "received_net_wt"], as_dict=1
+	)
+
+	if previous_data:
+		if not previous_data.get("received_net_wt"):
+			frappe.db.set_value("Manufacturing Operation", doc.previous_mop, "received_net_wt", doc.net_wt)
+
+		if not previous_data.get("received_gross_wt"):
+			frappe.db.set_value(
+				"Manufacturing Operation", doc.previous_mop, "received_gross_wt", doc.gross_wt
+			)
 
 
 def get_se_items(doc, mwo, mop_data, in_transit_wh, send_in_transit_wh, department_wh):
@@ -410,36 +472,57 @@ def create_stock_entry_for_issue(doc, row, manufacturing_operation):
 	)
 
 	## make filter to fetch the stock entry created against warehouse and operations
-	fetch_manual_stock_entries = frappe.db.sql(
-		f""" SELECT se.name FROM `tabStock Entry` se LEFT JOIN `tabStock Entry Detail` sed ON se.name = sed.parent
-									 WHERE sed.t_warehouse = '{send_in_transit_wh}'
-									 AND sed.manufacturing_operation = '{row.manufacturing_operation}'
-									 AND sed.to_department = '{doc.current_department}'
-									 AND sed.docstatus = 1
-									 AND se.auto_created = 0
-									 GROUP BY se.name """,
-		pluck="name",
-	)
+	SE = frappe.qb.DocType("Stock Entry")
+	SED = frappe.qb.DocType("Stock Entry Detail")
 
-	stock_entries = frappe.db.sql(
-		f"""select se.name from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name
-			       where se.auto_created = 1 and se.docstatus=1 and sed.manufacturing_operation = '{row.manufacturing_operation}' and
-				   sed.t_warehouse = '{department_wh}'
-				   and sed.to_department = '{doc.current_department}' group by se.name order by se.posting_date""",
-		as_dict=1,
-		pluck=1,
-	)
+	fetch_manual_stock_entries = (
+		frappe.qb.from_(SE)
+		.left_join(SED)
+		.on(SE.name == SED.parent)
+		.select(SE.name)
+		.where(
+			(SED.t_warehouse == send_in_transit_wh)
+			& (SED.manufacturing_operation == row.manufacturing_operation)
+			& (SED.to_department == doc.current_department)
+			& (SED.docstatus == 1)
+			& (SE.auto_created == 0)
+		)
+		.groupby(SE.name)
+	).run(pluck="name")
+
+	stock_entries = (
+		frappe.qb.from_(SED)
+		.left_join(SE)
+		.on(SED.parent == SE.name)
+		.select(SE.name)
+		.where(
+			(SE.auto_created == 1)
+			& (SE.docstatus == 1)
+			& (SED.manufacturing_operation == row.manufacturing_operation)
+			& (SED.t_warehouse == department_wh)
+			& (SED.to_department == doc.current_department)
+		)
+		.groupby(SE.name)
+		.orderby(SE.posting_date)
+	).run(as_dict=1, pluck=1)
 
 	non_automated_entries = []
 	if not stock_entries:
-		non_automated_entries = frappe.db.sql(
-			f"""select se.name from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name
-				where se.auto_created = 0 and se.docstatus=1 and sed.manufacturing_operation = '{row.manufacturing_operation}' and
-				sed.t_warehouse = '{department_wh}'
-				and sed.to_department = '{doc.current_department}' group by se.name order by se.posting_date""",
-			as_dict=1,
-			pluck=1,
-		)
+		non_automated_entries = (
+			frappe.qb.from_(SED)
+			.left_join(SE)
+			.on(SED.parent == SE.name)
+			.select(SE.name)
+			.where(
+				(SE.auto_created == 0)
+				& (SE.docstatus == 1)
+				& (SED.manufacturing_operation == row.manufacturing_operation)
+				& (SED.t_warehouse == department_wh)
+				& (SED.to_department == doc.current_department)
+			)
+			.groupby(SE.name)
+			.orderby(SE.posting_date)
+		).run(as_dict=1, pluck=1)
 
 		prev_mfg_operation = get_previous_operation(row.manufacturing_operation)
 		in_transit_wh = frappe.get_value(
@@ -734,45 +817,111 @@ def get_manufacturing_operations_from_department_ir(docname):
 	return frappe.get_all(
 		"Manufacturing Operation",
 		{"department_issue_id": docname, "department_ir_status": "In-Transit"},
-		["name as manufacturing_operation", "manufacturing_work_order", "prev_gross_wt as gross_wt"],
+		[
+			"name as manufacturing_operation",
+			"manufacturing_work_order",
+			"prev_gross_wt as gross_wt",
+			"previous_mop",
+		],
 	)
 
 
 @frappe.whitelist()
 def department_receive_query(doctype, txt, searchfield, start, page_len, filters):
-	args = {
-		"txt": "%{0}%".format(txt),
-	}
-	condition = 'and name not in (select dp.receive_against from `tabDepartment IR` dp where dp.docstatus = 1 and dp.type = "Receive" and dp.receive_against is not NULL) '
+
+	DIR = frappe.qb.DocType("Department IR")
+	DP = frappe.qb.DocType("Department IR")
+	query = (
+		frappe.qb.from_(DIR)
+		.select(DIR.name)
+		.where(
+			(DIR.type == "Issue")
+			& (DIR.docstatus == 1)
+			& (DIR.name.like(txt))
+			& (
+				DIR.name.notin(
+					frappe.qb.from_(DP)
+					.select(DP.receive_against)
+					.where((DP.docstatus == 1) & (DP.type == "Receive") & (DP.receive_against.isnotnull()))
+				)
+			)
+		)
+	)
 	if filters.get("current_department"):
-		args["current_department"] = filters.get("current_department")
-		condition += """and current_department = %(current_department)s """
+		query = query.where(DIR.current_department == filters.get("current_department"))
 
 	if filters.get("next_department"):
-		args["next_department"] = filters.get("next_department")
-		condition += "and next_department = %(next_department)s "
+		query = query.where(DIR.next_department == filters.get("next_department"))
+	data = query.run()
 
-	data = frappe.db.sql(
-		f"""select name
-			from `tabDepartment IR`
-				where type = "Issue" and docstatus = 1
-				and name like %(txt)s {condition}
-			""",
-		args,
-	)
 	return data if data else []
 
 
 def get_material_wt(doc, manufacturing_operation):
-	res = frappe.db.sql(
-		f"""select ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt, ifnull(sum(if(i.variant_of = 'M',sed.qty,0)),0) as net_wt,
-        ifnull(sum(if(i.variant_of = 'D',sed.qty,0)),0) as diamond_wt, ifnull(sum(if(i.variant_of = 'D',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as diamond_wt_in_gram,
-        ifnull(sum(if(i.variant_of = 'G',sed.qty,0)),0) as gemstone_wt, ifnull(sum(if(i.variant_of = 'G',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as gemstone_wt_in_gram,
-        ifnull(sum(if(i.variant_of = 'O',sed.qty,0)),0) as other_wt
-        from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name left join `tabItem` i on i.name = sed.item_code
-		    where se.{scrub(doc.doctype)} = "{doc.name}" and sed.manufacturing_operation = "{manufacturing_operation}" and se.docstatus = 1""",
-		as_dict=1,
+	SED = frappe.qb.DocType("Stock Entry Detail")
+	SE = frappe.qb.DocType("Stock Entry")
+	Item = frappe.qb.DocType("Item")
+
+	IF = CustomFunction("IF", ["condition", "true_expr", "false_expr"])
+	query = (
+		frappe.qb.from_(SED)
+		.left_join(SE)
+		.on(SED.parent == SE.name)
+		.left_join(Item)
+		.on(Item.name == SED.item_code)
+		.select(
+			IfNull(Sum(IF(SED.uom == "Carat", SED.qty * 0.2, SED.qty)), 0).as_("gross_wt"),
+			IfNull(Sum(IF(Item.variant_of == "M", SED.qty, 0)), 0).as_("net_wt"),
+			IfNull(Sum(IF(Item.variant_of == "D", SED.qty, 0)), 0).as_("diamond_wt"),
+			IfNull(
+				Sum(IF(Item.variant_of == "D", IF(SED.uom == "Carat", SED.qty * 0.2, SED.qty), 0)), 0
+			).as_("diamond_wt_in_gram"),
+			IfNull(Sum(IF(Item.variant_of == "G", SED.qty, 0)), 0).as_("gemstone_wt"),
+			IfNull(
+				Sum(IF(Item.variant_of == "G", IF(SED.uom == "Carat", SED.qty * 0.2, SED.qty), 0)), 0
+			).as_("gemstone_wt_in_gram"),
+			IfNull(Sum(IF(Item.variant_of == "O", SED.qty, 0)), 0).as_("other_wt"),
+		)
+		.where(
+			(SE[scrub(doc.doctype)] == doc.name)
+			& (SED.manufacturing_operation == manufacturing_operation)
+			& (SE.docstatus == 1)
+		)
 	)
+	res = query.run(as_dict=True)
+
 	if res:
 		return res[0]
 	return {}
+
+
+# timer code
+def add_time_log(doc, args):
+	last_row = []
+
+	if doc.department_time_logs and len(doc.department_time_logs) > 0:
+		last_row = doc.department_time_logs[-1]
+
+	doc.reset_timer_value(args)
+
+	# issue - complete_time
+	if last_row and args.get("complete_time"):
+		for row in doc.department_time_logs:
+			if not row.department_to_time:
+				row.update(
+					{
+						"department_to_time": get_datetime(args.get("complete_time")),
+					}
+				)
+
+	# receive - department_start_time
+	elif args.get("department_start_time"):
+
+		new_args = frappe._dict(
+			{
+				"department_from_time": get_datetime(args.get("department_start_time")),
+			}
+		)
+		doc.add_start_time_log(new_args)
+
+	doc.save()

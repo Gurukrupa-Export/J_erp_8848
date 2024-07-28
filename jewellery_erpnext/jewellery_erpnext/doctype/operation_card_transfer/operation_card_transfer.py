@@ -43,12 +43,19 @@ def make_stock_return(source_name, oc_doc, self, target_doc=None):
 		target.operation_card = self.name
 		target.items = []
 		target.inventory_dimension = 'Operation Card'
-		bom = frappe.db.sql(f"""
-							SELECT soi.bom
-							FROM `tabSales Order Item` soi
-							JOIN `tabProduction Order` po ON po.sales_order_item = soi.name
-							WHERE po.name = '{target.production_order}' 
-				""", as_dict=True)[0].get('bom')
+
+		SalesOrderItem = frappe.qb.DocType("Sales Order Item")
+		ProductionOrder = frappe.qb.DocType("Production Order")
+		query = (
+			frappe.qb.from_(SalesOrderItem)
+			.join(ProductionOrder)
+			.on(ProductionOrder.sales_order_item == SalesOrderItem.name)
+			.select(SalesOrderItem.bom)
+			.where(ProductionOrder.name == target.production_order)
+		)
+		result = query.run(as_dict=True)
+		bom = result[0].get('bom') if result else None
+
 		target.from_bom=1
 		target.bom_no = bom
 		l1 = oc_doc.get_external_in_weight()
@@ -92,11 +99,18 @@ def make_stock_return(source_name, oc_doc, self, target_doc=None):
 
 @frappe.whitelist()
 def get_warehouse_from_operation_card(source_name):
- 	return frappe.db.sql(f"""
-				SELECT opw.warehouse
-				FROM `tabOperation Warehouse` opw 
-				JOIN `tabOperation Card` oc ON oc.operation = opw.parent
-				WHERE oc.name = '{source_name}' 
-	""", as_dict=True)
+	OperationWarehouse = frappe.qb.DocType("Operation Warehouse")
+	OperationCard = frappe.qb.DocType("Operation Card")
+
+	query = (
+		frappe.qb.from_(OperationWarehouse)
+		.join(OperationCard)
+		.on(OperationCard.operation == OperationWarehouse.parent)
+		.select(OperationWarehouse.warehouse)
+		.where(OperationCard.name == source_name)
+	)
+
+	result = query.run(as_dict=True)
+	return result
 	# warehouse_details
 	# warehouse = warehouse_details[0].get('warehouse') if warehouse_details else None

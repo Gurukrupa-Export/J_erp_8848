@@ -20,12 +20,13 @@ class ManufacturingPlan(Document):
 	def on_submit(self):
 		is_subcontracting = False
 		for row in self.manufacturing_plan_table:
-			update_existing(
-				"Sales Order Item",
-				row.docname,
-				"manufacturing_order_qty",
-				f"manufacturing_order_qty + {cint(row.manufacturing_order_qty) + cint(row.subcontracting_qty)}",
-			)
+			if row.docname:
+				update_existing(
+					"Sales Order Item",
+					row.docname,
+					"manufacturing_order_qty",
+					f"manufacturing_order_qty + {cint(row.manufacturing_order_qty) + cint(row.subcontracting_qty)}",
+				)
 			create_manufacturing_order(self, row)
 			if row.subcontracting:
 				is_subcontracting = True
@@ -72,72 +73,132 @@ class ManufacturingPlan(Document):
 
 	@frappe.whitelist()
 	def get_sales_orders(self):
-		data = frappe.db.sql(
-			"""select so.name
-			from `tabSales Order` so left join `tabSales Order Item` soi on (soi.parenttype = 'Sales Order' and soi.parent = so.name)
-			where soi.qty > soi.manufacturing_order_qty  and so.docstatus = 1.0 group by so.name
-			order by so.modified DESC""",
-			as_dict=1,
+		SalesOrder = frappe.qb.DocType("Sales Order")
+		SalesOrderItem = frappe.qb.DocType("Sales Order Item")
+
+		query = (
+			frappe.qb.from_(SalesOrder)
+			.left_join(SalesOrderItem)
+			.on((SalesOrderItem.parenttype == "Sales Order") & (SalesOrderItem.parent == SalesOrder.name))
+			.select(SalesOrder.name)
+			.where(
+				(SalesOrder.docstatus == 1.0) & (SalesOrderItem.qty > SalesOrderItem.manufacturing_order_qty)
+			)
+			.groupby(SalesOrder.name)
+			.orderby(SalesOrder.modified, order=frappe.qb.desc)
 		)
+
+		data = query.run(as_dict=True)
+
 		self.sales_order = []
 		for row in data:
 			self.append("sales_order", {"sales_order": row.name})
 
 	@frappe.whitelist()
 	def get_items_for_production(self):
-		condition = ""
-		if self.setting_type:
-			condition += f"and soi.setting_type = '{self.setting_type}'"
-		sales_orders = [row.sales_order for row in self.sales_order]
-		items = frappe.db.sql(
-			f"""
-						select 	soi.name as docname, soi.parent as sales_order, soi.item_code as item_code, soi.bom as bom, itm.mould as mould_no, soi.diamond_quality,
-								soi.custom_customer_sample as customer_sample,
-								soi.custom_customer_voucher_no as customer_voucher_no,
-								soi.custom_customer_gold as customer_gold,
-								soi.custom_customer_diamond as customer_diamond,
-								soi.custom_customer_stone as customer_stone,
-								soi.custom_customer_good as customer_good,
-								soi.custom_customer_weight as customer_weight,
-								(soi.qty - soi.manufacturing_order_qty) as pending_qty,
-								soi.order_form_type as order_form_type,
-								soi.custom_repair_type as repair_type,
-								soi.custom_product_type as product_type,
-								soi.serial_no as serial_no,
-								soi.serial_id_bom as serial_id_bom
-						from `tabSales Order Item` soi left join `tabItem` itm on soi.item_code = itm.name
-						where soi.parent in ('{"', '".join(sales_orders)}') and soi.qty > soi.manufacturing_order_qty {condition}""",
-			as_dict=1,
-		)
-		self.manufacturing_plan_table = []
-		for item_row in items:
-			so_bom = item_row.get("bom")
-			item_code = item_row.get("item_code")
-			item_master_bom = frappe.get_value("Item", item_code, "master_bom")
-			if so_bom or item_master_bom:
-				check_bom_type = frappe.get_value("BOM", so_bom or item_master_bom, "bom_type")
-				if check_bom_type == "Sales Order":
-					item_row["manufacturing_order_qty"] = item_row.get("pending_qty")
-					if self.is_subcontracting:
-						item_row["subcontracting"] = self.is_subcontracting
-						item_row["subcontracting_qty"] = 1
-						item_row["supplier"] = self.supplier
-						item_row["estimated_delivery_date"] = self.estimated_date
-						item_row["purchase_type"] = self.purchase_type
-						item_row["manufacturing_order_qty"] = 0
+		if not self.manufacturing_work_order:
+			SalesOrderItem = frappe.qb.DocType("Sales Order Item")
+			Item = frappe.qb.DocType("Item")
 
-					item_row["qty_per_manufacturing_order"] = 1
-					item_row["bom"] = so_bom or item_master_bom
-					item_row["customer"] = frappe.db.get_value("Sales Order", item_row["sales_order"], "customer")
-					item_row["order_form_type"] = item_row.get("order_form_type")
-					self.append("manufacturing_plan_table", item_row)
+			sales_orders = [row.sales_order for row in self.sales_order]
+
+			query = (
+				frappe.qb.from_(SalesOrderItem)
+				.left_join(Item)
+				.on(SalesOrderItem.item_code == Item.name)
+				.select(
+					SalesOrderItem.name.as_("docname"),
+					SalesOrderItem.parent.as_("sales_order"),
+					SalesOrderItem.item_code,
+					SalesOrderItem.bom,
+					Item.mould.as_("mould_no"),
+					SalesOrderItem.diamond_quality,
+					SalesOrderItem.custom_customer_sample.as_("customer_sample"),
+					SalesOrderItem.custom_customer_voucher_no.as_("customer_voucher_no"),
+					SalesOrderItem.custom_customer_gold.as_("customer_gold"),
+					SalesOrderItem.custom_customer_diamond.as_("customer_diamond"),
+					SalesOrderItem.custom_customer_stone.as_("customer_stone"),
+					SalesOrderItem.custom_customer_good.as_("customer_good"),
+					SalesOrderItem.custom_customer_weight.as_("customer_weight"),
+					(SalesOrderItem.qty - SalesOrderItem.manufacturing_order_qty).as_("pending_qty"),
+					SalesOrderItem.order_form_type,
+					SalesOrderItem.custom_repair_type.as_("repair_type"),
+					SalesOrderItem.custom_product_type.as_("product_type"),
+					SalesOrderItem.serial_no,
+					SalesOrderItem.serial_id_bom,
+				)
+				.where(
+					(SalesOrderItem.parent.isin(sales_orders))
+					& (SalesOrderItem.qty > SalesOrderItem.manufacturing_order_qty)
+				)
+			)
+
+			if self.setting_type:
+				query = query.where(SalesOrderItem.setting_type == self.setting_type)
+
+			items = query.run(as_dict=True)
+
+			self.manufacturing_plan_table = []
+			for item_row in items:
+				so_bom = item_row.get("bom")
+				item_code = item_row.get("item_code")
+				item_master_bom = frappe.get_value("Item", item_code, "master_bom")
+				if so_bom or item_master_bom:
+					check_bom_type = frappe.get_value("BOM", so_bom or item_master_bom, "bom_type")
+					if check_bom_type == "Sales Order":
+						item_row["manufacturing_order_qty"] = item_row.get("pending_qty")
+						if self.is_subcontracting:
+							item_row["subcontracting"] = self.is_subcontracting
+							item_row["subcontracting_qty"] = 1
+							item_row["supplier"] = self.supplier
+							item_row["estimated_delivery_date"] = self.estimated_date
+							item_row["purchase_type"] = self.purchase_type
+							item_row["manufacturing_order_qty"] = 0
+
+						item_row["qty_per_manufacturing_order"] = 1
+						item_row["bom"] = so_bom or item_master_bom
+						item_row["customer"] = frappe.db.get_value(
+							"Sales Order", item_row["sales_order"], "customer"
+						)
+						item_row["order_form_type"] = item_row.get("order_form_type")
+						self.append("manufacturing_plan_table", item_row)
+					else:
+						frappe.throw(
+							f"{so_bom or item_master_bom} should be BOM Type <b>Sales Order</b> allowed in Manufacturing Process"
+						)
 				else:
 					frappe.throw(
-						f"{so_bom or item_master_bom} should be BOM Type <b>Sales Order</b> allowed in Manufacturing Process"
+						f"Sales Order BOM Not Found.</br>Please Set Master BOM for <b>{item_code}</b> into Item Master"
 					)
-			else:
-				frappe.throw(
-					f"Sales Order BOM Not Found.</br>Please Set Master BOM for <b>{item_code}</b> into Item Master"
+		else:
+			self.manufacturing_plan_table = []
+			mwo_lst = [row.manufacturing_work_order for row in self.manufacturing_work_order]
+
+			mwo_data = []
+			for row in mwo_lst:
+				mwo_data.append(
+					frappe.db.get_value(
+						"Manufacturing Work Order", row, ["name", "item_code", "master_bom", "qty"], as_dict=1
+					)
+				)
+
+			unique_item_dict = {}
+			for row in mwo_data:
+				if unique_item_dict.get(row.item_code):
+					unique_item_dict[row.item_code]["qty"] += row.qty
+				else:
+					unique_item_dict[row.item_code] = {"qty": row.qty, "mwo": row.name}
+
+			for row in unique_item_dict:
+				self.append(
+					"manufacturing_plan_table",
+					{
+						"item_code": row,
+						"pending_qty": unique_item_dict[row]["qty"],
+						"manufacturing_order_qty": unique_item_dict[row]["qty"],
+						"qty_per_manufacturing_order": unique_item_dict[row]["qty"],
+						"mwo": unique_item_dict[row]["mwo"],
+					},
 				)
 
 
@@ -167,10 +228,12 @@ def create_manufacturing_process_bom(self, row):
 		},
 		ignore_permissions=True,
 	)
+	doc.custom_creation_doctype = self.doctype
 	doc.is_default = 0
 	doc.is_active = 0
 	doc.bom_type = "Manufacturing Process"
 	doc.save(ignore_permissions=True)
+	doc.db_set("custom_creation_docname", self.name)
 	return doc.name
 
 
@@ -215,36 +278,41 @@ def get_sales_order(source_name, target_doc=None):
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
 def get_pending_ppo_sales_order(doctype, txt, searchfield, start, page_len, filters):
-	conditions = " and soi.qty > soi.manufacturing_order_qty and soi.order_form_type <> 'Repair Order' and so.custom_repair_order_form is null"
-	if txt:
-		conditions += " and so.name like '%%" + txt + "%%' "
-	if customer := filters.get("customer"):
-		conditions += f" and so.customer = '{customer}'"
-	if company := filters.get("company"):
-		conditions += f" and so.company = '{company}'"
-	if branch := filters.get("branch"):
-		conditions += f" and so.branch = '{branch}'"
-	if txn_date := filters.get("transaction_date"):
-		conditions += f" and so.transaction_date = '{txn_date}'"
-	so_data = frappe.db.sql(
-		f"""
-		select
-			distinct so.name, so.transaction_date,
-			so.company, so.customer
-		from
-			`tabSales Order` so, `tabSales Order Item` soi
-		where
-			so.name = soi.parent
-			and so.docstatus = 1
-			{conditions}
-		order by so.transaction_date Desc
-		limit %(page_len)s offset %(start)s """,
-		{
-			"page_len": page_len,
-			"start": start,
-		},
-		as_dict=1,
+	SalesOrder = frappe.qb.DocType("Sales Order")
+	SalesOrderItem = frappe.qb.DocType("Sales Order Item")
+
+	conditions = (
+		(SalesOrderItem.qty > SalesOrderItem.manufacturing_order_qty)
+		& (SalesOrderItem.order_form_type != "Repair Order")
+		& (SalesOrder.custom_repair_order_form.isnull())
 	)
+
+	if txt:
+		conditions &= SalesOrder.name.like(f"%{txt}%")
+
+	if customer := filters.get("customer"):
+		conditions &= SalesOrder.customer == customer
+
+	if company := filters.get("company"):
+		conditions &= SalesOrder.company == company
+
+	if branch := filters.get("branch"):
+		conditions &= SalesOrder.branch == branch
+
+	if txn_date := filters.get("transaction_date"):
+		conditions &= SalesOrder.transaction_date == txn_date
+
+	query = (
+		frappe.qb.from_(SalesOrder)
+		.distinct()
+		.from_(SalesOrderItem)
+		.select(SalesOrder.name, SalesOrder.transaction_date, SalesOrder.company, SalesOrder.customer)
+		.where((SalesOrder.name == SalesOrderItem.parent) & (SalesOrder.docstatus == 1) & conditions)
+		.orderby(SalesOrder.transaction_date, order=frappe.qb.desc)
+		.limit(page_len)
+		.offset(start)
+	)
+	so_data = query.run(as_dict=True)
 
 	return so_data
 
@@ -252,35 +320,38 @@ def get_pending_ppo_sales_order(doctype, txt, searchfield, start, page_len, filt
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
 def get_repair_pending_ppo_sales_order(doctype, txt, searchfield, start, page_len, filters):
-	conditions = " and soi.qty > soi.manufacturing_order_qty and soi.order_form_type='Repair Order'"  # and so.custom_repair_order_form <> ''
-	if txt:
-		conditions += " and so.name like '%%" + txt + "%%' "
-	if customer := filters.get("customer"):
-		conditions += f" and so.customer = '{customer}'"
-	if company := filters.get("company"):
-		conditions += f" and so.company = '{company}'"
-	if branch := filters.get("branch"):
-		conditions += f" and so.branch = '{branch}'"
-	if txn_date := filters.get("transaction_date"):
-		conditions += f" and so.transaction_date = '{txn_date}'"
-	so_data = frappe.db.sql(
-		f"""
-		select
-			distinct so.name, so.transaction_date,
-			so.company, so.customer
-		from
-			`tabSales Order` so, `tabSales Order Item` soi
-		where
-			so.name = soi.parent
-			# and so.docstatus = 1
-			{conditions}
-		order by so.transaction_date Desc
-		limit %(page_len)s offset %(start)s """,
-		{
-			"page_len": page_len,
-			"start": start,
-		},
-		as_dict=1,
+	SalesOrder = frappe.qb.DocType("Sales Order")
+	SalesOrderItem = frappe.qb.DocType("Sales Order Item")
+
+	conditions = (SalesOrderItem.qty > SalesOrderItem.manufacturing_order_qty) & (
+		SalesOrderItem.order_form_type == "Repair Order"
 	)
 
+	if txt:
+		conditions &= SalesOrder.name.like(f"%{txt}%")
+
+	if customer := filters.get("customer"):
+		conditions &= SalesOrder.customer == customer
+
+	if company := filters.get("company"):
+		conditions &= SalesOrder.company == company
+
+	if branch := filters.get("branch"):
+		conditions &= SalesOrder.branch == branch
+
+	if txn_date := filters.get("transaction_date"):
+		conditions &= SalesOrder.transaction_date == txn_date
+
+	query = (
+		frappe.qb.from_(SalesOrder)
+		.distinct()
+		.from_(SalesOrderItem)
+		.select(SalesOrder.name, SalesOrder.transaction_date, SalesOrder.company, SalesOrder.customer)
+		.where((SalesOrder.name == SalesOrderItem.parent) & conditions)
+		.orderby(SalesOrder.transaction_date, order=frappe.qb.desc)
+		.limit(page_len)
+		.offset(start)
+	)
+
+	so_data = query.run(as_dict=True)
 	return so_data

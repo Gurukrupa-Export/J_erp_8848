@@ -24,15 +24,13 @@
    "fieldname": "metal_type",
    "fieldtype": "Link",
    "label": "Metal type",
-   "options": "Attribute Value",
-   "read_only": 1
+   "options": "Attribute Value"
   },
   {
    "fieldname": "metal_weight",
    "fieldtype": "Link",
    "label": "Metal Weight",
-   "options": "Attribute Value",
-   "read_only": 1
+   "options": "Attribute Value"
   },
   {
    "fieldname": "metal_purity",
@@ -96,14 +94,13 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Dust Item",
-   "options": "Item",
-   "read_only": 1
+   "options": "Item"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2023-11-06 10:38:17.664312",
+ "modified": "2024-05-17 13:09:09.303457",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Refined Gold",

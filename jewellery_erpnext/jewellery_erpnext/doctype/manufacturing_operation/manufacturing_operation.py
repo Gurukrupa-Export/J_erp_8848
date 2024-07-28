@@ -7,7 +7,8 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.model.naming import make_autoname
-from frappe.query_builder import Criterion
+from frappe.query_builder import Criterion, CustomFunction
+from frappe.query_builder.functions import Avg, IfNull, Max, Sum
 from frappe.utils import (
 	flt,
 	get_datetime,
@@ -51,7 +52,11 @@ class ManufacturingOperation(Document):
 
 	# timer code
 	def add_start_time_log(self, args):
-		self.append("time_logs", args)
+		if "department_from_time" in args:
+			# frappe.throw(str(args))
+			self.append("department_time_logs", args)
+		else:
+			self.append("time_logs", args)
 
 	# timer code
 	def add_time_log(self, args):
@@ -159,11 +164,27 @@ class ManufacturingOperation(Document):
 	def validate(self):
 		self.set_start_finish_time()
 		self.validate_time_logs()
-		self.update_weights()
 		self.validate_loss()
 		self.get_previous_se_details()
 		self.remove_duplicate()
 		self.set_mop_balance_table()  # To Set MOP Bailance Table on update source & target Table.
+		self.update_weights()
+		self.validate_operation()
+
+	def validate_operation(self):
+		customer = frappe.db.get_value(
+			"Parent Manufacturing Order", self.manufacturing_order, "customer"
+		)
+
+		ignored_department = []
+		if customer:
+			ignored_department = frappe.db.get_all(
+				"Ignore Department For MOP", {"parent": customer}, ["department"]
+			)
+
+		ignored_department = [row.department for row in ignored_department]
+		if self.operation in ignored_department:
+			frappe.throw(_("Customer not requireed this operation"))
 
 	def remove_duplicate(self):
 		existing_data = {
@@ -292,6 +313,26 @@ class ManufacturingOperation(Document):
 
 						if in_hours >= total_shift_hours:
 							d.time_in_days = in_hours / total_shift_hours
+
+		# department timer code
+		if self.get("department_time_logs"):
+			for d in self.get("department_time_logs")[-1:]:
+				if (
+					d.department_to_time
+					and get_datetime(d.department_from_time) > get_datetime(d.department_to_time)
+					and get_datetime(d.department_from_time) < get_datetime(d.department_to_time)
+				):
+					frappe.throw(_("Row {0}: From time must be less than to time").format(d.idx))
+
+				if d.department_from_time and d.department_to_time:
+					d.time_in_mins = time_diff_in_hours(d.department_to_time, d.department_from_time) * 60
+
+					in_hours = time_diff(d.department_to_time, d.department_from_time)
+					d.time_in_hour = str(in_hours)[:-3]
+
+					time_diff_hour = time_diff_in_hours(d.department_to_time, d.department_from_time) / 24
+					d.time_in_days = str(time_diff_hour)[:6]
+					# frappe.throw(f"{d.time_in_mins} ||| {d.time_in_hour}   ||| {str(d.time_in_days)[:6]} ||| {d.time_in_days}")
 
 			# frappe.throw('HOLD')
 
@@ -463,14 +504,25 @@ class ManufacturingOperation(Document):
 
 	def set_start_finish_time(self):
 		if self.has_value_changed("status"):
-			if self.status == "WIP" and not self.start_time:
+			if self.status == "WIP" and not self.start_time and self.time_logs:
 				self.start_time = self.time_logs[0].from_time
+			elif not self.department_starttime and self.department_starttime:
+				self.department_starttime = self.department_time_logs[0].department_from_time
 			elif self.status == "Finished":
+				if not self.start_time and self.time_logs:
+					self.start_time = self.time_logs[0].from_time
 				if self.time_logs:
-					if not self.start_time:
-						self.start_time = self.time_logs[0].from_time
 					self.finish_time = self.time_logs[-1].to_time
-					# self.time_taken = get_timedelta(time_diff(self.finish_time, self.start_time))
+					# self.time_taken = time_diff(self.finish_time, self.start_time)
+
+			# elif self.status == "WIP" and not self.department_starttime:
+			# 	if self.department_time_logs:
+			# elif self.status == "Finished":
+			# 	if not self.department_starttime and self.department_time_logs:
+			# 		self.department_starttime = self.department_time_logs[0].department_from_time
+			# 	if self.department_time_logs:
+			# 		self.department_finishtime = self.department_time_logs[-1].department_to_time
+			# 		self.time_taken = time_diff(self.department_finishtime, self.department_starttime)
 
 	def attach_cad_cam_file_into_item_master(self):
 		# self.ref_name = self.name
@@ -579,14 +631,39 @@ class ManufacturingOperation(Document):
 			},
 			pluck="name",
 		)
-		data = frappe.db.sql(
-			f"""select se.manufacturing_work_order, se.manufacturing_operation, sed.parent, sed.item_code,sed.item_name, sed.batch_no, sed.qty, sed.uom,
-					   			ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt
-			   				from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name where
-							se.docstatus = 1 and se.manufacturing_work_order in ('{"', '".join(mwo)}') and sed.t_warehouse = '{target_wh}'
-							group by sed.manufacturing_operation,  sed.item_code, sed.qty, sed.uom """,
-			as_dict=1,
-		)
+		StockEntry = frappe.qb.DocType("Stock Entry")
+		StockEntryDetail = frappe.qb.DocType("Stock Entry Detail")
+		IF = CustomFunction("IF", ["condition", "true_expr", "false_expr"])
+		data = (
+			frappe.qb.from_(StockEntryDetail)
+			.left_join(StockEntry)
+			.on(StockEntryDetail.parent == StockEntry.name)
+			.select(
+				StockEntry.manufacturing_work_order,
+				StockEntry.manufacturing_operation,
+				StockEntryDetail.parent,
+				StockEntryDetail.item_code,
+				StockEntryDetail.item_name,
+				StockEntryDetail.batch_no,
+				StockEntryDetail.qty,
+				StockEntryDetail.uom,
+				IfNull(
+					Sum(IF(StockEntryDetail.uom == "Carat", StockEntryDetail.qty * 0.2, StockEntryDetail.qty)), 0
+				).as_("gross_wt"),
+			)
+			.where(
+				(StockEntry.docstatus == 1)
+				& (StockEntry.manufacturing_work_order.isin(mwo))
+				& (StockEntryDetail.t_warehouse == target_wh)
+			)
+			.groupby(
+				StockEntryDetail.manufacturing_operation,
+				StockEntryDetail.item_code,
+				StockEntryDetail.qty,
+				StockEntryDetail.uom,
+			)
+		).run(as_dict=True)
+
 		total_qty = 0
 		for row in data:
 			total_qty += row.get("gross_wt", 0)
@@ -607,7 +684,7 @@ class ManufacturingOperation(Document):
 		)
 		se = frappe.new_doc("Stock Entry")
 		se.stock_entry_type = "Manufacture"
-		mwo = frappe.get_all(
+		operations = frappe.get_all(
 			"Manufacturing Work Order",
 			{
 				"name": ["!=", self.manufacturing_work_order],
@@ -615,16 +692,44 @@ class ManufacturingOperation(Document):
 				"docstatus": ["!=", 2],
 				"department": ["=", self.department],
 			},
-			pluck="name",
+			pluck="manufacturing_operation",
 		)
-		data = frappe.db.sql(
-			f"""select sed.custom_manufacturing_work_order, se.manufacturing_operation, sed.name, sed.parent, sed.item_code,sed.item_name, sed.batch_no, sed.qty, sed.uom, sed.inventory_type, sed.custom_sub_setting_type,
-					   			ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt
-			   				from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name where
-							se.docstatus = 1 and sed.custom_manufacturing_work_order in ('{"', '".join(mwo)}') and sed.t_warehouse = '{target_wh}'
-							group by sed.manufacturing_operation,  sed.item_code, sed.qty, sed.uom """,
-			as_dict=1,
-		)
+		StockEntry = frappe.qb.DocType("Stock Entry")
+		StockEntryDetail = frappe.qb.DocType("Stock Entry Detail")
+		IF = CustomFunction("IF", ["condition", "true_expr", "false_expr"])
+		data = (
+			frappe.qb.from_(StockEntryDetail)
+			.left_join(StockEntry)
+			.on(StockEntryDetail.parent == StockEntry.name)
+			.select(
+				StockEntryDetail.custom_manufacturing_work_order,
+				StockEntryDetail.manufacturing_operation,
+				StockEntryDetail.name,
+				StockEntryDetail.parent,
+				StockEntryDetail.item_code,
+				StockEntryDetail.item_name,
+				StockEntryDetail.batch_no,
+				StockEntryDetail.qty,
+				StockEntryDetail.uom,
+				StockEntryDetail.inventory_type,
+				StockEntryDetail.pcs,
+				StockEntryDetail.custom_sub_setting_type,
+				IfNull(
+					Sum(IF(StockEntryDetail.uom == "Carat", StockEntryDetail.qty * 0.2, StockEntryDetail.qty)), 0
+				).as_("gross_wt"),
+			)
+			.where(
+				(StockEntry.docstatus == 1)
+				& (StockEntryDetail.manufacturing_operation.isin(operations))
+				& (StockEntryDetail.t_warehouse == target_wh)
+			)
+			.groupby(
+				StockEntryDetail.manufacturing_operation,
+				StockEntryDetail.item_code,
+				StockEntryDetail.qty,
+				StockEntryDetail.uom,
+			)
+		).run(as_dict=True)
 
 		total_qty = 0
 		for row in data:
@@ -636,13 +741,30 @@ class ManufacturingOperation(Document):
 
 	@frappe.whitelist()
 	def get_stock_entry(self):
-		data = frappe.db.sql(
-			f"""select se.manufacturing_work_order, se.manufacturing_operation, se.department,se.to_department,
-						se.employee,se.stock_entry_type,sed.parent, sed.item_code,sed.item_name, sed.qty, sed.uom
-						from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name where
-						se.docstatus = 1 and sed.manufacturing_operation = ('{self.name}') ORDER BY se.modified DESC""",
-			as_dict=1,
-		)
+		StockEntry = frappe.qb.DocType("Stock Entry")
+		StockEntryDetail = frappe.qb.DocType("Stock Entry Detail")
+
+		data = (
+			frappe.qb.from_(StockEntryDetail)
+			.left_join(StockEntry)
+			.on(StockEntryDetail.parent == StockEntry.name)
+			.select(
+				StockEntry.manufacturing_work_order,
+				StockEntry.manufacturing_operation,
+				StockEntry.department,
+				StockEntry.to_department,
+				StockEntry.employee,
+				StockEntry.stock_entry_type,
+				StockEntryDetail.parent,
+				StockEntryDetail.item_code,
+				StockEntryDetail.item_name,
+				StockEntryDetail.qty,
+				StockEntryDetail.uom,
+			)
+			.where((StockEntry.docstatus == 1) & (StockEntryDetail.manufacturing_operation == self.name))
+			.orderby(StockEntry.modified, order=frappe.qb.desc)
+		).run(as_dict=True)
+
 		total_qty = len([item["qty"] for item in data])
 		return frappe.render_template(
 			"jewellery_erpnext/jewellery_erpnext/doctype/manufacturing_operation/stock_entry.html",
@@ -651,40 +773,44 @@ class ManufacturingOperation(Document):
 
 	@frappe.whitelist()
 	def get_stock_summary(self):
-		data = frappe.db.sql(
-			f"""SELECT
-					se.manufacturing_work_order,
-					se.manufacturing_operation,
-					sed.parent,
-					sed.item_code,
-					sed.item_name,
-					sed.inventory_type,
-					sed.pcs,
-					sed.batch_no,
-					sed.qty,
-					sed.uom
-				FROM
-					`tabStock Entry Detail` sed
-				LEFT JOIN
-					(
-						SELECT
-							MAX(se.modified) AS max_modified,
-							se.manufacturing_operation
-						FROM
-							`tabStock Entry` se
-						WHERE
-							se.docstatus = 1
-						GROUP BY
-							se.manufacturing_operation
-					) max_se ON sed.manufacturing_operation = max_se.manufacturing_operation
-				LEFT JOIN
-					`tabStock Entry` se ON sed.parent = se.name
-										AND se.modified = max_se.max_modified
-				WHERE
-					se.docstatus = 1
-					AND sed.manufacturing_operation IN ('{self.name}')""",
-			as_dict=True,
-		)
+		StockEntry = frappe.qb.DocType("Stock Entry")
+		StockEntryDetail = frappe.qb.DocType("Stock Entry Detail")
+
+		# Subquery for max modified stock entry per manufacturing operation
+		max_se_subquery = (
+			frappe.qb.from_(StockEntry)
+			.select(Max(StockEntry.modified).as_("max_modified"), StockEntry.manufacturing_operation)
+			.where(StockEntry.docstatus == 1)
+			.groupby(StockEntry.manufacturing_operation)
+		).as_("max_se")
+
+		# Main query
+		data = (
+			frappe.qb.from_(StockEntryDetail)
+			.left_join(max_se_subquery)
+			.on(StockEntryDetail.manufacturing_operation == max_se_subquery.manufacturing_operation)
+			.left_join(StockEntry)
+			.on(
+				(StockEntryDetail.parent == StockEntry.name)
+				& (StockEntry.modified == max_se_subquery.max_modified)
+			)
+			.select(
+				StockEntry.manufacturing_work_order,
+				StockEntry.manufacturing_operation,
+				StockEntryDetail.parent,
+				StockEntryDetail.item_code,
+				StockEntryDetail.item_name,
+				StockEntryDetail.inventory_type,
+				StockEntryDetail.pcs,
+				StockEntryDetail.batch_no,
+				StockEntryDetail.qty,
+				StockEntryDetail.uom,
+			)
+			.where(
+				(StockEntry.docstatus == 1) & (StockEntryDetail.manufacturing_operation.isin([self.name]))
+			)
+		).run(as_dict=True)
+
 		total_qty = 0
 		for row in data:
 			if row.uom == "Carat":
@@ -743,25 +869,30 @@ class ManufacturingOperation(Document):
 			# frappe.throw(str(get_wop_weight))
 
 	def set_pmo_weight_details(doc):
-		get_mwo_weight = frappe.db.sql(
-			f"""select
-											sum(gross_wt) as gross_wt,
-											sum(net_wt) as net_wt,
-											sum(finding_wt) as finding_wt,
-											sum(diamond_wt) as diamond_wt,
-											sum(gemstone_wt)as gemstone_wt,
-											sum(other_wt) as other_wt,
-											sum(received_gross_wt) as received_gross_wt,
-											sum(received_net_wt)as received_net_wt,
-											sum(loss_wt) as loss_wt,
-											sum(diamond_wt_in_gram) as diamond_wt_in_gram,
-											sum(diamond_pcs) as diamond_pcs,
-											sum(gemstone_pcs) as gemstone_pcs
-										from `tabManufacturing Work Order`
-								 		where manufacturing_order = "{doc.manufacturing_order}"
-								 		and docstatus = 1""",
-			as_dict=1,
-		)
+		ManufacturingWorkOrder = frappe.qb.DocType("Manufacturing Work Order")
+
+		get_mwo_weight = (
+			frappe.qb.from_(ManufacturingWorkOrder)
+			.select(
+				Sum(ManufacturingWorkOrder.gross_wt).as_("gross_wt"),
+				Sum(ManufacturingWorkOrder.net_wt).as_("net_wt"),
+				Sum(ManufacturingWorkOrder.finding_wt).as_("finding_wt"),
+				Sum(ManufacturingWorkOrder.diamond_wt).as_("diamond_wt"),
+				Sum(ManufacturingWorkOrder.gemstone_wt).as_("gemstone_wt"),
+				Sum(ManufacturingWorkOrder.other_wt).as_("other_wt"),
+				Sum(ManufacturingWorkOrder.received_gross_wt).as_("received_gross_wt"),
+				Sum(ManufacturingWorkOrder.received_net_wt).as_("received_net_wt"),
+				Sum(ManufacturingWorkOrder.loss_wt).as_("loss_wt"),
+				Sum(ManufacturingWorkOrder.diamond_wt_in_gram).as_("diamond_wt_in_gram"),
+				Sum(ManufacturingWorkOrder.diamond_pcs).as_("diamond_pcs"),
+				Sum(ManufacturingWorkOrder.gemstone_pcs).as_("gemstone_pcs"),
+			)
+			.where(
+				(ManufacturingWorkOrder.manufacturing_order == doc.manufacturing_order)
+				& (ManufacturingWorkOrder.docstatus == 1)
+			)
+		).run(as_dict=True)
+
 		if get_mwo_weight is None:
 			return
 		else:
@@ -869,7 +1000,10 @@ class ManufacturingOperation(Document):
 		# 	new_mop_doc.save()
 
 
-def create_manufacturing_entry(doc, row_data):
+def create_manufacturing_entry(doc, row_data, mo_data=None):
+	if mo_data is None:
+		mo_data = []
+
 	target_wh = frappe.db.get_value(
 		"Warehouse", {"department": doc.department, "warehouse_type": "Manufacturing"}
 	)
@@ -940,10 +1074,11 @@ def create_manufacturing_entry(doc, row_data):
 				"uom": entry["uom"],
 				"batch_no": entry.get("batch_no"),
 				"inventory_type": entry.get("inventory_type"),
+				"customer": entry.get("customer"),
 				"custom_sub_setting_type": entry.get("sub_setting_type"),
 				"manufacturing_operation": doc.manufacturing_operation,
 				"department": doc.department,
-				# "inventory_type": "Regular Stock",
+				"pcs": entry.get("pcs"),
 				"use_serial_batch_fields": 1,
 				"to_department": doc.department,
 				"s_warehouse": target_wh,
@@ -969,6 +1104,58 @@ def create_manufacturing_entry(doc, row_data):
 			"is_finished_item": 1,
 		},
 	)
+
+	total_expence = 0
+	for row in mo_data:
+		total_expence = mo_data[row]["total_expense"]
+
+	expense_account = frappe.db.get_value("Company", doc.company, "default_operating_cost_account")
+
+	po_data = frappe.db.get_all(
+		"Purchase Order Item",
+		{"custom_pmo": doc.parent_manufacturing_order, "docstatus": 1},
+		["name", "parent"],
+	)
+
+	for row in po_data:
+		if not frappe.db.get_value("Purchase Invoice Item", {"po_detail": row.name}):
+			frappe.throw(_("Purchase Invoice is created for {0}").format(row.parent))
+
+	pi_data = frappe.db.get_all(
+		"Purchase Invoice Item",
+		{"custom_pmo": doc.parent_manufacturing_order, "docstatus": 1},
+		["base_rate", "parent"],
+	)
+
+	pi_expense = 0
+	pi_description = []
+	for row in pi_data:
+		pi_expense += row.base_rate
+		if row.parent not in pi_description:
+			pi_description.append(row.parent)
+
+	if not expense_account:
+		frappe.throw(_("Default Operating Cost account is not mentioned in Company."))
+
+	if total_expence > 0:
+		se.append(
+			"additional_costs",
+			{
+				"expense_account": expense_account,
+				"amount": total_expence,
+				"description": "Workstation Cost",
+			},
+		)
+	if pi_expense > 0:
+		se.append(
+			"additional_costs",
+			{
+				"expense_account": expense_account,
+				"amount": pi_expense,
+				"description": ", ".join(pi_description),
+			},
+		)
+
 	se.save()
 	se.submit()
 	update_produced_qty(pmo_det)
@@ -1151,32 +1338,100 @@ def get_material_wt(doc):
 		filters["warehouse_type"] = "Manufacturing"
 
 	t_warehouse = frappe.db.get_value("Warehouse", filters, "name")
-	res = frappe.db.sql(
-		f"""select ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt, ifnull(sum(if(i.variant_of = 'M',sed.qty,0)),0) as net_wt,
-		ifnull(sum(if(i.variant_of = 'D',sed.qty,0)),0) as diamond_wt, ifnull(sum(if(i.variant_of = 'D',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as diamond_wt_in_gram,
-		ifnull(sum(if(i.variant_of = 'G',sed.qty,0)),0) as gemstone_wt, ifnull(sum(if(i.variant_of = 'G',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as gemstone_wt_in_gram,
-		ifnull(sum(if(i.variant_of = 'O',sed.qty,0)),0) as other_wt
-		from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name left join `tabItem` i on i.name = sed.item_code
-			where sed.t_warehouse = "{t_warehouse}" and sed.manufacturing_operation = "{doc.name}" and se.docstatus = 1""",
-		as_dict=1,
-	)
-	if doc.status == "Not Started":
-		los = frappe.db.sql(
-			f"""select ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt, ifnull(sum(if(i.variant_of = 'M',sed.qty,0)),0) as net_wt,
-			ifnull(sum(if(i.variant_of = 'D',sed.qty,0)),0) as diamond_wt, ifnull(sum(if(i.variant_of = 'D',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as diamond_wt_in_gram,
-			ifnull(sum(if(i.variant_of = 'G',sed.qty,0)),0) as gemstone_wt, ifnull(sum(if(i.variant_of = 'G',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as gemstone_wt_in_gram,
-			ifnull(sum(if(i.variant_of = 'O',sed.qty,0)),0) as other_wt
-			from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name left join `tabItem` i on i.name = sed.item_code
-				where sed.s_warehouse = "{t_warehouse}" and sed.manufacturing_operation = "{doc.name}" and se.docstatus = 1""",
-			as_dict=1,
-		)
-		result = {}
-		for key in res[0].keys():
-			result[key] = res[0][key] - los[0][key]
-	else:
-		result = {}
-		for key in res[0].keys():
-			result[key] = res[0][key]
+
+	gross_wt = 0
+	net_wt = 0
+	finding_wt = 0
+	diamond_wt_in_gram = 0
+	gemstone_wt_in_gram = 0
+	diamond_wt = 0
+	gemstone_wt = 0
+	other_wt = 0
+	diamond_pcs = 0
+	gemstone_pcs = 0
+	for row in doc.mop_balance_table:
+		str_pcs = 0
+		if row.pcs and isinstance(row.pcs, str):
+			str_pcs = row.pcs.strip()
+		row.qty = flt(row.qty, 3)
+		if row.item_code[0] in ["M", "F", "D", "G", "O"]:
+			variant_of = row.item_code[0]
+			if variant_of == "M":
+				net_wt += row.qty
+			elif variant_of == "F":
+				finding_wt += row.qty
+			elif variant_of == "D":
+				diamond_wt += row.qty
+				diamond_wt_in_gram += row.qty * 0.2
+				diamond_pcs += int(str_pcs)
+			elif variant_of == "G":
+				gemstone_wt += row.qty
+				gemstone_wt_in_gram += row.qty * 0.2
+				gemstone_pcs += int(str_pcs)
+			else:
+				other_wt += row.qty
+	gross_wt = net_wt + finding_wt + diamond_wt_in_gram + gemstone_wt_in_gram + other_wt
+
+	result = {
+		"gross_wt": gross_wt,
+		"net_wt": net_wt,
+		"finding_wt": finding_wt,
+		"diamond_wt_in_gram": diamond_wt_in_gram,
+		"gemstone_wt_in_gram": gemstone_wt_in_gram,
+		"other_wt": other_wt,
+		"diamond_pcs": diamond_pcs,
+		"gemstone_pcs": gemstone_pcs,
+		"diamond_wt": diamond_wt,
+		"gemstone_wt": gemstone_wt,
+	}
+
+	# res = frappe.db.sql(
+	# 	f"""select ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt, ifnull(sum(if(i.variant_of = 'M',sed.qty,0)),0) as net_wt, if(i.variant_of = 'D', pcs, 0) as diamond_pcs, if(i.variant_of = 'G',pcs, 0) as gemstone_pcs,
+	# 	ifnull(sum(if(i.variant_of = 'D',sed.qty,0)),0) as diamond_wt, ifnull(sum(if(i.variant_of = 'D',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as diamond_wt_in_gram,
+	# 	ifnull(sum(if(i.variant_of = 'G',sed.qty,0)),0) as gemstone_wt, ifnull(sum(if(i.variant_of = 'G',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as gemstone_wt_in_gram,
+	# 	ifnull(sum(if(i.variant_of = 'O',sed.qty,0)),0) as other_wt
+	# 	from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name left join `tabItem` i on i.name = sed.item_code
+	# 		where sed.t_warehouse = "{t_warehouse}" and sed.manufacturing_operation = "{doc.name}" and se.docstatus = 1""",
+	# 	as_dict=1,
+	# )
+
+	# get_previous = []
+	# for row in res:
+	# 	for key in row:
+	# 		if key not in ["diamond_pcs", "gemstone_pcs"] and row.get(key) and row.get(key) != 0:
+	# 			get_previous.append(key)
+
+	# if not get_previous:
+	# 	res = frappe.db.sql(
+	# 		f"""select ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt, ifnull(sum(if(i.variant_of = 'M',sed.qty,0)),0) as net_wt, if(i.variant_of = 'D', pcs, 0) as diamond_pcs, if(i.variant_of = 'G',pcs, 0) as gemstone_pcs,
+	# 		ifnull(sum(if(i.variant_of = 'D',sed.qty,0)),0) as diamond_wt, ifnull(sum(if(i.variant_of = 'D',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as diamond_wt_in_gram,
+	# 		ifnull(sum(if(i.variant_of = 'G',sed.qty,0)),0) as gemstone_wt, ifnull(sum(if(i.variant_of = 'G',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as gemstone_wt_in_gram,
+	# 		ifnull(sum(if(i.variant_of = 'O',sed.qty,0)),0) as other_wt
+	# 		from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name left join `tabItem` i on i.name = sed.item_code
+	# 			where sed.t_warehouse = "{t_warehouse}" and sed.manufacturing_operation = "{doc.previous_mop}" and se.docstatus = 1 limit 1""",
+	# 		as_dict=1,
+	# 	)
+
+	# if doc.status in ["Not Started", "WIP", "QC Pending", "QC Completed"]:
+	# 	los = frappe.db.sql(
+	# 		f"""select ifnull(sum(if(sed.uom='Carat',sed.qty*0.2, sed.qty)),0) as gross_wt, ifnull(sum(if(i.variant_of = 'M',sed.qty,0)),0) as net_wt, if(i.variant_of = 'D', pcs, 0) as diamond_pcs, if(i.variant_of = 'G',pcs, 0) as gemstone_pcs,
+	# 		ifnull(sum(if(i.variant_of = 'D',sed.qty,0)),0) as diamond_wt, ifnull(sum(if(i.variant_of = 'D',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as diamond_wt_in_gram,
+	# 		ifnull(sum(if(i.variant_of = 'G',sed.qty,0)),0) as gemstone_wt, ifnull(sum(if(i.variant_of = 'G',if(sed.uom='Carat',sed.qty*0.2, sed.qty),0)),0) as gemstone_wt_in_gram,
+	# 		ifnull(sum(if(i.variant_of = 'O',sed.qty,0)),0) as other_wt
+	# 		from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name left join `tabItem` i on i.name = sed.item_code
+	# 			where sed.s_warehouse = "{t_warehouse}" and sed.manufacturing_operation = "{doc.name}" and se.docstatus = 1""",
+	# 		as_dict=1,
+	# 	)
+	# 	result = {}
+	# 	for key in res[0].keys():
+	# 		if key not in ["diamond_pcs", "gemstone_pcs"]:
+	# 			result[key] = res[0][key] - los[0][key]
+	# 		else:
+	# 			result[key] = int(res[0][key]) - int(los[0][key])
+	# else:
+	# 	result = {}
+	# 	for key in res[0].keys():
+	# 		result[key] = res[0][key]
 
 	if result:
 		return result
@@ -1193,7 +1448,14 @@ def create_finished_goods_bom(self, se_name, mo_data, total_time=0):
 		else:
 			frappe.throw(_("Create default BOM for New Item"))
 
+	diamond_quality = frappe.db.get_value(
+		"Parent Manufacturing Order", self.parent_manufacturing_order, "diamond_quality"
+	)
+
 	new_bom = frappe.copy_doc(bom_doc)
+	new_bom.is_active = 1
+	new_bom.custom_creation_doctype = self.doctype
+	new_bom.custom_creation_docname = self.name
 	new_bom.bom_type = "Finish Goods"
 	new_bom.tag_no = get_serial_no(se_name)
 	new_bom.custom_serial_number_creator = self.name
@@ -1223,51 +1485,71 @@ def create_finished_goods_bom(self, se_name, mo_data, total_time=0):
 
 	new_bom.operation_time_diff = new_bom.total_operation_time - new_bom.actual_operation_time
 
+	gemstone_price_list_type = frappe.db.get_value(
+		"Customer", new_bom.customer, "custom_gemstone_price_list_type"
+	)
+
+	if new_bom.customer and not gemstone_price_list_type:
+		frappe.throw(_("Gemstone Price list type not mentioned into customer"))
+
 	for item in data:
 		item_row = frappe.get_doc("Item", item["item_code"])
 
 		if item_row.variant_of == "M":
 			row = {}
+			row["se_rate"] = item.get("rate")
 			for attribute in item_row.attributes:
 				atrribute_name = format_attrbute_name(attribute.attribute)
 				row[atrribute_name] = attribute.attribute_value
 				row["quantity"] = item["qty"]
 				if item.get("inventory_type") and item.get("inventory_type") == "Customer Goods":
 					row["is_customer_item"] = 1
+				row["pcs"] = item.get("pcs")
 			new_bom.append("metal_detail", row)
 
 		elif item_row.variant_of == "F":
 			row = {}
+			row["se_rate"] = item.get("rate")
 			for attribute in item_row.attributes:
 				atrribute_name = format_attrbute_name(attribute.attribute)
 				row[atrribute_name] = attribute.attribute_value
 				row["quantity"] = item["qty"]
 				if item.get("inventory_type") and item.get("inventory_type") == "Customer Goods":
 					row["is_customer_item"] = 1
+				row["pcs"] = item.get("pcs")
 			new_bom.append("finding_detail", row)
 
 		elif item_row.variant_of == "D":
 			row = {}
+			row["se_rate"] = item.get("rate")
 			for attribute in item_row.attributes:
 				atrribute_name = format_attrbute_name(attribute.attribute)
 				row[atrribute_name] = attribute.attribute_value
 				row["quantity"] = item["qty"]
 				if item.get("inventory_type") and item.get("inventory_type") == "Customer Goods":
 					row["is_customer_item"] = 1
+				row["pcs"] = item.get("pcs")
+			if diamond_quality:
+				row["quality"] = diamond_quality
+
 			new_bom.append("diamond_detail", row)
 
 		elif item_row.variant_of == "G":
 			row = {}
+			row["se_rate"] = item.get("rate")
+			row["price_list_type"] = gemstone_price_list_type
 			for attribute in item_row.attributes:
 				atrribute_name = format_attrbute_name(attribute.attribute)
 				row[atrribute_name] = attribute.attribute_value
 				row["quantity"] = item["qty"]
 				if item.get("inventory_type") and item.get("inventory_type") == "Customer Goods":
 					row["is_customer_item"] = 1
+				row["pcs"] = item.get("pcs")
 			new_bom.append("gemstone_detail", row)
 
 		elif item_row.variant_of == "O":
 			row = {}
+			row["se_rate"] = item.get("rate")
 			for attribute in item_row.attributes:
 				atrribute_name = format_attrbute_name(attribute.attribute)
 				row[atrribute_name] = attribute.attribute_value
@@ -1284,13 +1566,15 @@ def create_finished_goods_bom(self, se_name, mo_data, total_time=0):
 
 
 def get_stock_entry_data(self):
-	target_wh = frappe.db.get_value("Warehouse", {"department": self.department})
+	target_wh = frappe.db.get_value(
+		"Warehouse", {"department": self.department, "warehouse_type": "Manufacturing"}
+	)
 	pmo = frappe.db.get_value(
 		"Manufacturing Work Order", self.manufacturing_work_order, "manufacturing_order"
 	)
 	# se = frappe.new_doc("Stock Entry")
 	# se.stock_entry_type = "Manufacture"
-	mwo = frappe.get_all(
+	mop = frappe.get_all(
 		"Manufacturing Work Order",
 		{
 			"name": ["!=", self.manufacturing_work_order],
@@ -1298,15 +1582,39 @@ def get_stock_entry_data(self):
 			"docstatus": ["!=", 2],
 			"department": ["=", self.department],
 		},
-		pluck="name",
+		pluck="manufacturing_operation",
 	)
-	data = frappe.db.sql(
-		f"""select sed.custom_manufacturing_work_order, se.manufacturing_operation, sed.parent, sed.item_code,sed.item_name, sed.qty, sed.uom, sed.inventory_type
-						from `tabStock Entry Detail` sed left join `tabStock Entry` se on sed.parent = se.name where
-						se.docstatus = 1 and sed.custom_manufacturing_work_order in ('{"', '".join(mwo)}') and sed.t_warehouse = '{target_wh}'
-						group by sed.manufacturing_operation,  sed.item_code, sed.qty, sed.uom """,
-		as_dict=1,
-	)
+	StockEntry = frappe.qb.DocType("Stock Entry")
+	StockEntryDetail = frappe.qb.DocType("Stock Entry Detail")
+
+	data = (
+		frappe.qb.from_(StockEntryDetail)
+		.left_join(StockEntry)
+		.on(StockEntryDetail.parent == StockEntry.name)
+		.select(
+			StockEntryDetail.custom_manufacturing_work_order,
+			StockEntry.manufacturing_operation,
+			StockEntryDetail.parent,
+			StockEntryDetail.item_code,
+			StockEntryDetail.item_name,
+			StockEntryDetail.qty,
+			StockEntryDetail.uom,
+			StockEntryDetail.inventory_type,
+			StockEntryDetail.pcs,
+			Avg(StockEntryDetail.basic_rate).as_("rate"),
+		)
+		.where(
+			(StockEntry.docstatus == 1)
+			& (StockEntryDetail.manufacturing_operation.isin(mop))
+			& (StockEntryDetail.t_warehouse == target_wh)
+		)
+		.groupby(
+			StockEntryDetail.manufacturing_operation,
+			StockEntryDetail.item_code,
+			StockEntryDetail.qty,
+			StockEntryDetail.uom,
+		)
+	).run(as_dict=True)
 
 	return data
 
@@ -1327,20 +1635,23 @@ def get_serial_no(se_name):
 
 
 def finish_other_tagging_operations(doc, pmo):
-	mop_data = frappe.db.sql(
-		"""SELECT manufacturing_order,name as manufacturing_operation,status
-				FROM `tabManufacturing Operation`
-				WHERE manufacturing_order = %(manufacturing_order)s
-				AND name != %(manufacturing_operation)s
-				AND status != 'Finished' AND department = %(department)s """,
-		(
-			{
-				"manufacturing_order": pmo,
-				"department": doc.department,
-				"manufacturing_operation": doc.manufacturing_operation,
-			}
-		),
-		as_dict=1,
+	ManufacturingOperation = frappe.qb.DocType("Manufacturing Operation")
+
+	mop_data = (
+		frappe.qb.from_(ManufacturingOperation)
+		.select(
+			ManufacturingOperation.manufacturing_order,
+			ManufacturingOperation.name.as_("manufacturing_operation"),
+			ManufacturingOperation.status,
+		)
+		.where(
+			(ManufacturingOperation.manufacturing_order == pmo)
+			& (ManufacturingOperation.name != doc.manufacturing_operation)
+			& (ManufacturingOperation.status != "Finished")
+			& (ManufacturingOperation.department == doc.department)
+		)
+	).run(
+		as_dict=True
 	)  # name
 
 	for mop in mop_data:

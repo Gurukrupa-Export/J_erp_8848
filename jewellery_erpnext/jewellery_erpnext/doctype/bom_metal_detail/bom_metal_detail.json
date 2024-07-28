@@ -15,6 +15,7 @@
   "purity_percentage",
   "wastage_rate",
   "wastage_amount",
+  "se_rate",
   "column_break_7",
   "cad_finish_ratio",
   "cad_to_finish_ratio",
@@ -255,12 +256,18 @@
    "fieldtype": "Currency",
    "label": "FG Purchase Amount",
    "read_only": 1
+  },
+  {
+   "fieldname": "se_rate",
+   "fieldtype": "Currency",
+   "label": "SE Rate",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-02-20 15:24:27.645246",
+ "modified": "2024-07-09 17:27:02.979420",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "BOM Metal Detail",

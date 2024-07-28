@@ -21,6 +21,7 @@
   "to_weight",
   "sieve_size_range",
   "size_in_mm",
+  "diamond_size_in_mm",
   "rate",
   "handling_rate",
   "currency",
@@ -64,7 +65,7 @@
   {
    "fieldname": "diamond_quality",
    "fieldtype": "Link",
-   "label": "Diamond Quality",
+   "label": "Customer Diamond Quality",
    "options": "Attribute Value",
    "reqd": 1
   },
@@ -110,16 +111,19 @@
   },
   {
    "fieldname": "rate",
-   "fieldtype": "Float",
+   "fieldtype": "Currency",
    "label": "Rate",
+   "options": "currency",
    "reqd": 1
   },
   {
    "fieldname": "handling_rate",
    "fieldtype": "Currency",
-   "label": "Diamond Handling Rate"
+   "label": "Diamond Handling Rate",
+   "options": "currency"
   },
   {
+   "fetch_from": "customer.default_currency",
    "fieldname": "currency",
    "fieldtype": "Link",
    "label": "Currency",
@@ -136,12 +140,19 @@
    "fieldname": "supplier_fg_purchase_rate",
    "fieldtype": "Currency",
    "label": "Supplier FG Purchase Rate",
+   "options": "currency",
    "precision": "3"
+  },
+  {
+   "fieldname": "diamond_size_in_mm",
+   "fieldtype": "Link",
+   "label": "Diamond Size in MM",
+   "options": "Attribute Value"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-02-19 17:31:10.865007",
+ "modified": "2024-07-24 14:54:37.987948",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Diamond Price List",

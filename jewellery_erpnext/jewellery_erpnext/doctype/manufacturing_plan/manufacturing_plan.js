@@ -33,6 +33,21 @@ frappe.ui.form.on("Manufacturing Plan", {
 			size: "extra-large",
 		});
 	},
+	get_mwo(frm) {
+		map_current_doc({
+			method: "jewellery_erpnext.jewellery_erpnext.doctype.manufacturing_plan.doc_events.utils.get_mwo",
+			source_doctype: "Manufacturing Work Order",
+			target: frm,
+			setters: {
+				customer: null,
+				company: frm.doc.company,
+				branch: frm.doc.branch,
+			},
+			get_query_method:
+				"jewellery_erpnext.jewellery_erpnext.doctype.manufacturing_plan.doc_events.utils.get_mwo_details",
+			size: "extra-large",
+		});
+	},
 	get_repair_order(frm) {
 		map_current_doc({
 			method: "jewellery_erpnext.jewellery_erpnext.doctype.manufacturing_plan.manufacturing_plan.get_sales_order",

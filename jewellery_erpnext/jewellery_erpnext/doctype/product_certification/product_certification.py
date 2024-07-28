@@ -36,9 +36,12 @@ class ProductCertification(Document):
 				"Product Details",
 				{
 					"parent": self.receive_against,
-					"serial_no": row.serial_no,
+					"serial_no": row.get("serial_no") if row.get("serial_no") else None,
 					"item_code": row.item_code,
-					"manufacturing_work_order": row.manufacturing_work_order,
+					"manufacturing_work_order": row.get("manufacturing_work_order")
+					if row.get("manufacturing_work_order")
+					else None,
+					"tree_no": row.get("tree_no") if row.get("tree_no") else None,
 				},
 			):
 				# frappe.throw(_(f"Row #{row.idx}: item not found in {self.receive_against}"))
@@ -69,7 +72,21 @@ class ProductCertification(Document):
 		if self.type == "Issue":
 			self.total_amount = 0
 		amt = self.total_amount / length
+
+		qty_data = {}
+		for row in self.product_details:
+			if qty_data.get(row.manufacturing_work_order, row.serial_no):
+				qty_data[(row.manufacturing_work_order, row.serial_no)] += row.total_weight
+			else:
+				qty_data[(row.manufacturing_work_order, row.serial_no)] = row.total_weight
+
 		for row in self.exploded_product_details:
+			if qty_data.get((row.manufacturing_work_order, row.serial_no)):
+				if row.gross_weight == 0 or not row.gross_weight:
+					row.gross_weight = qty_data[(row.manufacturing_work_order, row.serial_no)]
+					qty_data[(row.manufacturing_work_order, row.serial_no)] = 0
+				else:
+					qty_data[(row.manufacturing_work_order, row.serial_no)] -= row.gross_weight
 			row.amount = amt
 
 	def on_submit(self):
@@ -130,6 +147,7 @@ class ProductCertification(Document):
 						and (
 							row.manufacturing_work_order == i.manufacturing_work_order
 							or row.manufacturing_work_order == ""
+							or not row.manufacturing_work_order
 						)
 					):
 						existing.append(i)
@@ -184,7 +202,7 @@ class ProductCertification(Document):
 						}
 					)
 
-		elif self.service_type in ["Fire SI Services", "XRF Services"]:
+		elif self.service_type in ["Fire Assy Service", "XRF Services"]:
 			pure_item = frappe.db.get_value("Manufacturing Setting", self.company, "pure_gold_item")
 			if not pure_item:
 				frappe.throw(_("Please mention Pure Item in Manufacturing Setting"))
@@ -192,12 +210,13 @@ class ProductCertification(Document):
 			existing_data = []
 			for row in self.exploded_product_details:
 				existing_data.append([row.main_slip, row.tree_no])
+
 			for row in self.product_details:
 				if [row.main_slip, row.tree_no] not in existing_data:
 					exploded_product_details.append(
 						{"item_code": row.item_code, "main_slip": row.main_slip, "tree_no": row.tree_no}
 					)
-					if self.service_type == "Fire SI Services":
+					if self.service_type == "Fire Assy Service":
 						exploded_product_details.append(
 							{"item_code": pure_item, "main_slip": row.main_slip, "tree_no": row.tree_no}
 						)
@@ -212,17 +231,17 @@ class ProductCertification(Document):
 			self.append("exploded_product_details", row)
 
 	@frappe.whitelist()
-	def get_item_from_main_slip(self, main_slip):
+	def get_item_from_main_slip(self, tree_no):
 		metal = frappe.db.get_value(
 			"Main Slip",
-			main_slip,
-			["metal_type", "metal_touch", "metal_purity", "metal_colour", "tree_number"],
+			{"tree_number": tree_no},
+			["metal_type", "metal_touch", "metal_purity", "metal_colour", "name"],
 			as_dict=1,
 		)
 		from jewellery_erpnext.utils import get_item_from_attribute
 
 		return {
-			"tree_no": metal.tree_number,
+			"main_slip": metal.name,
 			"item_code": get_item_from_attribute(
 				metal.metal_type, metal.metal_touch, metal.metal_purity, metal.metal_colour
 			),
@@ -240,7 +259,7 @@ def create_stock_entry(doc):
 		se_doc.company = doc.company
 		se_doc.product_certification = doc.name
 		warehouse_type = "Manufacturing"
-		if doc.service_type in ["Fire SI Services", "XRF Services"]:
+		if doc.service_type in ["Fire Assy Service", "XRF Services"]:
 			warehouse_type = "Raw Material"
 		s_warehouse = frappe.db.exists(
 			"Warehouse",
@@ -253,6 +272,7 @@ def create_stock_entry(doc):
 		t_warehouse = frappe.db.exists(
 			"Warehouse",
 			{
+				"company": doc.company,
 				"subcontractor": doc.supplier,
 				"warehouse_type": warehouse_type,
 				"disabled": 0,
@@ -266,30 +286,33 @@ def create_stock_entry(doc):
 				get_stock_item_against_mwo(se_doc, doc, row, s_warehouse, t_warehouse)
 				added_mwo.append(row.manufacturing_work_order)
 			else:
-				if row.serial_no in added_serial:
+				if (not row.serial_no or row.serial_no in added_serial) and not row.tree_no:
 					continue
 				added_serial.append(row.serial_no)
-				se_doc.append(
-					"items",
-					{
-						"item_code": row.item_code,
-						"serial_no": row.serial_no,
-						"qty": 1 if row.serial_no else row.gross_weight,
-						"s_warehouse": s_warehouse if doc.type == "Issue" else t_warehouse,
-						"t_warehouse": t_warehouse if doc.type == "Issue" else s_warehouse,
-						"Inventory_type": "Regular Stock",
-						"reference_doctype": "Serial No",
-						"reference_docname": row.serial_no,
-						"serial_and_batch_bundle": None,
-						"use_serial_batch_fields": True,
-						"gross_weight": row.gross_weight,
-					},
-				)
+				if row.gross_weight > 0:
+					se_doc.append(
+						"items",
+						{
+							"item_code": row.item_code,
+							"serial_no": row.serial_no,
+							"qty": 1 if row.serial_no else row.gross_weight,
+							"s_warehouse": s_warehouse if doc.type == "Issue" else t_warehouse,
+							"t_warehouse": t_warehouse if doc.type == "Issue" else s_warehouse,
+							"Inventory_type": "Regular Stock",
+							"reference_doctype": "Serial No",
+							"reference_docname": row.serial_no,
+							"serial_and_batch_bundle": None,
+							"use_serial_batch_fields": True,
+							"gross_weight": row.gross_weight,
+						},
+					)
+		if not se_doc.items:
+			frappe.throw(_("No item found for Repack"))
 		se_doc.inventory_type = "Regular Stock"
 		se_doc.save()
 		se_doc.submit()
 		frappe.msgprint(_("Stock Entry created"))
-	elif doc.type == "Receive" and doc.service_type in ["Fire SI Services", "XRF Services"]:
+	elif doc.type == "Receive" and doc.service_type in ["Fire Assy Service", "XRF Services"]:
 		create_repack_entry(doc)
 
 

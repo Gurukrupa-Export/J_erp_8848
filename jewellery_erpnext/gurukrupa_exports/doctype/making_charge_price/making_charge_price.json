@@ -10,8 +10,11 @@
  "field_order": [
   "customer",
   "setting_type",
+  "currency",
   "column_break_3",
   "metal_type",
+  "from_gold_rate",
+  "to_gold_rate",
   "section_break_7",
   "subcategory",
   "section_break_9",
@@ -66,11 +69,30 @@
    "label": "Metal Type",
    "options": "Attribute Value",
    "reqd": 1
+  },
+  {
+   "fieldname": "from_gold_rate",
+   "fieldtype": "Currency",
+   "label": "From Gold Rate",
+   "options": "currency"
+  },
+  {
+   "fieldname": "to_gold_rate",
+   "fieldtype": "Currency",
+   "label": "To Gold Rate",
+   "options": "currency"
+  },
+  {
+   "fetch_from": "customer.default_currency",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-02-19 18:20:13.727689",
+ "modified": "2024-07-11 14:46:49.042555",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Making Charge Price",

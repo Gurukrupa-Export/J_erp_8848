@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "S/ORD/.#####",
  "creation": "2022-05-06 15:16:43.721055",
@@ -17,6 +18,7 @@
   "order_date",
   "delivery_date",
   "project",
+  "flow_type",
   "column_break_4",
   "po_no",
   "order_type",
@@ -30,11 +32,11 @@
   "concept_image",
   "image_preview",
   "concept_type",
+  "design_style",
+  "collection_1",
   "age_group",
   "alphabetnumber",
   "animalbirds",
-  "design_style",
-  "collection_1",
   "gender",
   "lines_rows",
   "column_break_phwb",
@@ -52,6 +54,7 @@
   "usa_states",
   "section_break_9",
   "amended_from",
+  "tab_break_v5g7",
   "repair_order"
  ],
  "fields": [
@@ -113,7 +116,7 @@
    "fieldname": "order_type",
    "fieldtype": "Select",
    "label": "Order Type",
-   "options": "\nSales\nStock Order",
+   "options": "\nSales\nStock Order\nRepair",
    "reqd": 1
   },
   {
@@ -155,11 +158,9 @@
   {
    "fieldname": "concept_type",
    "fieldtype": "Tab Break",
-   "label": "Design Attributes",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
+   "label": "Design Attributes"
   },
   {
-   "depends_on": "eval:((doc.order_date != null) &&\n(doc.due_days != null) && \n(doc.delivery_date != null) && \n(doc.customer_code != null) && \n(doc.order_type != null) && \n(doc.salesman_name != null))",
    "fieldname": "order_details",
    "fieldtype": "Table",
    "label": "Order Details",
@@ -188,40 +189,34 @@
   {
    "fieldname": "territories_tab",
    "fieldtype": "Tab Break",
-   "label": "Territories",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
+   "label": "Territories"
   },
   {
    "default": "0",
    "fieldname": "india",
    "fieldtype": "Check",
-   "label": "INDIA",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
+   "label": "INDIA"
   },
   {
    "fieldname": "india_states",
    "fieldtype": "Table MultiSelect",
    "label": "States",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'",
    "options": "Territory Multi Select"
   },
   {
    "fieldname": "column_break_cibey",
-   "fieldtype": "Column Break",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
+   "fieldtype": "Column Break"
   },
   {
    "default": "0",
    "fieldname": "usa",
    "fieldtype": "Check",
-   "label": "USA",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'"
+   "label": "USA"
   },
   {
    "fieldname": "usa_states",
    "fieldtype": "Select",
    "label": "States",
-   "mandatory_depends_on": "eval: doc.design_by=='Concept by Designer'",
    "options": "\nUSA"
   },
   {
@@ -332,10 +327,22 @@
    "options": "Design Attribute - Multiselect"
   },
   {
+   "depends_on": "eval:doc.repair_order",
+   "fieldname": "tab_break_v5g7",
+   "fieldtype": "Tab Break",
+   "label": "Repair Order"
+  },
+  {
    "fieldname": "repair_order",
    "fieldtype": "Link",
    "label": "Repair Order",
    "options": "Repair Order"
+  },
+  {
+   "fieldname": "flow_type",
+   "fieldtype": "Select",
+   "label": "Flow Type",
+   "options": "MTO\nMTBI\nFILLER\nGCC\nUS\nJWO"
   }
  ],
  "index_web_pages_for_search": 1,

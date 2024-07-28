@@ -30,15 +30,14 @@ frappe.ui.form.on("Material Request", {
 	validate(frm) {
 		$.each(frm.doc.items || [], function (i, d) {
 			d.custom_insurance_amount = flt(d.custom_insurance_rate) * flt(d.qty);
-			d.serial_no = d.custom_serial_no;
+			// d.serial_no = d.custom_serial_no;
 		});
 		frm.refresh_field("items");
 	},
 	get_items_from_customer_goods(frm) {
-		console.log("test");
 		if (frm.doc.docstatus === 0) {
 			frm.add_custom_button(
-				__("Customer Goods Received"),
+				__("Stock Entry"),
 				function () {
 					erpnext.utils.map_current_doc({
 						method: "jewellery_erpnext.jewellery_erpnext.doc_events.material_request.make_stock_in_entry",
@@ -46,8 +45,8 @@ frappe.ui.form.on("Material Request", {
 						target: frm,
 						date_field: "posting_date",
 						setters: {
-							stock_entry_type: "Customer Goods Received",
-							purpose: "Material Receipt",
+							stock_entry_type: null,
+							purpose: "Material Transfer",
 							_customer: frm.doc._customer,
 							inventory_type: frm.doc.inventory_type,
 						},
@@ -69,13 +68,67 @@ frappe.ui.form.on("Material Request", {
 frappe.ui.form.on("Material Request Item", {
 	item_code(frm, cdt, cdn) {
 		frm.trigger("custom_insurance_rate");
-		let child = locals[cdt][cdn];
-		frappe.db.get_value("Item", child.item_code, "item_group", function (r) {
+		let d = locals[cdt][cdn];
+		frappe.db.get_value("Item", d.item_code, "item_group", function (r) {
 			if (r.item_group == "Metal - V") {
-				child.pcs = 1;
+				d.pcs = 1;
 				frm.refresh_field("items");
 			}
 		});
+		if (d.item_code) {
+			var args = {
+				company: frm.doc.company,
+				item_code: d.item_code,
+				warehouse: cstr(d.s_warehouse) || cstr(d.t_warehouse),
+				transfer_qty: d.transfer_qty,
+				serial_no: d.serial_no,
+				batch_no: d.batch_no,
+				bom_no: d.bom_no,
+				expense_account: d.expense_account,
+				cost_center: d.cost_center,
+				qty: d.qty,
+				voucher_type: frm.doc.doctype,
+				voucher_no: d.name,
+				allow_zero_valuation: 1,
+			};
+
+			return frappe.call({
+				method: "jewellery_erpnext.jewellery_erpnext.doc_events.material_request.get_item_details",
+				args: {
+					args: args,
+				},
+				callback: function (r) {
+					if (r.message) {
+						var d = locals[cdt][cdn];
+						$.each(r.message, function (k, v) {
+							if (v) {
+								frappe.model.set_value(cdt, cdn, k, v); // qty and it's subsequent fields weren't triggered
+							}
+						});
+						refresh_field("items");
+
+						let no_batch_serial_number_value = false;
+						if (d.has_serial_no || d.has_batch_no) {
+							no_batch_serial_number_value = true;
+						}
+						frappe.flags.hide_serial_batch_dialog = false;
+						frappe.flags.dialog_set = false;
+
+						if (
+							no_batch_serial_number_value &&
+							!frappe.flags.hide_serial_batch_dialog &&
+							!frappe.flags.dialog_set
+						) {
+							frappe.flags.dialog_set = true;
+							frappe.flags.hide_serial_batch_dialog = true;
+							erpnext.stock.select_batch_and_serial_no(frm, d);
+						} else {
+							frappe.flags.dialog_set = false;
+						}
+					}
+				},
+			});
+		}
 	},
 
 	custom_insurance_rate(frm, cdt, cdn) {
@@ -85,3 +138,47 @@ frappe.ui.form.on("Material Request Item", {
 		frm.refresh_field("items");
 	},
 });
+
+erpnext.stock.select_batch_and_serial_no = (frm, item) => {
+	let path = "assets/erpnext/js/utils/serial_no_batch_selector.js";
+
+	frappe.db.get_value("Item", item.item_code, ["has_batch_no", "has_serial_no"]).then((r) => {
+		if (r.message && (r.message.has_batch_no || r.message.has_serial_no)) {
+			item.has_serial_no = r.message.has_serial_no;
+			item.has_batch_no = r.message.has_batch_no;
+			item.type_of_transaction = item.s_warehouse ? "Outward" : "Inward";
+
+			new erpnext.SerialBatchPackageSelector(frm, item, (r) => {
+				var sr_list = [];
+				if (r) {
+					if (r.entries) {
+						r.entries.forEach((element) => {
+							if (item.has_batch_no) {
+								frappe.model.set_value(item.doctype, item.name, {
+									batch_no: element.batch_no,
+									qty:
+										Math.abs(r.total_qty) /
+										flt(
+											item.conversion_factor || 1,
+											precision("conversion_factor", item)
+										),
+								});
+							} else if (item.has_serial_no) {
+								sr_list.push(element.serial_no);
+							}
+						});
+						if (sr_list) {
+							var serial_no = sr_list.join(",");
+							frappe.model.set_value(
+								item.doctype,
+								item.name,
+								"serial_no",
+								serial_no
+							);
+						}
+					}
+				}
+			});
+		}
+	});
+};

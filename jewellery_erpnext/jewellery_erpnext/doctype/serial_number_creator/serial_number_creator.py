@@ -76,7 +76,9 @@ def to_prepare_data_for_make_mnf_stock_entry(self):
 						"uom": row.uom,
 						"id": row.id,
 						"inventory_type": row.inventory_type,
+						"customer": row.customer,
 						"batch_no": row.batch_no,
+						"pcs": row.pcs,
 					}
 				)
 			else:
@@ -87,12 +89,12 @@ def to_prepare_data_for_make_mnf_stock_entry(self):
 						"uom": row.uom,
 						"id": row.id,
 						"inventory_type": row.inventory_type,
+						"customer": row.customer,
 						"batch_no": row.batch_no,
+						"pcs": row.pcs,
 					}
 				)
 	for key, row_data in id_wise_data_split.items():
-		se_name = create_manufacturing_entry(self, row_data)
-
 		pmo = frappe.db.get_value(
 			"Manufacturing Work Order", self.manufacturing_work_order, "manufacturing_order"
 		)
@@ -133,6 +135,8 @@ def to_prepare_data_for_make_mnf_stock_entry(self):
 					"total_expense": total_expense,
 					"operation_time": operation_time,
 				}
+
+		se_name = create_manufacturing_entry(self, row_data, mo_data)
 
 		create_finished_goods_bom(self, se_name, mo_data, total_time)
 
@@ -237,6 +241,7 @@ def get_operation_details(data, docname, mwo, pmo, company, mnf, dpt, for_fg, de
 						"inventory_type": data_entry["inventory_type"],
 						"sub_setting_type": data_entry.get("custom_sub_setting_type"),
 						"sed_item": data_entry["name"],
+						"pcs": data_entry.get("pcs"),
 					},
 				)
 	if mnf_qty > 1:
@@ -247,6 +252,7 @@ def get_operation_details(data, docname, mwo, pmo, company, mnf, dpt, for_fg, de
 					"row_material": data_entry["item_code"],
 					"qty": data_entry["qty"],
 					"uom": data_entry["uom"],
+					"pcs": data_entry.get("pcs")
 					# "id": mnf_id,
 					# "batch_no": data_entry["batch_no"],
 					# "gross_wt": data_entry["gross_wt"],

@@ -27,9 +27,13 @@ frappe.ui.form.on("Sales Order", {
 				var customer_approval_dialoge = new frappe.ui.form.MultiSelectDialog({
 					doctype: "Customer Approval",
 					target: frm,
-					setters: {
-						date: null,
-					},
+					setters: [
+						{
+							label: "date",
+							fieldname: "date",
+							fieldtype: "Date",
+						},
+					],
 					add_filters_group: 1,
 					get_query() {
 						return {
@@ -68,6 +72,8 @@ frappe.ui.form.on("Sales Order", {
 									child_row.qty = items_row["quantity"];
 									child_row.amount = items_row["amount"];
 									child_row.serial_no = items_row["serial_no"];
+									child_row.custom_customer_approval = items_row["parent"];
+									child_row.custom_customer_approval_item = items_row["name"];
 								}
 								for (let sales_person_row of response.message.sales_person_child) {
 									child_row = frm.add_child("custom_sales_teams");

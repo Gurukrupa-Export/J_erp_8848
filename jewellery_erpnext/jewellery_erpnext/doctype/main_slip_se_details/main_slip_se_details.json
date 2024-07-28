@@ -16,7 +16,9 @@
   "mop_consume_qty",
   "se_item",
   "auto_created",
-  "inventory_type"
+  "inventory_type",
+  "customer",
+  "create_loss_entry"
  ],
  "fields": [
   {
@@ -91,12 +93,25 @@
    "label": "Stock Entry",
    "options": "Stock Entry",
    "read_only": 1
+  },
+  {
+   "fetch_from": "se_item.customer",
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "depends_on": "eval: doc.parentfield == \"batch_details\";",
+   "fieldname": "create_loss_entry",
+   "fieldtype": "Button",
+   "label": "Create Loss Entry"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-04-15 12:03:32.245162",
+ "modified": "2024-06-19 14:00:53.644162",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Main Slip SE Details",

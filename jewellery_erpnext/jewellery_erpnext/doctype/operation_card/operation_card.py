@@ -5,6 +5,7 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import flt, get_link_to_form
 from frappe.model.mapper import get_mapped_doc
+from frappe.query_builder.custom import ConstantColumn
 
 class OperationCard(Document):
 	def autoname(self):
@@ -38,24 +39,57 @@ class OperationCard(Document):
 
 	def get_external_in_weight(self):
 		warehouse = frappe.db.get_value('Operation Warehouse', {'parent': self.operation}, 'warehouse')
-		return frappe.db.sql(f"""
-			select parent, item_code, s_warehouse as from_warehouse, t_warehouse as to_warehouse, 
-			item_code, qty as gross_wt, metal_purity as purity, 0 as net_wt, uom
-			from `tabStock Entry Detail` where docstatus = 1 and t_warehouse = '{warehouse}'
-			and operation_card = '{self.name}' 
-		""", as_dict= True)
+		StockEntryDetail = frappe.qb.DocType('Stock Entry Detail')
+		query = (
+			frappe.qb.from_(StockEntryDetail)
+			.select(
+				StockEntryDetail.parent,
+				StockEntryDetail.item_code,
+				StockEntryDetail.s_warehouse.as_('from_warehouse'),
+				StockEntryDetail.t_warehouse.as_('to_warehouse'),
+				StockEntryDetail.item_code,
+				StockEntryDetail.qty.as_('gross_wt'),
+				StockEntryDetail.metal_purity.as_('purity'),
+				ConstantColumn(0).as_('net_wt'),
+				StockEntryDetail.uom
+			)
+			.where((StockEntryDetail.docstatus == 1) &
+				(StockEntryDetail.t_warehouse == warehouse) &
+				(StockEntryDetail.operation_card == self.name))
+		)
+
+		data = query.run(as_dict=True)
+		return data
 	
 	def get_loss_weight(self):
 		warehouse = frappe.db.get_value('Operation Warehouse', {'parent': self.operation}, 'warehouse')
-		return frappe.db.sql(f"""
-			select sed.parent, sed.item_code, sed.s_warehouse as from_warehouse, sed.t_warehouse as to_warehouse, 
-			sed.item_code, sed.qty as gross_wt, sed.metal_purity as purity, 0 as net_wt, sed.uom
-			from `tabStock Entry Detail` sed
-			join `tabStock Entry` se ON se.name = sed.parent
-			where sed.docstatus = 1 and sed.s_warehouse = '{warehouse}'
-			and sed.operation_card = '{self.name}'
-			and se.stock_entry_type = 'Broken / Loss'
-		""", as_dict= True)
+		StockEntryDetail = frappe.qb.DocType('Stock Entry Detail')
+		StockEntry = frappe.qb.DocType('Stock Entry')
+
+		query = (
+			frappe.qb.from_(StockEntryDetail)
+			.join(StockEntry)
+			.on(StockEntry.name == StockEntryDetail.parent)
+			.select(
+				StockEntryDetail.parent,
+				StockEntryDetail.item_code,
+				StockEntryDetail.s_warehouse.as_('from_warehouse'),
+				StockEntryDetail.t_warehouse.as_('to_warehouse'),
+				StockEntryDetail.item_code,
+				StockEntryDetail.qty.as_('gross_wt'),
+				StockEntryDetail.metal_purity.as_('purity'),
+				ConstantColumn(0).as_('net_wt'),
+				StockEntryDetail.uom
+			)
+			.where(StockEntryDetail.docstatus == 1)
+			.where(StockEntryDetail.s_warehouse == warehouse)
+			.where(StockEntryDetail.operation_card == self.name)
+			.where(StockEntry.stock_entry_type == 'Broken / Loss')
+		)
+
+		loss_weights = query.run(as_dict=True)
+
+		return loss_weights
 
 	
 table_html = """
@@ -132,12 +166,18 @@ def make_stock_return(source_name, target_doc=None):
 		Create Stock Return Entry.
 	"""
 	# warehouse = frappe.db.get_value('Operation Warehouse', {'parent': source_name}, 'warehouse')
-	warehouse_details = frappe.db.sql(f"""
-				SELECT opw.warehouse
-				FROM `tabOperation Warehouse` opw 
-				JOIN `tabOperation Card` oc ON oc.operation = opw.parent
-				WHERE oc.name = '{source_name}' 
-	""", as_dict=True)
+	OperationWarehouse = frappe.qb.DocType('Operation Warehouse')
+	OperationCard = frappe.qb.DocType('Operation Card')
+
+	query = (
+        frappe.qb.from_(OperationWarehouse)
+        .join(OperationCard)
+        .on(OperationCard.operation == OperationWarehouse.parent)
+        .select(OperationWarehouse.warehouse)
+        .where(OperationCard.name == source_name)
+    )
+
+	warehouse_details = query.run(as_dict=True)
 
 	warehouse = warehouse_details[0].get('warehouse') if warehouse_details else None
 
@@ -145,12 +185,19 @@ def make_stock_return(source_name, target_doc=None):
 		target.stock_entry_type = 'Broken / Loss'
 		target.items = []
 		target.inventory_dimension = 'Operation Card'
-		bom = frappe.db.sql(f"""
-							SELECT soi.bom
-							FROM `tabSales Order Item` soi
-							JOIN `tabProduction Order` po ON po.sales_order_item = soi.name
-							WHERE po.name = '{target.production_order}' 
-				""", as_dict=True)[0].get('bom')
+
+		SalesOrderItem = frappe.qb.DocType('Sales Order Item')
+		ProductionOrder = frappe.qb.DocType('Production Order')
+		query = (
+			frappe.qb.from_(SalesOrderItem)
+			.join(ProductionOrder)
+			.on(ProductionOrder.sales_order_item == SalesOrderItem.name)
+			.select(SalesOrderItem.bom)
+			.where(ProductionOrder.name == target.production_order)
+		)
+		bom = query.run(as_dict=True)
+		bom = bom[0].get('bom')
+
 		target.from_bom=1
 		target.bom_no = bom
 

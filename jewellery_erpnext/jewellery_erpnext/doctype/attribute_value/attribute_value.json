@@ -15,6 +15,7 @@
   "column_break_7",
   "is_stone_shape",
   "is_collection",
+  "is_customer_diamond_quality",
   "is_finding_size",
   "column_break_11",
   "is_metal_purity",
@@ -356,11 +357,17 @@
    "fieldtype": "Table",
    "label": "Diamond Sieve Size",
    "options": "Attribute Value Diamond Sieve Size"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_customer_diamond_quality",
+   "fieldtype": "Check",
+   "label": "Is Customer Diamond Quality"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-12-18 18:26:13.471987",
+ "modified": "2024-06-24 15:08:09.482870",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Attribute Value",

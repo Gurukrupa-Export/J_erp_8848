@@ -82,9 +82,29 @@ frappe.ui.form.on("Department IR", {
 				callback(r) {
 					frm.clear_table("department_ir_operation");
 					$.each(r.message || [], function (i, d) {
-						frm.add_child("department_ir_operation", d);
+						frappe.db
+							.get_value("Manufacturing Operation", d.previous_mop, [
+								"gross_wt",
+								"diamond_wt",
+								"net_wt",
+								"finding_wt",
+								"diamond_pcs",
+								"gemstone_pcs",
+								"gemstone_wt",
+								"other_wt",
+							])
+							.then((v) => {
+								d.net_wt = v.message.net_wt;
+								d.diamond_wt = v.message.diamond_wt;
+								d.finding_wt = v.message.finding_wt;
+								d.diamond_pcs = v.message.diamond_pcs;
+								d.gemstone_pcs = v.message.gemstone_pcs;
+								d.gemstone_wt = v.message.gemstone_wt;
+								d.other_wt = v.message.other_wt;
+								frm.add_child("department_ir_operation", d);
+								frm.refresh_field("department_ir_operation");
+							});
 					});
-					frm.refresh_field("department_ir_operation");
 				},
 			});
 		} else {
@@ -118,25 +138,64 @@ frappe.ui.form.on("Department IR", {
 					"status",
 					"gross_wt",
 					"diamond_wt",
+					"net_wt",
+					"finding_wt",
+					"diamond_pcs",
+					"gemstone_pcs",
+					"gemstone_wt",
+					"other_wt",
 					"previous_mop",
 				])
 				.then((r) => {
 					let values = r.message;
 					if (!values.gross_wt) {
 						frappe.db
-							.get_value(
-								"Manufacturing Operation",
-								values.previous_mop,
-								"previous_mop"
-							)
+							.get_value("Manufacturing Operation", values.previous_mop, [
+								"gross_wt",
+								"diamond_wt",
+								"net_wt",
+								"finding_wt",
+								"diamond_pcs",
+								"gemstone_pcs",
+								"gemstone_wt",
+								"other_wt",
+							])
 							.then((v) => {
 								if (values.manufacturing_work_order) {
 									let row = frm.add_child("department_ir_operation", {
 										manufacturing_work_order: values.manufacturing_work_order,
 										manufacturing_operation: values.name,
 										status: values.status,
-										custom_gross_weight: v.message.gross_wt || values.gross_wt,
-										custom_dia_wt: values.diamond_wt,
+										gross_wt:
+											values.gross_wt > 0
+												? values.gross_wt
+												: v.message.gross_wt,
+										diamond_wt:
+											values.diamond_wt > 0
+												? values.diamond_wt
+												: v.message.diamond_wt,
+										net_wt:
+											values.net_wt > 0 ? values.net_wt : v.message.net_wt,
+										finding_wt:
+											values.finding_wt > 0
+												? values.finding_wt
+												: v.message.finding_wt,
+										gemstone_wt:
+											values.gemstone_wt > 0
+												? values.gemstone_wt
+												: v.message.gemstone_wt,
+										other_wt:
+											values.other_wt > 0
+												? values.other_wt
+												: v.message.other_wt,
+										diamond_pcs:
+											values.diamond_pcs > 0
+												? values.diamond_pcs
+												: v.message.diamond_pcs,
+										gemstone_pcs:
+											values.gemstone_pcs > 0
+												? values.gemstone_pcs
+												: v.message.gemstone_pcs,
 									});
 									frm.refresh_field("department_ir_operation");
 								} else {

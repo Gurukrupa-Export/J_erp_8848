@@ -36,6 +36,8 @@
   "g_target_qty",
   "g_loss_item",
   "g_loss_qty",
+  "section_break_l5w6",
+  "sc_target_table",
   "section_break_ciwv5",
   "batch_avail_qty",
   "inventory_type",
@@ -256,6 +258,16 @@
    "label": "Loss Type",
    "options": "Loss Type",
    "reqd": 1
+  },
+  {
+   "fieldname": "section_break_l5w6",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "sc_target_table",
+   "fieldtype": "Table",
+   "label": "SC Target Table",
+   "options": "SC Target Table"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -266,7 +278,7 @@
    "link_fieldname": "custom_gemstone_conversion"
   }
  ],
- "modified": "2024-05-13 17:06:40.361772",
+ "modified": "2024-06-28 13:57:13.615980",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Gemstone Conversion",

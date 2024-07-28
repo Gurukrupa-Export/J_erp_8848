@@ -7,6 +7,9 @@ import frappe
 from erpnext.stock.doctype.batch.batch import get_batch_qty
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
+from frappe.query_builder import CustomFunction
+from frappe.query_builder.custom import ConstantColumn
+from frappe.query_builder.functions import IfNull, Sum
 from frappe.utils import cint, flt
 from six import itervalues
 
@@ -20,6 +23,23 @@ from jewellery_erpnext.utils import get_item_from_attribute, get_variant_of_item
 def before_validate(self, method):
 	if not self.get("__islocal") and frappe.db.exists("Stock Entry", self.name):
 		self.update_batches()
+
+	if self.purpose in ["Repack", "Manufacturing"]:
+		amount = 0
+		source_qty = 0
+		for row in self.items:
+			if row.s_warehouse:
+				source_qty += row.qty
+				amount += row.amount if row.get("amount") else 0
+
+		avg_amount = amount / source_qty
+
+		for row in self.items:
+			if row.t_warehouse:
+				row.set_basic_rate_manually = 1
+				row.basic_rate = flt(avg_amount, 3)
+				row.amount = row.qty * avg_amount
+				row.basic_amount = row.qty * avg_amount
 
 
 def validate(self, method):
@@ -51,15 +71,19 @@ def validate(self, method):
 		# Set BOM Via Production Order
 		if not self.from_bom:
 			if self.production_order:
-				bom = frappe.db.sql(
-					f"""
-							SELECT soi.bom
-							FROM `tabSales Order Item` soi
-							JOIN `tabProduction Order` po ON po.sales_order_item = soi.name
-							WHERE po.name = '{self.production_order}'
-						""",
-					as_dict=True,
-				)[0].get("bom")
+				SalesOrderItem = frappe.qb.DocType("Sales Order Item")
+				ProductionOrder = frappe.qb.DocType("Production Order")
+
+				query = (
+					frappe.qb.from_(SalesOrderItem)
+					.join(ProductionOrder)
+					.on(ProductionOrder.sales_order_item == SalesOrderItem.name)
+					.select(SalesOrderItem.bom)
+					.where(ProductionOrder.name == self.production_order)
+				)
+
+				bom = query.run(as_dict=True)[0].get("bom")
+
 				self.from_bom = 1
 				self.bom_no = bom
 
@@ -247,7 +271,10 @@ def validate_metal_properties(doc):
 				or (validations.get("check_colour") == "M" and item_template == "M")
 				or (validations.get("check_colour") == "F" and item_template == "F")
 			):
-				if mwo.metal_colour != item_det.get("Metal Colour"):
+				if (
+					mwo.metal_colour != item_det.get("Metal Colour")
+					and frappe.db.get_value("Item", row.item_code, "custom_ignore_work_order") == 0
+				):
 					mw_reason_list.append("Metal Colour")
 
 			# if (
@@ -304,10 +331,24 @@ def update_main_slip(doc, is_cancelled=False):
 		if doc.to_main_slip or doc.main_slip:
 			msl = doc.to_main_slip or doc.main_slip
 			ms_doc = frappe.get_doc("Main Slip", msl)
+			days = frappe.db.get_value(
+				"Manufacturing Setting", doc.company, "allowed_days_for_main_slip_issue"
+			)
+			if (
+				doc.auto_created == 0
+				and doc.to_main_slip
+				and frappe.utils.date_diff(ms_doc.creation, frappe.utils.today()) > days
+			):
+				frappe.throw(_("Not allowed to transfer raw material in Main Slip"))
 			for entry in doc.items:
-				update_main_slip_se_details(
-					ms_doc, doc.stock_entry_type, entry, doc.auto_created, is_cancelled
-				)
+				if is_cancelled:
+					if frappe.db.get_value("Main Slip SE Details", {"se_item": entry.name}):
+						mss_name = frappe.db.get_value("Main Slip SE Details", {"se_item": entry.name})
+						frappe.delete_doc("Main Slip SE Details", mss_name)
+				else:
+					update_main_slip_se_details(
+						ms_doc, doc.stock_entry_type, entry, doc.auto_created, is_cancelled
+					)
 			ms_doc.save()
 		return
 
@@ -319,57 +360,71 @@ def update_main_slip(doc, is_cancelled=False):
 			if frappe.db.get_value("Main Slip SE Details", {"se_item": entry.name}):
 				mss_name = frappe.db.get_value("Main Slip SE Details", {"se_item": entry.name})
 				frappe.delete_doc("Main Slip SE Details", mss_name)
-		child_name.append(entry.name)
-		if entry.main_slip and entry.to_main_slip:
-			frappe.throw(_("Select either source or target main slip."))
-		if entry.main_slip:
-			metal_type = frappe.db.get_value("Main Slip", entry.main_slip, "metal_type")
-			excluded_metal = frappe.db.get_value(
-				"Item Variant Attribute",
-				{"parent": entry.item_code, "attribute": "Metal Type", "attribute_value": metal_type},
-			)
-			ms_doc = frappe.get_doc("Main Slip", entry.main_slip)
-			update_main_slip_se_details(ms_doc, doc.stock_entry_type, entry, doc.auto_created, is_cancelled)
-			ms_doc.save()
-			if not excluded_metal:
-				continue
-
-			temp = main_slip_map.get(entry.main_slip, frappe._dict())
-			if entry.manufacturing_operation:
-				temp["operation_receive"] = flt(temp.get("operation_receive")) + (
-					entry.qty if not is_cancelled else -entry.qty
+		else:
+			child_name.append(entry.name)
+			if entry.main_slip and entry.to_main_slip:
+				frappe.throw(_("Select either source or target main slip."))
+			if entry.main_slip:
+				metal_type = frappe.db.get_value("Main Slip", entry.main_slip, "metal_type")
+				excluded_metal = frappe.db.get_value(
+					"Item Variant Attribute",
+					{"parent": entry.item_code, "attribute": "Metal Type", "attribute_value": metal_type},
 				)
-			else:
-				temp["receive_metal"] = flt(temp.get("receive_metal")) + (
-					entry.qty if not is_cancelled else -entry.qty
+				ms_doc = frappe.get_doc("Main Slip", entry.main_slip)
+				update_main_slip_se_details(
+					ms_doc, doc.stock_entry_type, entry, doc.auto_created, is_cancelled
 				)
-			main_slip_map[entry.main_slip] = temp
+				ms_doc.save()
+				if not excluded_metal:
+					continue
 
-		elif entry.to_main_slip:
-			metal_type = frappe.db.get_value("Main Slip", entry.to_main_slip, "metal_type")
-			excluded_metal = frappe.db.get_value(
-				"Item Variant Attribute",
-				{"parent": entry.item_code, "attribute": "Metal Type", "attribute_value": metal_type},
-			)
+				temp = main_slip_map.get(entry.main_slip, frappe._dict())
+				if entry.manufacturing_operation:
+					temp["operation_receive"] = flt(temp.get("operation_receive")) + (
+						entry.qty if not is_cancelled else -entry.qty
+					)
+				else:
+					temp["receive_metal"] = flt(temp.get("receive_metal")) + (
+						entry.qty if not is_cancelled else -entry.qty
+					)
+				main_slip_map[entry.main_slip] = temp
 
-			ms_doc = frappe.get_doc("Main Slip", entry.to_main_slip)
-			update_main_slip_se_details(ms_doc, doc.stock_entry_type, entry, doc.auto_created, is_cancelled)
-
-			ms_doc.save()
-
-			if not excluded_metal:
-				continue
-
-			temp = main_slip_map.get(entry.to_main_slip, frappe._dict())
-			if entry.manufacturing_operation:
-				temp["operation_issue"] = flt(temp.get("operation_issue")) + (
-					entry.qty if not is_cancelled else -entry.qty
+			elif entry.to_main_slip:
+				metal_type = frappe.db.get_value("Main Slip", entry.to_main_slip, "metal_type")
+				excluded_metal = frappe.db.get_value(
+					"Item Variant Attribute",
+					{"parent": entry.item_code, "attribute": "Metal Type", "attribute_value": metal_type},
 				)
-			else:
-				temp["issue_metal"] = flt(temp.get("issue_metal")) + (
-					entry.qty if not is_cancelled else -entry.qty
+
+				ms_doc = frappe.get_doc("Main Slip", entry.to_main_slip)
+				days = frappe.db.get_value(
+					"Manufacturing Setting", doc.company, "allowed_days_for_main_slip_issue"
 				)
-			main_slip_map[entry.to_main_slip] = temp
+				if (
+					doc.auto_created == 0
+					and doc.to_main_slip
+					and frappe.utils.date_diff(ms_doc.creation, frappe.utils.today()) > days
+				):
+					frappe.throw(_("Not allowed to transfer raw material in Main Slip"))
+				update_main_slip_se_details(
+					ms_doc, doc.stock_entry_type, entry, doc.auto_created, is_cancelled
+				)
+
+				ms_doc.save()
+
+				if not excluded_metal:
+					continue
+
+				temp = main_slip_map.get(entry.to_main_slip, frappe._dict())
+				if entry.manufacturing_operation:
+					temp["operation_issue"] = flt(temp.get("operation_issue")) + (
+						entry.qty if not is_cancelled else -entry.qty
+					)
+				else:
+					temp["issue_metal"] = flt(temp.get("issue_metal")) + (
+						entry.qty if not is_cancelled else -entry.qty
+					)
+				main_slip_map[entry.to_main_slip] = temp
 
 	# for main_slip, values in main_slip_map.items():
 	# 	_values = {key: f"{key} + {value}" for key, value in values.items()}
@@ -494,25 +549,35 @@ def set_item_details(item_code, bom_doc, qty, diamond_quality):
 	return bom_doc
 
 
-def get_scrap_items_from_job_card(self):
+def custom_get_scrap_items_from_job_card(self):
 	if not self.pro_doc:
 		self.set_work_order_details()
 
-	scrap_items = frappe.db.sql(
-		"""
-		SELECT
-			JCSI.item_code, JCSI.item_name, SUM(JCSI.stock_qty) as stock_qty, JCSI.stock_uom, JCSI.description, JC.wip_warehouse
-		FROM
-			`tabJob Card` JC, `tabJob Card Scrap Item` JCSI
-		WHERE
-			JCSI.parent = JC.name AND JC.docstatus = 1
-			AND JCSI.item_code IS NOT NULL AND JC.work_order = %s
-		GROUP BY
-			JCSI.item_code
-	""",
-		self.work_order,
-		as_dict=1,
-	)  # custom change in query JC.wip_warehouse
+	JobCard = frappe.qb.DocType("Job Card")
+	JobCardScrapItem = frappe.qb.DocType("Job Card Scrap Item")
+
+	query = (
+		frappe.qb.from_(JobCardScrapItem)
+		.join(JobCard)
+		.on(JobCardScrapItem.parent == JobCard.name)
+		.select(
+			JobCardScrapItem.item_code,
+			JobCardScrapItem.item_name,
+			Sum(JobCardScrapItem.stock_qty).as_("stock_qty"),
+			JobCardScrapItem.stock_uom,
+			JobCardScrapItem.description,
+			JobCard.wip_warehouse,
+		)
+		.where(
+			(JobCard.docstatus == 1)
+			& (JobCardScrapItem.item_code.isnotnull())
+			& (JobCard.work_order == self.work_order)
+		)
+		.groupby(JobCardScrapItem.item_code)
+	)
+
+	scrap_items = query.run(as_dict=1)
+	# custom change in query JC.wip_warehouse
 
 	pending_qty = flt(self.pro_doc.qty) - flt(self.pro_doc.produced_qty)
 	if pending_qty <= 0:
@@ -532,7 +597,7 @@ def get_scrap_items_from_job_card(self):
 	return scrap_items
 
 
-def get_bom_scrap_material(self, qty):
+def custom_get_bom_scrap_material(self, qty):
 	from erpnext.manufacturing.doctype.bom.bom import get_bom_items_as_dict
 
 	# item dict = { item_code: {qty, description, stock_uom} }
@@ -610,8 +675,10 @@ def update_manufacturing_operation(doc, is_cancelled=False):
 			weight_in_cts = flt(wt.get(fieldname)) + qty
 			wt[fieldname] = weight_in_cts
 			if variant_of == "D":
+				wt["diamond_pcs"] = entry.pcs
 				wt["diamond_wt_in_gram"] = weight_in_gram
 			elif variant_of == "G":
+				wt["gemstone_pcs"] = entry.pcs
 				wt["gemstone_wt_in_gram"] = weight_in_gram
 			elif variant_of == "F":
 				wt["finding_wt"] = weight_in_gram
@@ -887,14 +954,21 @@ def create_material_receipt_for_sales_person(source_name):
 	source_doc = frappe.get_doc("Stock Entry", source_name)
 	target_doc = frappe.new_doc(source_doctype)
 	target_doc.update(source_doc.as_dict())
-	material_receipts_sql = f"""SELECT se.name, si.item_code, sum(si.qty) as quantity
-                            FROM `tabStock Entry` as se
-                            LEFT JOIN `tabStock Entry Detail` as si
-                            ON si.parent = se.name
-                            WHERE se.custom_material_return_receipt_number = '{source_doc.name}'
-                            GROUP BY se.name, si.item_code
-                         """
-	material_receipts = frappe.db.sql(material_receipts_sql, as_dict=True)
+
+	StockEntry = frappe.qb.DocType("Stock Entry")
+	StockEntryDetail = frappe.qb.DocType("Stock Entry Detail")
+
+	query = (
+		frappe.qb.from_(StockEntry)
+		.left_join(StockEntryDetail)
+		.on(StockEntryDetail.parent == StockEntry.name)
+		.select(StockEntry.name, StockEntryDetail.item_code, Sum(StockEntryDetail.qty).as_("quantity"))
+		.where(StockEntry.custom_material_return_receipt_number == source_doc.name)
+		.groupby(StockEntry.name, StockEntryDetail.item_code)
+	)
+
+	material_receipts = query.run(as_dict=True)
+
 	item_qty_material_receipt = {}
 	for row in material_receipts:
 		if row.item_code not in item_qty_material_receipt:
@@ -906,16 +980,20 @@ def create_material_receipt_for_sales_person(source_name):
 	target_doc.docstatus = 0
 	target_doc.posting_date = frappe.utils.nowdate()
 	target_doc.posting_time = frappe.utils.nowtime()
-	items_quantity_ca = frappe.db.sql(
-		f"""SELECT soic.item_code, sum(soic.quantity)
-                                        FROM `tabCustomer Approval` as ca
-                                        LEFT JOIN `tabSales Order Item Child` as soic
-                                        ON soic.parent = ca.name
-                                        WHERE ca.stock_entry_reference LIKE '{source_name}'
-                                        GROUP BY soic.item_code
-                                     """,
-		as_dict=True,
+
+	CustomerApproval = frappe.qb.DocType("Customer Approval")
+	SalesOrderItemChild = frappe.qb.DocType("Sales Order Item Child")
+
+	query = (
+		frappe.qb.from_(CustomerApproval)
+		.left_join(SalesOrderItemChild)
+		.on(SalesOrderItemChild.parent == CustomerApproval.name)
+		.select(SalesOrderItemChild.item_code, Sum(SalesOrderItemChild.quantity))
+		.where(CustomerApproval.stock_entry_reference.like(source_name))
+		.groupby(SalesOrderItemChild.item_code)
 	)
+	items_quantity_ca = query.run(as_dict=True)
+
 	items_quantity_ca = {
 		item["item_code"]: flt(item["sum(soic.quantity)"]) for item in items_quantity_ca
 	}
@@ -960,16 +1038,25 @@ creates a return receipt for items issued. i.e. Customer Approval to Stock Entry
 
 @frappe.whitelist()
 def create_material_receipt_for_customer_approval(source_name, cust_name):
-	items_quantity_ca = frappe.db.sql(
-		f"""
-        SELECT soic.item_code, sum(soic.quantity) as total_quantity, soic.serial_no
-        FROM `tabCustomer Approval` as ca
-        LEFT JOIN `tabSales Order Item Child` as soic ON soic.parent = ca.name
-        WHERE ca.stock_entry_reference LIKE '{source_name}' AND ca.name='{cust_name}'
-        GROUP BY soic.item_code, soic.serial_no
-    """,
-		as_dict=True,
+	CustomerApproval = frappe.qb.DocType("Customer Approval")
+	SalesOrderItemChild = frappe.qb.DocType("Sales Order Item Child")
+
+	query = (
+		frappe.qb.from_(CustomerApproval)
+		.left_join(SalesOrderItemChild)
+		.on(SalesOrderItemChild.parent == CustomerApproval.name)
+		.select(
+			SalesOrderItemChild.item_code,
+			Sum(SalesOrderItemChild.quantity).as_("total_quantity"),
+			SalesOrderItemChild.serial_no,
+		)
+		.where(
+			(CustomerApproval.stock_entry_reference.like(source_name))
+			& (CustomerApproval.name == cust_name)
+		)
+		.groupby(SalesOrderItemChild.item_code, SalesOrderItemChild.serial_no)
 	)
+	items_quantity_ca = query.run(as_dict=True)
 
 	item_qty = {
 		item["item_code"]: {"total_quantity": item["total_quantity"], "serial_no": item["serial_no"]}

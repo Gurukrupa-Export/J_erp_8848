@@ -4,6 +4,8 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt
+from frappe.query_builder import Case
+from frappe.query_builder.functions import Max
 
 
 class MetalConversion(Document):
@@ -96,35 +98,44 @@ class MetalConversion(Document):
 	def get_linked_item_details(self):
 		se = frappe.get_doc("Stock Entry", self.customer_received_voucher)
 
-		data = frappe.db.sql(
-			f"""SELECT
-                    sed.item_code AS item_code,
-                    MAX(CASE
-                        WHEN va1.attribute = "Metal Purity" THEN va1.attribute_value
-                        ELSE NULL
-                    END) AS metal_purity,
-                    MAX(CASE
-                        WHEN va2.attribute = "Metal Colour" THEN va2.attribute_value
-                        ELSE NULL
-                    END) AS metal_colour,
-                    MAX(CASE
-                        WHEN va3.attribute = "Metal Touch" THEN va3.attribute_value
-                        ELSE NULL
-                    END) AS metal_touch,
-                    sed.qty AS qty,
-                    b.batch_qty - sed.qty AS remaining_qty
-                FROM `tabStock Entry` se
-                JOIN `tabBatch` b on b.name = "{ self.batch_no }"
-                JOIN `tabStock Entry Detail` sed ON sed.parent = se.name
-                JOIN `tabItem` itm ON itm.name = sed.item_code
-                LEFT JOIN `tabItem Variant Attribute` va1 ON va1.parent = itm.name AND va1.attribute = "Metal Purity"
-                LEFT JOIN `tabItem Variant Attribute` va2 ON va2.parent = itm.name AND va2.attribute = "Metal Colour"
-                LEFT JOIN `tabItem Variant Attribute` va3 ON va3.parent = itm.name AND va3.attribute = "Metal Touch"
-                WHERE se.name = "{ se.name }"
-                GROUP BY sed.item_code;
-                """,
-			as_dict=1,
+		StockEntry = frappe.qb.DocType("Stock Entry")
+		Batch = frappe.qb.DocType("Batch")
+		StockEntryDetail = frappe.qb.DocType("Stock Entry Detail")
+		Item = frappe.qb.DocType("Item")
+		ItemVariantAttribute1 = frappe.qb.DocType("Item Variant Attribute").as_("va1")
+		ItemVariantAttribute2 = frappe.qb.DocType("Item Variant Attribute").as_("va2")
+		ItemVariantAttribute3 = frappe.qb.DocType("Item Variant Attribute").as_("va3")
+
+		case_metal_purity = Case()
+		case_metal_purity.when(ItemVariantAttribute1.attribute == "Metal Purity", ItemVariantAttribute1.attribute_value).else_(None)
+
+		case_metal_colour = Case()
+		case_metal_colour.when(ItemVariantAttribute2.attribute == "Metal Colour", ItemVariantAttribute2.attribute_value).else_(None)
+
+		case_metal_touch = Case()
+		case_metal_touch.when(ItemVariantAttribute3.attribute == "Metal Touch", ItemVariantAttribute3.attribute_value).else_(None)
+
+		# query
+		query = (
+			frappe.qb.from_(StockEntry)
+			.join(Batch).on(Batch.name == self.batch_no)
+			.join(StockEntryDetail).on(StockEntryDetail.parent == StockEntry.name)
+			.join(Item).on(Item.name == StockEntryDetail.item_code)
+			.left_join(ItemVariantAttribute1).on((ItemVariantAttribute1.parent == Item.name) & (ItemVariantAttribute1.attribute == "Metal Purity"))
+			.left_join(ItemVariantAttribute2).on((ItemVariantAttribute2.parent == Item.name) & (ItemVariantAttribute2.attribute == "Metal Colour"))
+			.left_join(ItemVariantAttribute3).on((ItemVariantAttribute3.parent == Item.name) & (ItemVariantAttribute3.attribute == "Metal Touch"))
+			.where(StockEntry.name == se.name)
+			.groupby(StockEntryDetail.item_code)
+			.select(
+				StockEntryDetail.item_code.as_("item_code"),
+				Max(case_metal_purity).as_("metal_purity"),
+				Max(case_metal_colour).as_("metal_colour"),
+				Max(case_metal_touch).as_("metal_touch"),
+				StockEntryDetail.qty.as_("qty"),
+				(Batch.batch_qty - StockEntryDetail.qty).as_("remaining_qty")
+			)
 		)
+		data = query.run(as_dict=True)
 
 		return frappe.render_template(
 			"jewellery_erpnext/jewellery_erpnext/doctype/metal_conversion/item_details.html", {"data": data}

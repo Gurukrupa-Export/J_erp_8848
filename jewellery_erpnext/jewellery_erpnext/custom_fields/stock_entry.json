@@ -2,6 +2,14 @@
  "Stock Entry": [
   {
    "dt": "Stock Entry",
+   "fieldname": "custom_get_pmo",
+   "fieldtype": "Button",
+   "insert_after": "scan_barcode",
+   "label": "Get PMO",
+   "module": "Jewellery Erpnext"
+  },
+  {
+   "dt": "Stock Entry",
    "fieldname": "custom_scan_material_request",
    "fieldtype": "Data",
    "insert_after": "get_fifo_batches",
@@ -23,7 +31,7 @@
    "dt": "Stock Entry",
    "fieldname": "get_fifo_batches",
    "fieldtype": "Button",
-   "insert_after": "scan_barcode",
+   "insert_after": "custom_get_pmo",
    "label": "Get FIFO Batches",
    "module": "Jewellery Erpnext",
    "options": "update_batches"
@@ -402,6 +410,7 @@
    "fieldname": "manufacturing_order",
    "fieldtype": "Link",
    "insert_after": "product_certification",
+   "is_system_generated": 1,
    "label": "Parent Manufacturing Order",
    "module": "Jewellery Erpnext",
    "options": "Parent Manufacturing Order"
@@ -466,7 +475,7 @@
    "insert_after": "customer",
    "label": "Customer Voucher Type",
    "module": "Jewellery Erpnext",
-   "options": "Customer Sample Goods\nCustomer Job-Work\nCustomer Repair"
+   "options": "''\nCustomer Sample Goods\nCustomer Subcontracting\nCustomer Repair"
   },
   {
    "dt": "Stock Entry",

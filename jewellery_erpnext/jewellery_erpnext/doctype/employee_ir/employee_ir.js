@@ -131,12 +131,12 @@ frappe.ui.form.on("Employee IR", {
 								docstatus: 1,
 							},
 							["name", "received_gross_wt"],
-							function (r) {
+							function (a) {
 								let row = frm.add_child("employee_ir_operations", {
 									manufacturing_work_order: values.manufacturing_work_order,
 									manufacturing_operation: values.name,
-									qc: r.name,
-									received_gross_wt: r.received_gross_wt,
+									qc: a.name,
+									received_gross_wt: a.received_gross_wt,
 								});
 								frm.refresh_field("employee_ir_operations");
 							}
@@ -280,9 +280,9 @@ frappe.ui.form.on("Manually Book Loss Details", {
 			frm.set_df_property("sub_setting_type", "reqd", 1);
 		}
 		frappe.db.get_value("Item", d.item_code, "item_group", function (r) {
-			if(r.item_group=="Metal - V"){
-				d.pcs=1
-			};
+			if (r.item_group == "Metal - V") {
+				d.pcs = 1;
+			}
 		});
 	},
 });

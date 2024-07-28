@@ -1,6 +1,10 @@
 import frappe
+from frappe import _
 from frappe.model.mapper import get_mapped_doc
 
+from jewellery_erpnext.jewellery_erpnext.customization.sales_order.doc_events.branch_utils import (
+	create_branch_so,
+)
 from jewellery_erpnext.jewellery_erpnext.doc_events.bom_utils import (
 	calculate_gst_rate,
 	set_bom_item_details,
@@ -11,12 +15,13 @@ from jewellery_erpnext.jewellery_erpnext.doc_events.bom_utils import (
 def validate(self, method):
 	create_new_bom(self)
 	calculate_gst_rate(self)
-	set_bom_item_details(self)
+	if not self.get("__islocal"):
+		set_bom_item_details(self)
 
 
 def on_submit(self, method):
 	submit_bom(self)
-	pass
+	create_branch_so(self)
 
 
 def on_cancel(self, method):
@@ -44,6 +49,7 @@ def create_sales_order_bom(self, row):
 		ignore_permissions=True,
 	)
 	try:
+		doc.custom_creation_doctype = self.doctype
 		doc.is_default = 0
 		doc.is_active = 0
 		doc.bom_type = "Sales Order"
@@ -70,6 +76,7 @@ def create_sales_order_bom(self, row):
 
 		# This Save will Call before_save and validate method in BOM and Rates Will be Calculated as diamond_quality is calculated too
 		doc.save(ignore_permissions=True)
+		doc.db_set("custom_creation_docname", self.name)
 		row.bom = doc.name
 		row.gold_bom_rate = doc.gold_bom_amount
 		row.diamond_bom_rate = doc.diamond_bom_amount
@@ -81,6 +88,7 @@ def create_sales_order_bom(self, row):
 		self.total = doc.total_bom_amount
 	except Exception as e:
 		frappe.logger("utils").exception(e)
+		frappe.throw(_("{0}").format(e))
 
 
 def submit_bom(self):
@@ -106,16 +114,27 @@ def get_customer_approval_data(customer_approval_data):
 
 @frappe.whitelist()
 def customer_approval_filter(doctype, txt, searchfield, start, page_len, filters):
-	dialoge_filter = frappe.db.sql(
-		"""SELECT ca.name
-									FROM `tabCustomer Approval` AS ca
-									LEFT JOIN `tabStock Entry` AS se
-									ON ca.name = se.custom_customer_approval_reference
-									WHERE se.custom_customer_approval_reference != ca.name
-										OR se.custom_customer_approval_reference IS NULL
-										AND ca.docstatus=1
-									""",
-		as_dict=True,
+	CustomerApproval = frappe.qb.DocType("Customer Approval")
+	StockEntry = frappe.qb.DocType("Stock Entry")
+
+	query = (
+		frappe.qb.from_(CustomerApproval)
+		.left_join(StockEntry)
+		.on(CustomerApproval.name == StockEntry.custom_customer_approval_reference)
+		.select(CustomerApproval.name)
+		.where(
+			(
+				(StockEntry.custom_customer_approval_reference != CustomerApproval.name)
+				| (StockEntry.custom_customer_approval_reference.isnull())
+			)
+			& (CustomerApproval.docstatus == 1)
+			& (CustomerApproval[searchfield].like(f"%{txt}%"))
+		)
 	)
+
+	if filters.get("date"):
+		query = query.where(CustomerApproval.date == filters["date"])
+
+	dialoge_filter = query.run(as_dict=True)
 
 	return dialoge_filter

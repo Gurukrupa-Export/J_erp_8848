@@ -1,7 +1,24 @@
+import json
+
 import frappe
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
+from frappe.utils import nowdate
 from frappe.utils.data import flt
+
+
+def before_validate(self, method):
+	if self.set_warehouse and self.set_from_warehouse:
+		source_branch = frappe.db.get_value("Warehouse", self.set_from_warehouse, "custom_branch")
+		target_branch = frappe.db.get_value("Warehouse", self.set_warehouse, "custom_branch")
+
+		if source_branch == target_branch:
+			self.custom_transfer_type = "Transfer To Department"
+		else:
+			self.custom_transfer_type = "Transfer To Branch"
+
+	elif self.material_request_type == "Manufacture":
+		self.custom_transfer_type = "Transfer to Reserve"
 
 
 def on_submit(self, method=None):
@@ -27,6 +44,7 @@ def make_stock_in_entry(source_name, target_doc=None):
 		target.material_request_type = "Material Transfer"
 		target.customer = source._customer
 		target.set_missing_values()
+		target.custom_reserve_se = None
 
 	def update_item(source_doc, target_doc, source_parent):
 		target_doc.material_request = source_doc.parent
@@ -49,8 +67,8 @@ def make_stock_in_entry(source_name, target_doc=None):
 				"field_map": {
 					"name": "ste_detail",
 					"parent": "against_stock_entry",
-					"serial_no": "custom_serial_no",
-					"batch_no": "custom_batch_no",
+					"serial_no": "serial_no",
+					"batch_no": "batch_no",
 				},
 				"postprocess": update_item,
 				# "condition": lambda doc: flt(doc.qty) - flt(doc.transferred_qty) > 0.01,
@@ -121,8 +139,8 @@ def make_stock_entry(source_name, target_doc=None):
 			dict.update(
 				{
 					"item": i.item_code,
-					"batch": i.custom_batch_no,
-					"serial": i.custom_serial_no,
+					"batch": i.batch_no,
+					"serial": i.serial_no,
 					"idx": i.idx,
 				}
 			)
@@ -248,7 +266,7 @@ def create_stock_entry(self, method):
 		se_doc = frappe.new_doc("Stock Entry")
 		se_doc.company = self.company
 		stock_entry_type = frappe.db.get_value(
-			"Transfer Type", self.custom_tranfer_type, "stock_entry_type"
+			"Transfer Type", self.custom_transfer_type, "stock_entry_type"
 		)
 		if not stock_entry_type:
 			frappe.throw(_("Please mention Stock Entry type for selected Transfer type."))
@@ -279,6 +297,7 @@ def create_stock_entry(self, method):
 					"cost_center": row.cost_center,
 					"sub_setting_type": row.custom_sub_setting_type,
 					"use_serial_batch_fields": True,
+					"custom_parent_manufacturing_order": self.manufacturing_order,
 				},
 			)
 
@@ -286,3 +305,68 @@ def create_stock_entry(self, method):
 		self.custom_reserve_se = se_doc.name
 		se_doc.submit()
 		frappe.msgprint(_("Reserved Stock Entry {0} has been created").format(se_doc.name))
+
+
+@frappe.whitelist()
+def get_item_details(args, for_update=False):
+	if isinstance(args, str):
+		args = json.loads(args)
+
+	Item = frappe.qb.DocType("Item")
+	ItemDefault = frappe.qb.DocType("Item Default")
+
+	item = (
+		frappe.qb.from_(Item)
+		.left_join(ItemDefault)
+		.on((Item.name == ItemDefault.parent) & (ItemDefault.company == args.get("company")))
+		.select(
+			Item.name,
+			Item.stock_uom,
+			Item.description,
+			Item.image,
+			Item.item_name,
+			Item.item_group,
+			Item.has_batch_no,
+			Item.sample_quantity,
+			Item.has_serial_no,
+			Item.allow_alternative_item,
+			ItemDefault.expense_account,
+			ItemDefault.buying_cost_center,
+		)
+		.where(
+			(Item.name == args.get("item_code"))
+			& (Item.disabled == 0)
+			& (
+				(Item.end_of_life.isnull())
+				| (Item.end_of_life < "1900-01-01")
+				| (Item.end_of_life > nowdate())
+			)
+		)
+	).run(as_dict=True)
+
+	if not item:
+		frappe.throw(
+			_("Item {0} is not active or end of life has been reached").format(args.get("item_code"))
+		)
+	item = item[0]
+
+	ret = frappe._dict(
+		{
+			"uom": item.stock_uom,
+			"stock_uom": item.stock_uom,
+			"description": item.description,
+			"image": item.image,
+			"item_name": item.item_name,
+			"qty": args.get("qty"),
+			"transfer_qty": args.get("qty"),
+			"conversion_factor": 1,
+			"actual_qty": 0,
+			"basic_rate": 0,
+			"has_serial_no": item.has_serial_no,
+			"has_batch_no": item.has_batch_no,
+			"sample_quantity": item.sample_quantity,
+			"expense_account": item.expense_account,
+		}
+	)
+
+	return ret

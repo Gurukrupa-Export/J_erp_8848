@@ -20,7 +20,9 @@
   "select_manufacture_order",
   "get_sales_order",
   "get_repair_order",
+  "get_mwo",
   "sales_order",
+  "manufacturing_work_order",
   "setting_type",
   "is_subcontracting",
   "supplier",
@@ -142,7 +144,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Select Manufacture Order",
-   "options": "\nManufacturing\nRepair",
+   "options": "\nManufacturing\nRepair\nFinding Manufacturing",
    "reqd": 1
   },
   {
@@ -182,6 +184,17 @@
    "fieldtype": "Link",
    "label": "Purchase Type",
    "options": "Purchase Type"
+  },
+  {
+   "fieldname": "manufacturing_work_order",
+   "fieldtype": "Table",
+   "label": "Manufacturing Work Order",
+   "options": "MWO Table"
+  },
+  {
+   "fieldname": "get_mwo",
+   "fieldtype": "Button",
+   "label": "Get MWO"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -196,7 +209,7 @@
    "link_fieldname": "manufacturing_plan"
   }
  ],
- "modified": "2024-03-01 18:30:20.103012",
+ "modified": "2024-06-13 16:57:21.321020",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Plan",

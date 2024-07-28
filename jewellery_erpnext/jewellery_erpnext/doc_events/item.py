@@ -146,13 +146,15 @@ def calculate_item_wt_details(doc, bom=None, item=None):
 	if bom:
 		doc["estimated_finding_gold_wt_bom"] = frappe.db.get_value("BOM", bom, "finding_weight")
 	else:
-		finding_weight = frappe.db.sql(
-			f"""SELECT
-		finding_weight
-		FROM `tabBOM`
-		WHERE item = '{item}' LIMIT 1""",
-			as_dict=True,
+		BOM = frappe.qb.DocType("BOM")
+		query = (
+			frappe.qb.from_(BOM)
+			.select(BOM.finding_weight)
+			.where(BOM.item == item)
+			.limit(1)
 		)
+		finding_weight = query.run(as_dict=True)
+	
 		if finding_weight:
 			doc["estimated_finding_gold_wt_bom"] = finding_weight[0].get("finding_weight")
 	return doc

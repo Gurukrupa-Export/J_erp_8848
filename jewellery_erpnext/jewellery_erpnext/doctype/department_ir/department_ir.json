@@ -180,7 +180,7 @@
    "fieldname": "transfer_type",
    "fieldtype": "Select",
    "label": "Transfer Type",
-   "options": "Next Operation\nRepairing"
+   "options": "Next Department\nRepairing"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -191,7 +191,7 @@
    "link_fieldname": "department_ir"
   }
  ],
- "modified": "2024-05-17 16:46:09.011994",
+ "modified": "2024-05-20 10:03:17.294232",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Department IR",

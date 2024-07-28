@@ -2,7 +2,9 @@ import frappe
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils import flt, get_link_to_form
-
+from frappe.query_builder import CustomFunction
+from frappe.query_builder.custom import ConstantColumn
+from frappe.query_builder.functions import IfNull, Sum
 from jewellery_erpnext.utils import get_variant_of_item
 
 
@@ -86,9 +88,19 @@ def add_qc_params(self):
 	if not self.item_code:
 		return
 	categories = frappe.db.get_value("Item", self.item_code, "item_category")
-	params = frappe.db.sql_list(
-		f"""select parameter from `tabQC Parameter` where (category is NULL or category = '{categories}') and (operation is NULL or operation ='{self.operation}')"""
-	)
+	
+	QCParameter = frappe.qb.DocType('QC Parameter')
+	conditions = (
+        (QCParameter.category.isnull() | (QCParameter.category == categories)) &
+        (QCParameter.operation.isnull() | (QCParameter.operation == self.operation))
+    )
+	query = (
+        frappe.qb.from_(QCParameter)
+        .select(QCParameter.parameter)
+        .where(conditions)
+    )
+	params = [row.parameter for row in query.run()]
+
 	existing_params = [row.parameter for row in self.get("qc_details", [])]
 	for entity in params:
 		if entity not in existing_params:
@@ -349,17 +361,35 @@ def get_internal_in_weight(self):
 	self.in_gemstone_weight = 0
 	self.in_finding_weight = 0
 	self.in_other_weight = 0
-	internal_in_weight_data = frappe.db.sql(
-		f"""
-		select jcit.item_code, jcit.from_job_card, jcit.to_job_card,jcit.from_combine_job_card,
-						jcit.gross_wt, jcit.purity,  jcit.uom,
-						(jc.out_gold_weight + jc.out_finding_weight - jc.balance_gross) as net_wt, jc.balance_gross
-		from `tabJob Card Internal Transfer Item` jcit
-		left join `tabJob Card` jc on jc.name = jcit.from_job_card
-		where jcit.docstatus = 1 and jcit.to_job_card = '{self.name}' and (jcit.from_job_card IS NOT NUll or jcit.from_combine_job_card IS NOT NUll)
-	""",
-		as_dict=True,
-	)
+	
+	JobCardInternalTransferItem = frappe.qb.DocType('Job Card Internal Transfer Item')
+	JobCard = frappe.qb.DocType('Job Card')
+
+	query = (
+        frappe.qb.from_(JobCardInternalTransferItem)
+        .left_join(JobCard).on(JobCard.name == JobCardInternalTransferItem.from_job_card)
+        .select(
+            JobCardInternalTransferItem.item_code,
+            JobCardInternalTransferItem.from_job_card,
+            JobCardInternalTransferItem.to_job_card,
+            JobCardInternalTransferItem.from_combine_job_card,
+            JobCardInternalTransferItem.gross_wt,
+            JobCardInternalTransferItem.purity,
+            JobCardInternalTransferItem.uom,
+            (JobCard.out_gold_weight + JobCard.out_finding_weight - JobCard.balance_gross).as_('net_wt'),
+            JobCard.balance_gross
+        )
+        .where(
+            (JobCardInternalTransferItem.docstatus == 1) &
+            (JobCardInternalTransferItem.to_job_card == self.name) &
+            (
+                JobCardInternalTransferItem.from_job_card.isnotnull() |
+                JobCardInternalTransferItem.from_combine_job_card.isnotnull()
+            )
+        )
+    )
+
+	internal_in_weight_data = query.run(as_dict=True)
 
 	if internal_in_weight_data:
 		if internal_in_weight_data[0].get("from_combine_job_card"):
@@ -395,20 +425,35 @@ def _get_in_weights_from_combined_job_card(self):
 		return
 	cj_doc = frappe.get_doc("Combine Job Card", cj_name)
 	job_card_list = tuple(row.job_card for row in cj_doc.details)
-	internal_in_weight_data = frappe.db.sql(
-		f"""
-			select
-			jcit.item_code, jcit.from_job_card, jcit.to_job_card,jcit.from_combine_job_card, jcit.to_combine_job_card,
-							jcit.gross_wt as gross_wt, jcit.purity, (jc.out_gold_weight + jc.out_finding_weight - jc.balance_gross) as net_wt,
-							jc.balance_gross,
-							jcit.uom
-			from `tabJob Card Internal Transfer Item` jcit
-			left join `tabJob Card` jc on jc.name =  jcit.from_job_card
-			where jcit.docstatus = 1 and (jcit.to_job_card IN {job_card_list} or jcit.to_combine_job_card = '{cj_doc.name}') and (jcit.from_job_card IS NOT NULL or jcit.from_combine_job_card IS NOT NULL)
-			and jc.work_order = '{self.work_order}'
-		""",
-		as_dict=True,
-	)
+
+	JobCardInternalTransferItem = frappe.qb.DocType('Job Card Internal Transfer Item')
+	JobCard = frappe.qb.DocType('Job Card')
+	query = (
+        frappe.qb.from_(JobCardInternalTransferItem)
+        .left_join(JobCard).on(JobCard.name == JobCardInternalTransferItem.from_job_card)
+        .select(
+            JobCardInternalTransferItem.item_code,
+            JobCardInternalTransferItem.from_job_card,
+            JobCardInternalTransferItem.to_job_card,
+            JobCardInternalTransferItem.from_combine_job_card,
+            JobCardInternalTransferItem.to_combine_job_card,
+            JobCardInternalTransferItem.gross_wt.as_('gross_wt'),
+            JobCardInternalTransferItem.purity,
+            (JobCard.out_gold_weight + JobCard.out_finding_weight - JobCard.balance_gross).as_('net_wt'),
+            JobCard.balance_gross,
+            JobCardInternalTransferItem.uom
+        )
+        .where(
+            (JobCardInternalTransferItem.docstatus == 1) &
+            ((JobCardInternalTransferItem.to_job_card.isin(job_card_list)) |
+             (JobCardInternalTransferItem.to_combine_job_card == cj_doc.name)) &
+            ((JobCardInternalTransferItem.from_job_card.isnotnull()) |
+             (JobCardInternalTransferItem.from_combine_job_card.isnotnull())) &
+            (JobCard.work_order == self.work_order)
+        )
+    )
+	internal_in_weight_data = query.run(as_dict=True)
+
 	return internal_in_weight_data or _get_in_weight_from_prev_combined_jc_self_in_cj(self)
 
 
@@ -423,22 +468,41 @@ def _get_in_weight_from_prev_combined_jc_self_in_cj(self):
 		return None
 	cj_doc = frappe.get_doc("Combine Job Card", cj_name)
 	job_card_list = tuple(row.job_card for row in cj_doc.details)
-	internal_in_weight_data = frappe.db.sql(
-		f"""
-		select jc.name,
-		jcit.item_code, jc.name as from_job_card,
-							jc.total_out_gross_weight as gross_wt, jcit.purity, jcit.uom,
-							(jc.out_gold_weight + jc.out_finding_weight - jc.balance_gross) as net_wt,
-							jc.balance_gross
-	from `tabJob Card Internal Transfer Item` jcit
-		left join `tabCombine Job Card` cjc on cjc.name =  jcit.from_combine_job_card
-		left join `tabCombine Job Card Detail` cjcd on cjcd.parent = cjc.name
-		left join `tabJob Card` jc on jc.name = cjcd.job_card
-			where jcit.docstatus = 1 and (jcit.to_job_card IN {job_card_list} or jcit.to_combine_job_card = '{cj_doc.name}') and (jcit.from_job_card IS NOT NULL or jcit.from_combine_job_card IS NOT NULL)
-		and jc.work_order = '{self.work_order}'
-	""",
-		as_dict=True,
-	)
+	
+	JobCardInternalTransferItem = frappe.qb.DocType('Job Card Internal Transfer Item')
+	CombineJobCard = frappe.qb.DocType('Combine Job Card')
+	CombineJobCardDetail = frappe.qb.DocType('Combine Job Card Detail')
+	JobCard = frappe.qb.DocType('Job Card')
+	query = (
+        frappe.qb.from_(JobCardInternalTransferItem)
+        .left_join(CombineJobCard).on(CombineJobCard.name == JobCardInternalTransferItem.from_combine_job_card)
+        .left_join(CombineJobCardDetail).on(CombineJobCardDetail.parent == CombineJobCard.name)
+        .left_join(JobCard).on(JobCard.name == CombineJobCardDetail.job_card)
+        .select(
+            JobCard.name,
+            JobCardInternalTransferItem.item_code,
+            JobCard.name.as_('from_job_card'),
+            JobCard.total_out_gross_weight.as_('gross_wt'),
+            JobCardInternalTransferItem.purity,
+            JobCardInternalTransferItem.uom,
+            (JobCard.out_gold_weight + JobCard.out_finding_weight - JobCard.balance_gross).as_('net_wt'),
+            JobCard.balance_gross
+        )
+        .where(
+            (JobCardInternalTransferItem.docstatus == 1) &
+            (
+                (JobCardInternalTransferItem.to_job_card.isin(job_card_list)) |
+                (JobCardInternalTransferItem.to_combine_job_card == cj_doc.name)
+            ) &
+            (
+                (JobCardInternalTransferItem.from_job_card.isnotnull()) |
+                (JobCardInternalTransferItem.from_combine_job_card.isnotnull())
+            ) &
+            (JobCard.work_order == self.work_order)
+        )
+    )
+
+	internal_in_weight_data = query.run(as_dict=True)
 	return internal_in_weight_data or None
 
 
@@ -472,14 +536,33 @@ def get_external_in_weight(self):
 	"""
 	Get all the Items From Stock Entry To Current Job Card
 	"""
-	external_in_weight_data = frappe.db.sql(
-		f"""
-		select item_code, from_job_card, to_job_card, s_warehouse as from_warehouse, t_warehouse as to_warehouse,
-		item_code, qty as gross_wt, metal_purity as purity, 0 as net_wt, uom, reference_doctype, reference_docname, pcs
-		from `tabStock Entry Detail` where docstatus = 1 and to_job_card = '{self.name}' and (from_job_card = '' or from_job_card IS NULL)
-	""",
-		as_dict=True,
-	)
+	StockEntryDetail = frappe.qb.DocType('Stock Entry Detail')
+
+	query = (
+        frappe.qb.from_(StockEntryDetail)
+        .select(
+            StockEntryDetail.item_code,
+            StockEntryDetail.from_job_card,
+            StockEntryDetail.to_job_card,
+            StockEntryDetail.s_warehouse.as_('from_warehouse'),
+            StockEntryDetail.t_warehouse.as_('to_warehouse'),
+            StockEntryDetail.item_code,
+            StockEntryDetail.qty.as_('gross_wt'),
+            StockEntryDetail.metal_purity.as_('purity'),
+        	ConstantColumn(0).as_('net_wt'),
+            StockEntryDetail.uom,
+            StockEntryDetail.reference_doctype,
+            StockEntryDetail.reference_docname,
+            StockEntryDetail.pcs
+        )
+        .where(
+            (StockEntryDetail.docstatus == 1) &
+            (StockEntryDetail.to_job_card == self.name) &
+            ((StockEntryDetail.from_job_card == '') | (StockEntryDetail.from_job_card.isnull()))
+        )
+    )
+
+	external_in_weight_data = query.run(as_dict=True)
 	if external_in_weight_data:
 		metal_item = "M"
 		diamond_item = "D"
@@ -565,18 +648,33 @@ def set_external_in_weight_fields(self, external_in_weight_data):
 def get_out_weights(self):
 	self.out_gross_weight = 0
 	self.total_out_fine_weight = 0
-	out_weights_data = frappe.db.sql(
-		f"""
-		select jcit.item_code, jcit.from_job_card, jcit.to_job_card,
-						jcit.gross_wt, jcit.purity, jcit.net_wt, jcit.uom,
-						(jc.out_gold_weight - jc.balance_gross) as net_wt,
-						jc.balance_gross
-		from `tabJob Card Internal Transfer Item` jcit
-		left join `tabJob Card` jc on jc.name = jcit.from_job_card
-		where jcit.docstatus = 1 and jcit.from_job_card = '{self.name}' and (jcit.to_job_card IS NOT NUll or jcit.to_combine_job_card IS NOT NUll)
-	""",
-		as_dict=True,
-	)
+	
+	JobCardInternalTransferItem = frappe.qb.DocType('Job Card Internal Transfer Item')
+	JobCard = frappe.qb.DocType('Job Card')
+
+	query = (
+        frappe.qb.from_(JobCardInternalTransferItem)
+        .left_join(JobCard)
+        .on(JobCard.name == JobCardInternalTransferItem.from_job_card)
+        .select(
+            JobCardInternalTransferItem.item_code,
+            JobCardInternalTransferItem.from_job_card,
+            JobCardInternalTransferItem.to_job_card,
+            JobCardInternalTransferItem.gross_wt,
+            JobCardInternalTransferItem.purity,
+            JobCardInternalTransferItem.net_wt,
+            JobCardInternalTransferItem.uom,
+            (JobCard.out_gold_weight - JobCard.balance_gross).as_('net_wt'),
+            JobCard.balance_gross
+        )
+        .where(
+            (JobCardInternalTransferItem.docstatus == 1) &
+            (JobCardInternalTransferItem.from_job_card == self.name) &
+            ((JobCardInternalTransferItem.to_job_card.isnotnull()) | (JobCardInternalTransferItem.to_combine_job_card.isnotnull()))
+        )
+    )
+
+	out_weights_data = query.run(as_dict=True)
 
 	if out_weights_data:
 		for i in out_weights_data:
@@ -605,14 +703,30 @@ def get_return_stock(self):
 	"""
 	Render a table to show returned Stock to the store
 	"""
-	return_stock_html = frappe.db.sql(
-		f"""
-		select item_code, from_job_card, to_job_card, s_warehouse as from_warehouse, t_warehouse as to_warehouse,
-		item_code, qty as gross_wt, metal_purity as purity, 0 as net_wt, uom, pcs
-		from `tabStock Entry Detail` where docstatus = 1 and from_job_card = '{self.name}' and (to_job_card = '' or to_job_card IS NULL)
-	""",
-		as_dict=True,
-	)
+	StockEntryDetail = frappe.qb.DocType('Stock Entry Detail')
+
+	query = (
+        frappe.qb.from_(StockEntryDetail)
+        .select(
+            StockEntryDetail.item_code,
+            StockEntryDetail.from_job_card,
+            StockEntryDetail.to_job_card,
+            StockEntryDetail.s_warehouse.as_('from_warehouse'),
+            StockEntryDetail.t_warehouse.as_('to_warehouse'),
+            StockEntryDetail.qty.as_('gross_wt'),
+            StockEntryDetail.metal_purity.as_('purity'),
+            ConstantColumn(0).as_('net_wt'),
+            StockEntryDetail.uom,
+            StockEntryDetail.pcs
+        )
+        .where(
+            (StockEntryDetail.docstatus == 1) &
+            (StockEntryDetail.from_job_card == self.name) &
+            ((StockEntryDetail.to_job_card == '') | (StockEntryDetail.to_job_card.isnull()))
+        )
+    )
+	return_stock_html = query.run(as_dict=True)
+
 	self.return_balance = self.total_in_gross_weight - self.out_gross_weight
 	if return_stock_html:
 		html_content = frappe.render_template(
@@ -628,14 +742,28 @@ def get_last_out_weights(self):
 	"""
 	Get Out Weights For Last Operation/Job Card
 	"""
-	out_weights_data = frappe.db.sql(
-		f"""
-		select item_code, from_job_card, to_job_card,
-						gross_wt, purity, net_wt, uom
-		from `tabJob Card Internal Transfer Item` where docstatus = 1 and from_job_card = '{self.name}' and (to_job_card IS NUll AND to_combine_job_card IS NUll)
-	""",
-		as_dict=True,
+	JobCardInternalTransferItem = frappe.qb.DocType('Job Card Internal Transfer Item')
+
+	query = (
+		frappe.qb.from_(JobCardInternalTransferItem)
+		.select(
+			JobCardInternalTransferItem.item_code,
+			JobCardInternalTransferItem.from_job_card,
+			JobCardInternalTransferItem.to_job_card,
+			JobCardInternalTransferItem.gross_wt,
+			JobCardInternalTransferItem.purity,
+			JobCardInternalTransferItem.net_wt,
+			JobCardInternalTransferItem.uom
+		)
+		.where(
+			(JobCardInternalTransferItem.docstatus == 1) &
+			(JobCardInternalTransferItem.from_job_card == self.name) &
+			(JobCardInternalTransferItem.to_job_card.isnull()) &
+			(JobCardInternalTransferItem.to_combine_job_card.isnull())
+		)
 	)
+	out_weights_data = query.run(as_dict=True)
+
 	if out_weights_data:
 		# Set Out Weight Field
 		out_weight = sum(item.get("gross_wt") for item in out_weights_data)
@@ -661,19 +789,32 @@ def get_wastages(self):
 	if cj_name:
 		cj_doc = frappe.get_doc("Combine Job Card", cj_name)
 		job_card_list = tuple(row.job_card for row in cj_doc.details)
-		query = f"""
-			select
-				jcit.item_code,
-				SUM(jcit.gross_wt) as gross_wt
-			from `tabJob Card Internal Transfer Item` jcit
-			left join `tabJob Card` jc on jc.name = jcit.from_job_card
-			where jcit.docstatus = 1
-				and (jcit.to_job_card IN {job_card_list} or jcit.to_combine_job_card = '{cj_doc.name}')
-				and (jcit.from_job_card IS NOT NULL or jcit.from_combine_job_card IS NOT NULL)
-				and jc.work_order = '{self.work_order}'
-			group by jcit.item_code
-		"""
-		internal_in_weight_data = frappe.db.sql(query, as_dict=True)
+
+		JobCardInternalTransferItem = frappe.qb.DocType('Job Card Internal Transfer Item')
+		JobCard = frappe.qb.DocType('Job Card')
+		query = (
+			frappe.qb.from_(JobCardInternalTransferItem)
+			.left_join(JobCard).on(JobCard.name == JobCardInternalTransferItem.from_job_card)
+			.select(
+				JobCardInternalTransferItem.item_code,
+				Sum(JobCardInternalTransferItem.gross_wt).as_('gross_wt')
+			)
+			.where(
+				(JobCardInternalTransferItem.docstatus == 1) &
+				(
+					(JobCardInternalTransferItem.to_job_card.isin(job_card_list)) |
+					(JobCardInternalTransferItem.to_combine_job_card == cj_doc.name)
+				) &
+				(
+					JobCardInternalTransferItem.from_job_card.isnotnull() |
+					JobCardInternalTransferItem.from_combine_job_card.isnotnull()
+				) &
+				(JobCard.work_order == self.work_order)
+			)
+			.groupby(JobCardInternalTransferItem.item_code)
+		)
+
+		internal_in_weight_data = query.run(as_dict=True)
 		if internal_in_weight_data:
 			for scrap_item in cj_doc.scrap_items:
 				scrap_items = self.get(
@@ -728,19 +869,36 @@ def set_wastages(self):
 
 
 def get_wastages_from_prev_combined_jc(self):
-	internal_in_weight_data = frappe.db.sql(
-		f"""
-		select jcit.item_code, jcit.from_job_card, jcit.to_job_card,jcit.from_combine_job_card,
-						jcit.gross_wt, jcit.purity, jcit.net_wt, jcit.uom
+	JobCardInternalTransferItem = frappe.qb.DocType('Job Card Internal Transfer Item')
+	CombineJobCardDetail = frappe.qb.DocType('Combine Job Card Detail')
+	JobCard = frappe.qb.DocType('Job Card')
 
-		from `tabJob Card Internal Transfer Item` jcit
-		left join `tabCombine Job Card Detail` cjcd on cjcd.parent = jcit.from_combine_job_card
-		left join `tabJob Card` jc on jc.name = cjcd.job_card
-		where jcit.docstatus = 1 and jcit.to_job_card = '{self.name}' and (jcit.from_job_card IS NOT NUll or jcit.from_combine_job_card IS NOT NUll)
-		and jc.work_order = '{self.work_order}'
-	""",
-		as_dict=True,
+	query = (
+		frappe.qb.from_(JobCardInternalTransferItem)
+		.left_join(CombineJobCardDetail).on(CombineJobCardDetail.parent == JobCardInternalTransferItem.from_combine_job_card)
+		.left_join(JobCard).on(JobCard.name == CombineJobCardDetail.job_card)
+		.select(
+			JobCardInternalTransferItem.item_code,
+			JobCardInternalTransferItem.from_job_card,
+			JobCardInternalTransferItem.to_job_card,
+			JobCardInternalTransferItem.from_combine_job_card,
+			JobCardInternalTransferItem.gross_wt,
+			JobCardInternalTransferItem.purity,
+			JobCardInternalTransferItem.net_wt,
+			JobCardInternalTransferItem.uom
+		)
+		.where(
+			(JobCardInternalTransferItem.docstatus == 1) &
+			(JobCardInternalTransferItem.to_job_card == self.name) &
+			(
+				JobCardInternalTransferItem.from_job_card.isnotnull() |
+				JobCardInternalTransferItem.from_combine_job_card.isnotnull()
+			) &
+			(JobCard.work_order == self.work_order)
+		)
 	)
+	internal_in_weight_data = query.run(as_dict=True)
+	
 	if internal_in_weight_data and internal_in_weight_data[0].get("from_combine_job_card"):
 		cj_doc = frappe.get_doc(
 			"Combine Job Card", internal_in_weight_data[0].get("from_combine_job_card")
@@ -769,13 +927,25 @@ def get_wastages_from_prev_combined_jc(self):
 
 
 def get_totals(self):
-	internal_in_weights = frappe.db.sql(
-		f"""
-		select IFNULL(sum(gross_wt), 0) as internal_in_gross_wt, IFNULL(sum(net_wt), 0) as internal_in_net_wt
-		from `tabJob Card Internal Transfer Item` where docstatus = 1 and to_job_card = '{self.name}' and (from_job_card IS NOT NUll or from_combine_job_card IS NOT NUll)
-	""",
-		as_dict=True,
+	JobCardInternalTransferItem = frappe.qb.DocType('Job Card Internal Transfer Item')
+
+	query = (
+		frappe.qb.from_(JobCardInternalTransferItem)
+		.select(
+			IfNull(Sum(JobCardInternalTransferItem.gross_wt), 0).as_('internal_in_gross_wt'),
+			IfNull(Sum(JobCardInternalTransferItem.net_wt), 0).as_('internal_in_net_wt')
+		)
+		.where(
+			(JobCardInternalTransferItem.docstatus == 1) &
+			(JobCardInternalTransferItem.to_job_card == self.name) &
+			(
+				JobCardInternalTransferItem.from_job_card.isnotnull() |
+				JobCardInternalTransferItem.from_combine_job_card.isnotnull()
+			)
+		)
 	)
+
+	internal_in_weights = query.run(as_dict=True)
 
 	# set_total_in_weight_fields(self, internal_in_weights[0]['internal_in_gross_wt'])
 	set_total_out_weight_fields(self)
@@ -854,37 +1024,56 @@ def set_total_out_weight_fields(self):
 @frappe.whitelist()
 def stock_entry_detail(item):
 	job_card = frappe.get_doc("Job Card", item)
-	stock_entry_detail = frappe.db.sql(
-		f"""
-				select jc.name,sed.item_code, sed.item_name, jc.work_order,
-				sed.qty- ifnull(jcsi.stock_qty,0) as "gross_wgt",
-				 sed.metal_purity as purity, sed.uom,
-				sed.reference_doctype,
-				sed.reference_docname,
-				sed.pcs
-				from `tabJob Card` jc
-				left join `tabStock Entry` se on se.work_order = jc.work_order
-				left join `tabStock Entry Detail` sed on sed.parent = se.name
-			    left join `tabJob Card Scrap Item` jcsi on jcsi.parent = jc.name and jcsi.item_code = sed.item_code
-				where jc.name = '{item}' and se.stock_entry_type != "Manufacture" and se.docstatus = 1
-				AND se.is_returned = 0
-				""",
-		as_dict=True,
+
+	JobCard = frappe.qb.DocType('Job Card')
+	StockEntry = frappe.qb.DocType('Stock Entry')
+	StockEntryDetail = frappe.qb.DocType('Stock Entry Detail')
+	JobCardScrapItem = frappe.qb.DocType('Job Card Scrap Item')
+
+	query = (
+		frappe.qb.from_(JobCard)
+		.left_join(StockEntry).on(StockEntry.work_order == JobCard.work_order)
+		.left_join(StockEntryDetail).on(StockEntryDetail.parent == StockEntry.name)
+		.left_join(JobCardScrapItem).on((JobCardScrapItem.parent == JobCard.name) & (JobCardScrapItem.item_code == StockEntryDetail.item_code))
+		.select(
+			JobCard.name,
+			StockEntryDetail.item_code,
+			StockEntryDetail.item_name,
+			JobCard.work_order,
+			(StockEntryDetail.qty - IfNull(JobCardScrapItem.stock_qty, 0)).as_('gross_wgt'),
+			StockEntryDetail.metal_purity.as_('purity'),
+			StockEntryDetail.uom,
+			StockEntryDetail.reference_doctype,
+			StockEntryDetail.reference_docname,
+			StockEntryDetail.pcs
+		)
+		.where(
+			(JobCard.name == item) &
+			(StockEntry.stock_entry_type != "Manufacture") &
+			(StockEntry.docstatus == 1) &
+			(StockEntry.is_returned == 0)
+		)
 	)
+	stock_entry_detail = query.run(as_dict=True)
 
 	html_content_stock_entry = frappe.render_template(
 		table_stock_entry, {"data": stock_entry_detail, "table_type": "Stock Entry Detail"}
 	)
 	frappe.msgprint(str(html_content_stock_entry))
 	if job_card.scrap_items:
-		scrap_item = frappe.db.sql(
-			f"""
-			select  jc.name,jcst.item_code, jcst.stock_qty, jcst.stock_uom
-			from `tabJob Card` jc
-			left join `tabJob Card Scrap Item` jcst on jcst.parent = jc.name
-			where jc.name = '{item}' """,
-			as_dict=True,
+		query = (
+			frappe.qb.from_(JobCard)
+			.left_join(JobCardScrapItem).on(JobCardScrapItem.parent == JobCard.name)
+			.select(
+				JobCard.name,
+				JobCardScrapItem.item_code,
+				JobCardScrapItem.stock_qty,
+				JobCardScrapItem.stock_uom
+			)
+			.where(JobCard.name == item)
 		)
+		scrap_item = query.run(as_dict=True)
+		
 		html_content_scrap_item = frappe.render_template(
 			table_scrap_item, {"data": scrap_item, "table_type": "Scarp Item"}
 		)

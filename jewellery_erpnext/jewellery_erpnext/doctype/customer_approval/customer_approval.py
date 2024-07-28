@@ -56,46 +56,59 @@ def get_items_filter(doctype, txt, searchfield, start, page_len, filters):
 
 @frappe.whitelist()
 def quantity_calculation(stock_entry_reference):
-	issue_item = frappe.db.sql(
-		f"""SELECT sed.item_code, sed.qty
-                                FROM `tabStock Entry Detail` as sed
-                                LEFT JOIN `tabStock Entry` as se
-                                ON sed.parent = se.name
-                                WHERE se.name LIKE '{stock_entry_reference}'
-    """,
-		as_dict=True,
+	StockEntryDetail = frappe.qb.DocType('Stock Entry Detail')
+	StockEntry = frappe.qb.DocType('Stock Entry')
+
+	query = (
+		frappe.qb.from_(StockEntryDetail)
+		.left_join(StockEntry).on(StockEntryDetail.parent == StockEntry.name)
+		.select(
+			StockEntryDetail.item_code,
+			StockEntryDetail.qty
+		)
+		.where(StockEntry.name.like(stock_entry_reference))
 	)
+	issue_item = query.run(as_dict=True)
 
 	issue_item = [
 		{"item_code": entry["item_code"], "quantity": entry.get("quantity", entry.get("qty"))}
 		for entry in issue_item
 	]
 
-	returned_item = frappe.db.sql(
-		f"""SELECT sed.item_code, sed.qty
-                                    FROM `tabStock Entry Detail` as sed
-                                    LEFT JOIN `tabStock Entry` as se
-                                    ON sed.parent = se.name
-                                    WHERE se.custom_material_return_receipt_number LIKE '{stock_entry_reference}'
-                                        AND se.custom_customer_approval_reference IS NULL
-    """,
-		as_dict=True,
+	query = (
+		frappe.qb.from_(StockEntryDetail)
+		.left_join(StockEntry).on(StockEntryDetail.parent == StockEntry.name)
+		.select(
+			StockEntryDetail.item_code,
+			StockEntryDetail.qty
+		)
+		.where(
+			(StockEntry.custom_material_return_receipt_number.like(stock_entry_reference)) &
+			(StockEntry.custom_customer_approval_reference.isnull())
+		)
 	)
+	returned_item = query.run(as_dict=True)
 
 	returned_item = [
 		{"item_code": entry["item_code"], "quantity": entry.get("quantity", entry.get("qty"))}
 		for entry in returned_item
 	]
 
-	customer_approved_item = frappe.db.sql(
-		f"""SELECT soic.item_code, soic.quantity
-                                    FROM `tabSales Order Item Child` as soic
-                                    LEFT JOIN `tabCustomer Approval` as ca
-                                    ON soic.parent = ca.name
-                                    WHERE ca.stock_entry_reference LIKE '{stock_entry_reference}'
-    """,
-		as_dict=True,
+	SalesOrderItemChild = frappe.qb.DocType('Sales Order Item Child')
+	CustomerApproval = frappe.qb.DocType('Customer Approval')
+
+	query = (
+		frappe.qb.from_(SalesOrderItemChild)
+		.left_join(CustomerApproval).on(SalesOrderItemChild.parent == CustomerApproval.name)
+		.select(
+			SalesOrderItemChild.item_code,
+			SalesOrderItemChild.quantity
+		)
+		.where(
+			CustomerApproval.stock_entry_reference.like(stock_entry_reference)
+		)
 	)
+	customer_approved_item = query.run(as_dict=True)
 
 	total_item_occupied = returned_item + customer_approved_item
 
@@ -122,27 +135,38 @@ def quantity_calculation(stock_entry_reference):
 
 @frappe.whitelist()
 def serial_no_filter(stock_entry_reference):
-	issue_item_serial_no = frappe.db.sql(
-		f"""SELECT sed.item_code, sed.serial_no
-                                FROM `tabStock Entry Detail` as sed
-                                LEFT JOIN `tabStock Entry` as se
-                                ON sed.parent = se.name
-                                WHERE se.name LIKE '{stock_entry_reference}'
-                                    AND sed.serial_no IS NOT null
-    """,
-		as_dict=True,
-	)
+	StockEntryDetail = frappe.qb.DocType('Stock Entry Detail')
+	StockEntry = frappe.qb.DocType('Stock Entry')
 
-	customer_approval_item_serial_no = frappe.db.sql(
-		f"""SELECT soic.item_code, soic.serial_no
-                                FROM `tabSales Order Item Child` AS soic
-                                LEFT JOIN `tabCustomer Approval` AS ca
-                                ON soic.parent = ca.name
-                                WHERE ca.stock_entry_reference LIKE '{stock_entry_reference}'
-                                    AND soic.serial_no IS NOT null
-    """,
-		as_dict=True,
-	)
+	issue_item_serial_no = (
+		frappe.qb.from_(StockEntryDetail)
+		.left_join(StockEntry).on(StockEntryDetail.parent == StockEntry.name)
+		.select(
+			StockEntryDetail.item_code,
+			StockEntryDetail.serial_no
+		)
+		.where(
+			(StockEntry.name.like(stock_entry_reference)) &
+			(StockEntryDetail.serial_no.isnotnull())
+		)
+	).run(as_dict=True)
+
+
+	SalesOrderItemChild = frappe.qb.DocType('Sales Order Item Child')
+	CustomerApproval = frappe.qb.DocType('Customer Approval')
+
+	customer_approval_item_serial_no = (
+		frappe.qb.from_(SalesOrderItemChild)
+		.left_join(CustomerApproval).on(SalesOrderItemChild.parent == CustomerApproval.name)
+		.select(
+			SalesOrderItemChild.item_code,
+			SalesOrderItemChild.serial_no
+		)
+		.where(
+			(CustomerApproval.stock_entry_reference.like(stock_entry_reference)) &
+			(SalesOrderItemChild.serial_no.isnotnull())
+		)
+	).run(as_dict=True)
 
 	combined_data_ca_serial_no = {}
 
@@ -155,16 +179,18 @@ def serial_no_filter(stock_entry_reference):
 			combined_data_ca_serial_no[item_code] = {"item_code": item_code, "serial_no": serial_no}
 	customer_approval_item_serial_no = list(combined_data_ca_serial_no.values())
 
-	return_reciept_serial_no = frappe.db.sql(
-		f"""SELECT sed.item_code, sed.serial_no
-                                FROM `tabStock Entry Detail` AS sed
-                                LEFT JOIN `tabStock Entry` AS se
-                                ON sed.parent = se.name
-                                WHERE se.custom_material_return_receipt_number LIKE '{stock_entry_reference}'
-                                    AND sed.serial_no IS NOT null
-    """,
-		as_dict=True,
-	)
+	return_reciept_serial_no = (
+		frappe.qb.from_(StockEntryDetail)
+		.left_join(StockEntry).on(StockEntryDetail.parent == StockEntry.name)
+		.select(
+			StockEntryDetail.item_code,
+			StockEntryDetail.serial_no
+		)
+		.where(
+			(StockEntry.custom_material_return_receipt_number.like(stock_entry_reference)) &
+			(StockEntryDetail.serial_no.isnotnull())
+		)
+	).run(as_dict=True)
 
 	combined_data_rr_serial_no = {}
 

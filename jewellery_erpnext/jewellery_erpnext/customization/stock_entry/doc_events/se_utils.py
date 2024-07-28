@@ -5,6 +5,8 @@ from erpnext.stock.doctype.serial_and_batch_bundle.serial_and_batch_bundle impor
 	get_auto_batch_nos,
 )
 from frappe import _
+from frappe.query_builder import Case
+from frappe.query_builder.functions import Locate
 from frappe.utils import flt
 
 from jewellery_erpnext.utils import get_item_from_attribute
@@ -33,7 +35,10 @@ def validate_inventory_dimention(self):
 				"custom_allow_regular_goods_instead_of_customer_goods",
 			)
 
-			if row.inventory_type == "Customer Goods" and pmo_data.get("customer") != row.customer:
+			if (
+				row.inventory_type in ["Customer Goods", "Customer Stock"]
+				and pmo_data.get("customer") != row.customer
+			):
 				frappe.throw(_("Only {0} allowed in Stock Entry").format(pmo_data.get("customer")))
 			else:
 				if row.custom_variant_of in ["M", "F"]:
@@ -204,7 +209,7 @@ def create_subcontracting_doc(
 		sub_doc.operation = self.manufacturing_operation
 
 		sub_doc.finish_item = frappe.db.get_value(
-			"Manufacturing Setting", self.company, "subcontracting_repack_item"
+			"Manufacturing Setting", self.company, "pure_gold_item"
 		)
 
 		if self.manufacturing_operation:
@@ -265,39 +270,53 @@ def warehouse_query_filters(doctype, txt, searchfield, start, page_len, filters)
 		"Employee", {"user_id": frappe.session.user}, "department"
 	)
 
-	conditions = ""
+	conditions = get_filters_cond(filters)
 
-	return frappe.db.sql(
-		"""select  name, warehouse_name from `tabWarehouse`
-		where is_group = 0
-			and company = '{company}'
-			and ({key} like %(txt)s
-				or warehouse_name like %(txt)s)
-			{fcond}
-		order by
-			(case when locate(%(_txt)s, name) > 0 then locate(%(_txt)s, name) else 99999 end),
-			(case when locate(%(_txt)s, warehouse_name) > 0 then locate(%(_txt)s, warehouse_name) else 99999 end),
-			idx desc,
-			name, warehouse_name
-		limit %(page_len)s offset %(start)s""".format(
-			**{
-				"company": filters["company"],
-				"key": searchfield,
-				"fcond": get_filters_cond(filters, conditions),
-			}
-		),
-		{"txt": "%%%s%%" % txt, "_txt": txt.replace("%", ""), "start": start, "page_len": page_len},
+	Warehouse = frappe.qb.DocType("Warehouse")
+
+	query = (
+		frappe.qb.from_(Warehouse)
+		.select(Warehouse.name, Warehouse.warehouse_name)
+		.where(Warehouse.is_group == 0)
+		.where(Warehouse.company == filters["company"])
 	)
+	# Add the dynamic conditions
+	for condition in conditions:
+		query = query.where(condition)
+
+	# Construct the query with search conditions
+	query = (
+		query.where(
+			(Warehouse[searchfield].like(f"%{txt}%")) | (Warehouse.warehouse_name.like(f"%{txt}%"))
+		)
+		.orderby(Case().when(Locate(txt, Warehouse.name) > 0, Locate(txt, Warehouse.name)).else_(99999))
+		.orderby(
+			Case()
+			.when(Locate(txt, Warehouse.warehouse_name) > 0, Locate(txt, Warehouse.warehouse_name))
+			.else_(99999)
+		)
+		.orderby(Warehouse.idx, order=frappe.qb.desc)
+		.orderby(Warehouse.name)
+		.orderby(Warehouse.warehouse_name)
+		.limit(page_len)
+		.offset(start)
+	)
+	data = query.run()
+	return data
 
 
-def get_filters_cond(filters, conditions):
+def get_filters_cond(filters):
+	Warehouse = frappe.qb.DocType("Warehouse")
+	conditions = []
+
 	if filters["stock_entry_type"] == "Material Transfer (DEPARTMENT)" and filters.get("department"):
 		raw_department = frappe.db.get_value(
 			"Warehouse", {"warehouse_type": "Raw Material", "department": filters.get("department")}
 		)
-		conditions += "AND warehouse_type = 'Transit'"
 		if raw_department:
-			conditions += "OR name = '%s'" % raw_department
+			conditions.append((Warehouse.warehouse_type == "Transit") | (Warehouse.name == raw_department))
+		else:
+			conditions.append(Warehouse.warehouse_type == "Transit")
 
 	elif filters["stock_entry_type"] in (
 		"Material Transfer (MAIN SLIP)",
@@ -308,12 +327,24 @@ def get_filters_cond(filters, conditions):
 		)
 
 		if filters["stock_entry_type"] == "Material Transfer (MAIN SLIP)":
-			conditions += " AND (employee != '' or employee != NULL)"
+			conditions.append((Warehouse.employee != "") | (Warehouse.employee.isnull().negate()))
 		else:
-			conditions += " AND (subcontracter != '' or subcontracter != NULL)"
-		if raw_department:
-			conditions += " OR name = '%s'" % raw_department
-			conditions += " AND warehouse_type = 'Raw Material'"
+			conditions.append((Warehouse.subcontracter != "") | (Warehouse.subcontracter.isnull().negate()))
+
+		if raw_department and filters["stock_entry_type"] == "Material Transfer (MAIN SLIP)":
+			conditions.append(
+				(Warehouse.employee != "")
+				| (Warehouse.employee.isnull().negate())
+				| (Warehouse.name == raw_department) & (Warehouse.warehouse_type == "Raw Material")
+			)
+		elif raw_department:
+			conditions.append(
+				(Warehouse.subcontracter != "")
+				| (Warehouse.subcontracter.isnull().negate())
+				| (Warehouse.name == raw_department) & (Warehouse.warehouse_type == "Raw Material")
+			)
+		else:
+			conditions.append((Warehouse.subcontracter != "") | (Warehouse.subcontracter.isnull().negate()))
 
 	elif filters["stock_entry_type"] == "Material Transfer (WORK ORDER)" and filters.get(
 		"department"
@@ -321,16 +352,19 @@ def get_filters_cond(filters, conditions):
 		raw_department = frappe.db.get_value(
 			"Warehouse", {"warehouse_type": "Raw Material", "department": filters.get("department")}
 		)
-		conditions += "AND warehouse_type = 'Manufacturing' AND ((employee != '' or employee != NULL) or (department != '' or department != NULL))"
+		condition = (Warehouse.warehouse_type == "Manufacturing") & (
+			((Warehouse.employee != "") | (Warehouse.employee.isnull().negate()))
+			| ((Warehouse.department != "") | (Warehouse.department.isnull().negate()))
+		)
 		if raw_department:
-			conditions += "OR name = '%s'" % raw_department
+			conditions.append(condition | (Warehouse.name == raw_department))
+		else:
+			conditions.append(condition)
 
 	return conditions
 
 
 def update_main_slip_se_details(doc, stock_entry_type, se_row, auto_created=0, is_cancelled=False):
-	to_remove = []
-
 	based_on = "employee"
 	based_on_value = doc.employee
 	if doc.subcontractor:
@@ -353,93 +387,86 @@ def update_main_slip_se_details(doc, stock_entry_type, se_row, auto_created=0, i
 		qty = "mop_qty"
 		consume_qty = "mop_consume_qty"
 
-	if is_cancelled:
-		to_remove = [row for row in doc.stock_details if row.se_item == se_row.name]
+	exsting_se_details = [row.se_item for row in doc.stock_details]
+	if se_row.s_warehouse == m_warehouse:
+		if se_row.name not in exsting_se_details:
+			if se_row.manufacturing_operation:
+				consume_qty = "mop_consume_qty"
+			doc.append(
+				"stock_details",
+				{
+					"batch_no": se_row.batch_no,
+					consume_qty: se_row.qty,
+					"se_item": se_row.name,
+					"auto_created": auto_created,
+					"stock_entry": se_row.parent,
+				},
+			)
 
-	else:
-		exsting_se_details = [row.se_item for row in doc.stock_details]
-		if se_row.s_warehouse == m_warehouse:
-			if se_row.name not in exsting_se_details:
-				if se_row.manufacturing_operation:
-					consume_qty = "mop_consume_qty"
-				doc.append(
-					"stock_details",
-					{
-						"batch_no": se_row.batch_no,
-						consume_qty: se_row.qty,
-						"se_item": se_row.name,
-						"auto_created": auto_created,
-						"stock_entry": se_row.parent,
-					},
-				)
+	if se_row.t_warehouse == r_warehouse:
+		if se_row.name not in exsting_se_details:
+			doc.append(
+				"stock_details",
+				{
+					"item_code": se_row.item_code,
+					"batch_no": se_row.batch_no,
+					qty: se_row.qty,
+					"se_item": se_row.name,
+					"auto_created": auto_created,
+					"stock_entry": se_row.parent,
+				},
+			)
 
-		if se_row.t_warehouse == r_warehouse:
-			if se_row.name not in exsting_se_details:
-				doc.append(
-					"stock_details",
-					{
-						"item_code": se_row.item_code,
-						"batch_no": se_row.batch_no,
-						qty: se_row.qty,
-						"se_item": se_row.name,
-						"auto_created": auto_created,
-						"stock_entry": se_row.parent,
-					},
-				)
+	if (se_row.s_warehouse == r_warehouse) and (se_row.t_warehouse == m_warehouse):
+		if se_row.name not in exsting_se_details:
+			doc.append(
+				"stock_details",
+				{
+					"item_code": se_row.item_code,
+					"batch_no": se_row.batch_no,
+					"consume_qty": se_row.qty,
+					"se_item": se_row.name,
+					"auto_created": auto_created,
+					"stock_entry": se_row.parent,
+				},
+			)
+			doc.append(
+				"stock_details",
+				{
+					"item_code": se_row.item_code,
+					"batch_no": se_row.batch_no,
+					"mop_qty": se_row.qty,
+					"se_item": se_row.name,
+					"auto_created": auto_created,
+					"stock_entry": se_row.parent,
+				},
+			)
 
-		if se_row.s_warehouse == r_warehouse and se_row.t_warehouse == m_warehouse:
-			if se_row.name not in exsting_se_details:
-				doc.append(
-					"stock_details",
-					{
-						"item_code": se_row.item_code,
-						"batch_no": se_row.batch_no,
-						"consume_qty": se_row.qty,
-						"se_item": se_row.name,
-						"auto_created": auto_created,
-						"stock_entry": se_row.parent,
-					},
-				)
-				doc.append(
-					"stock_details",
-					{
-						"item_code": se_row.item_code,
-						"batch_no": se_row.batch_no,
-						"mop_qty": se_row.qty,
-						"se_item": se_row.name,
-						"auto_created": auto_created,
-						"stock_entry": se_row.parent,
-					},
-				)
+	elif se_row.s_warehouse == r_warehouse:
+		if se_row.name not in exsting_se_details:
+			doc.append(
+				"stock_details",
+				{
+					"batch_no": se_row.batch_no,
+					consume_qty: se_row.qty,
+					"se_item": se_row.name,
+					"auto_created": auto_created,
+					"stock_entry": se_row.parent,
+				},
+			)
 
-		elif se_row.s_warehouse == r_warehouse:
-			if se_row.name not in exsting_se_details:
-				doc.append(
-					"stock_details",
-					{
-						"batch_no": se_row.batch_no,
-						consume_qty: se_row.qty,
-						"se_item": se_row.name,
-						"auto_created": auto_created,
-						"stock_entry": se_row.parent,
-					},
-				)
-
-		elif se_row.t_warehouse == m_warehouse:
-			if se_row.name not in exsting_se_details:
-				doc.append(
-					"stock_details",
-					{
-						"batch_no": se_row.batch_no,
-						qty: se_row.qty,
-						"se_item": se_row.name,
-						"auto_created": auto_created,
-						"stock_entry": se_row.parent,
-					},
-				)
-
-	# for row in to_remove:
-	# 	doc.remove(row)
+	elif se_row.t_warehouse == m_warehouse:
+		if se_row.name not in exsting_se_details:
+			doc.append(
+				"stock_details",
+				{
+					"batch_no": se_row.batch_no,
+					qty: se_row.qty,
+					"se_item": se_row.name,
+					"auto_created": auto_created,
+					"stock_entry": se_row.parent,
+				},
+			)
 
 
 def validate_gross_weight_for_unpack(self):

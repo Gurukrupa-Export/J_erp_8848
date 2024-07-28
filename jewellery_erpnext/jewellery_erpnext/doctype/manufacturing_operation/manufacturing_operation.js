@@ -18,7 +18,6 @@ frappe.ui.form.on("Manufacturing Operation", {
 						docname: frm.doc.name,
 					},
 					callback: function (r) {
-						console.log(r.message);
 						frappe.call({
 							method: "jewellery_erpnext.jewellery_erpnext.doctype.serial_number_creator.serial_number_creator.get_operation_details",
 							// doc:doc.name,
@@ -373,43 +372,43 @@ frappe.ui.form.on("Manufacturing Operation Time Log", {
 });
 
 frappe.ui.form.on("MOP Balance Table", {
-	item_code:function(frm,cdt,cdn){
+	item_code: function (frm, cdt, cdn) {
 		let child = locals[cdt][cdn];
 		frappe.db.get_value("Item", child.item_code, "item_group", function (r) {
-			if(r.item_group=="Metal - V"){
-				child.pcs=1
-			};
+			if (r.item_group == "Metal - V") {
+				child.pcs = 1;
+			}
 		});
 	},
-})
+});
 
 frappe.ui.form.on("Department Target Table", {
-	item_code:function(frm,cdt,cdn){
+	item_code: function (frm, cdt, cdn) {
 		let child = locals[cdt][cdn];
 		frappe.db.get_value("Item", child.item_code, "item_group", function (r) {
-			if(r.item_group=="Metal - V"){
-				child.pcs=1
-			};
+			if (r.item_group == "Metal - V") {
+				child.pcs = 1;
+			}
 		});
 	},
-})
+});
 frappe.ui.form.on("Employee Source Table", {
-	item_code:function(frm,cdt,cdn){
+	item_code: function (frm, cdt, cdn) {
 		let child = locals[cdt][cdn];
 		frappe.db.get_value("Item", child.item_code, "item_group", function (r) {
-			if(r.item_group=="Metal - V"){
-				child.pcs=1
-			};
+			if (r.item_group == "Metal - V") {
+				child.pcs = 1;
+			}
 		});
 	},
-})
+});
 frappe.ui.form.on("Employee Target Table", {
-	item_code:function(frm,cdt,cdn){
+	item_code: function (frm, cdt, cdn) {
 		let child = locals[cdt][cdn];
 		frappe.db.get_value("Item", child.item_code, "item_group", function (r) {
-			if(r.item_group=="Metal - V"){
-				child.pcs=1
-			};
+			if (r.item_group == "Metal - V") {
+				child.pcs = 1;
+			}
 		});
 	},
-})
+});

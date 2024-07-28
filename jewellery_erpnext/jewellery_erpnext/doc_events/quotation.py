@@ -14,7 +14,8 @@ from jewellery_erpnext.jewellery_erpnext.doc_events.bom_utils import (
 def validate(self, method):
 	create_new_bom(self)
 	calculate_gst_rate(self)
-	set_bom_item_details(self)
+	if not self.get("__islocal"):
+		set_bom_item_details(self)
 	set_bom_rate_in_quotation(self)
 
 
@@ -76,6 +77,7 @@ def create_quotation_bom(self, row, bom):
 		},
 		ignore_permissions=True,
 	)
+	doc.custom_creation_doctype = self.doctype
 	doc.is_default = 0
 	doc.is_active = 0
 	doc.bom_type = "Quotation"
@@ -128,6 +130,7 @@ def create_quotation_bom(self, row, bom):
 
 	# This Save will Call before_save and validate method in BOM and Rates Will be Calculated as diamond_quality is calculated too
 	doc.save(ignore_permissions=True)
+	doc.db_set("custom_creation_docname", self.name)
 	row.quotation_bom = doc.name
 	row.gold_bom_rate = doc.gold_bom_amount
 	row.diamond_bom_rate = doc.diamond_bom_amount

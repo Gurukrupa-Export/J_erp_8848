@@ -54,6 +54,21 @@
   "column_break_g5rb9",
   "metal_colour",
   "metal_purity",
+  "section_break_nlzla",
+  "prev_gross_wt",
+  "gross_wt",
+  "net_wt",
+  "diamond_wt_in_gram",
+  "gemstone_wt_in_gram",
+  "other_wt",
+  "column_break_oyjmw",
+  "received_gross_wt",
+  "received_net_wt",
+  "loss_wt",
+  "diamond_wt",
+  "gemstone_wt",
+  "diamond_pcs",
+  "gemstone_pcs",
   "section_break_26",
   "stock_entry_details",
   "section_break_dvel5",
@@ -96,16 +111,24 @@
   "stock_summery",
   "stock_entry",
   "time_log_tab",
+  "employee_timer_section",
   "start_time",
-  "finish_time",
-  "time_taken",
-  "column_break_zbak",
   "started_time",
+  "column_break_ydae",
+  "finish_time",
   "current_time",
+  "column_break_zbak",
+  "time_taken",
   "total_minutes",
   "section_break_fqd2",
   "on_hold",
-  "time_logs"
+  "time_logs",
+  "section_break_hvfb",
+  "department_starttime",
+  "column_break_ym8b",
+  "department_finishtime",
+  "section_break_ce6q",
+  "department_time_logs"
  ],
  "fields": [
   {
@@ -149,7 +172,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Not Started\nOn Hold\nWIP\nIn Transit\nQC Pending\nQC Completed\nFinished\nRevert"
+   "options": "Not Started\nOn Hold\nWIP\nQC Pending\nQC Completed\nFinished\nRevert"
   },
   {
    "depends_on": "eval:!doc.for_subcontracting",
@@ -674,7 +697,7 @@
   {
    "fieldname": "time_logs",
    "fieldtype": "Table",
-   "label": "Timer Logs",
+   "label": "Employee Timer Logs",
    "options": "Manufacturing Operation Time Log"
   },
   {
@@ -701,7 +724,43 @@
   {
    "fieldname": "section_break_pnns",
    "fieldtype": "Section Break",
-   "read_only": 1
+   "label": "Department Timer"
+  },
+  {
+   "fieldname": "department_time_logs",
+   "fieldtype": "Table",
+   "label": "Department Timer Logs",
+   "options": "Manufacturing Operation Department Time Log"
+  },
+  {
+   "fieldname": "employee_timer_section",
+   "fieldtype": "Section Break",
+   "label": "Employee Timer"
+  },
+  {
+   "fieldname": "column_break_ydae",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_ym8b",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_ce6q",
+   "fieldtype": "Section Break",
+   "label": "Department Timer"
+  },
+  {
+   "fieldname": "department_starttime",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Department Start Time"
+  },
+  {
+   "fieldname": "department_finishtime",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Department Finish Time"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -740,7 +799,11 @@
    "write": 1
   }
  ],
+ "show_preview_popup": 1,
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "operation",
+ "track_changes": 1
 }

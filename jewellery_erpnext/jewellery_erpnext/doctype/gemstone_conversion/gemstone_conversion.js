@@ -6,6 +6,11 @@ frappe.ui.form.on("Gemstone Conversion", {
 		if (frm.doc.g_source_item) {
 			set_batch_filter(frm, "batch");
 		}
+		frm.fields_dict["g_source_item"].get_query = function (frm) {
+			return {
+				query: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.filters.item_query_filters",
+			};
+		};
 	},
 	g_source_item(frm) {
 		clear_gemstone_field(frm);

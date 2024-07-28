@@ -2,6 +2,11 @@ import json
 
 import frappe
 from frappe import _
+from frappe.query_builder import (DocType,Case)
+from frappe.query_builder.functions import (Count,Max,Min,IfNull,Avg,Sum,Concat,LiteralValue)
+from frappe import qb
+
+
 
 
 def execute(filters=None):
@@ -544,8 +549,10 @@ def get_filtered_data(filters):
 
 def condition(filters):
 	cond = ""
+	Quotation=DocType("Quotation").as_('q')
 	if filters.get("qname"):
-		cond = cond + f"""where  q.name = "{filters.get('qname')}" """
+		# cond = cond + f"""where  q.name = "{filters.get('qname')}" """
+		cond = (Quotation.name == filters.get("qname"))
 	return cond
 
 
@@ -574,107 +581,285 @@ def condition(filters):
 
 def get_metal(filters):
 	conditions = condition(filters)
-	metal_data = frappe.db.sql(
-		f"""select
-            qi.gold_bom_rate,
-            b.tag_no,
-            qi.qty as 'product_pcs',
-            qi.item_code as "item",
-            ifnull(qi.quotation_bom,"NA") as 'bom',
-            ifnull(bmd.name,"NA") as "mname",
-            bmd.metal_type as metal_type,
-            bmd.metal_purity as metal_code,
-            CONCAT(bmd.metal_type,'_ ',bmd.purity_percentage) as metal_purity_,
-            bmd.purity_percentage,
-            bmd.metal_purity,
-            bmd.metal_colour,
-            cmn.metal_line_no,
-            b.gross_weight,
-            b.total_metal_weight,
-            bmd.item as bom_metal_item,
-            b.item_category,
-            b.chain_weight,
-            qi.gold_bom_rate
-        from
-            `tabQuotation` q
-        left join
-            `tabQuotation Item` qi on qi.parent = q.name
-        left join
-            `tabCustomer` c on c.name = q.party_name
-        left join
-            `tabCustomer Metal Line No` cmn on cmn.parent = c.name
-        left join
-            `tabCustomer Product Dimension Code` cpd on cpd.parent = c.name
-        left join
-            `tabCustomer Collection Code` ccc on ccc.parent = c.name
-        left join
-            `tabBOM` b on b.name = qi.quotation_bom
-        left join
-            `tabBOM Metal Detail` bmd on bmd.parent = b.name
-        {conditions}""",
-		filters,
-		as_dict=True,
-	)
+	# metal_data = frappe.db.sql(
+	# 	f"""select
+    #         qi.gold_bom_rate,
+    #         b.tag_no,
+    #         qi.qty as 'product_pcs',
+    #         qi.item_code as "item",
+    #         ifnull(qi.quotation_bom,"NA") as 'bom',
+    #         ifnull(bmd.name,"NA") as "mname",
+    #         bmd.metal_type as metal_type,
+    #         bmd.metal_purity as metal_code,
+    #         CONCAT(bmd.metal_type,'_ ',bmd.purity_percentage) as metal_purity_,
+    #         bmd.purity_percentage,
+    #         bmd.metal_purity,
+    #         bmd.metal_colour,
+    #         cmn.metal_line_no,
+    #         b.gross_weight,
+    #         b.total_metal_weight,
+    #         bmd.item as bom_metal_item,
+    #         b.item_category,
+    #         b.chain_weight,
+    #         qi.gold_bom_rate
+    #     from
+    #         `tabQuotation` q
+    #     left join
+    #         `tabQuotation Item` qi on qi.parent = q.name
+    #     left join
+    #         `tabCustomer` c on c.name = q.party_name
+    #     left join
+    #         `tabCustomer Metal Line No` cmn on cmn.parent = c.name
+    #     left join
+    #         `tabCustomer Product Dimension Code` cpd on cpd.parent = c.name
+    #     left join
+    #         `tabCustomer Collection Code` ccc on ccc.parent = c.name
+    #     left join
+    #         `tabBOM` b on b.name = qi.quotation_bom
+    #     left join
+    #         `tabBOM Metal Detail` bmd on bmd.parent = b.name
+    #     {conditions}""",
+	# 	filters,
+	# 	as_dict=True,
+	# )
 
+	Quotation=DocType("Quotation").as_('q')
+	QuotationItem=DocType('Quotation Item').as_('qi')
+	Customer=DocType('Customer').as_('c')
+	CustomerMetalLineNo=DocType('Customer Metal Line No').as_('cmn')
+	CustomerProductDimensionCode=DocType('Customer Product Dimension Code').as_('cpd')
+	CustomerCollectionCode=DocType('Customer Collection Code').as_('ccc')
+	BOM=DocType('BOM').as_('b')
+	BOMMetalDetail=DocType('BOM Metal Detail').as_('bmd')
+	query=(qb
+		   .from_(Quotation)
+		   .left_join(QuotationItem)
+		   .on(QuotationItem.parent==Quotation.name)
+		   .left_join(Customer)
+		   .on(Customer.name==Quotation.party_name)
+		   .left_join('CustomerMetalLineNo')
+		   .on(CustomerMetalLineNo.parent==Customer.name)
+		   .left_join(CustomerProductDimensionCode)
+		   .on(CustomerProductDimensionCode.parent==Customer.name)
+		   .left_join(CustomerCollectionCode)
+		   .on(CustomerCollectionCode.parent==Customer.name)
+		   .left_join(BOM)
+		   .on(BOM.name==QuotationItem.quotation_bom)
+		   .left_join(BOM)
+		   .on(BOMMetalDetail.parent==BOM.name)
+		   .select(QuotationItem.gold_bom_rate,
+            BOM.tag_no,
+            QuotationItem.qty.as_('product_pcs') ,
+            QuotationItem.item_code.as_("item"),
+            IfNull(QuotationItem.quotation_bom,"NA").as_('bom'),
+            IfNull(BOMMetalDetail.name,"NA").as_('mname'),
+            BOMMetalDetail.metal_type.as_('metal_type'),
+            BOMMetalDetail.metal_purity.as_('metal_code'),
+            Concat(BOMMetalDetail.metal_type,'_ ',BOMMetalDetail.purity_percentage).as_('metal_purity_'),
+            BOMMetalDetail.purity_percentage,
+            BOMMetalDetail.metal_purity,
+            BOMMetalDetail.metal_colour,
+            CustomerMetalLineNo.metal_line_no,
+            BOM.gross_weight,
+            BOM.total_metal_weight,
+            BOMMetalDetail.item.as_('bom_metal_item'),
+            BOM.item_category,
+            BOM.chain_weight,
+            QuotationItem.gold_bom_rate).where(conditions))
+	
+	metal_data= query.run(as_dict=True)
 	return metal_data
+
+
 
 
 def get_diamond(filters):
 	conditions = condition(filters)
-	diamond_data = frappe.db.sql(
-		f"""select qi.item_code as "item",ifnull(qi.quotation_bom,"NA") as 'bom',bdm.pcs as 'diamond_pcs',b.total_diamond_weight,"Diamond",bdm.item as "diamond_stone_item",
-                                ifnull(bdm.name,"NA") as "dname",bdm.diamond_cut as "diamond_cut",bdm.setting_type as "sub_setting",bdm.size_type as "diamond_size_name", bdm.diamond_sieve_size,bdm.stone_shape,bdm.diamond_cut,bdm.pcs,bdm.quantity,bdm.weight_per_pcs,"CT"
-                                from `tabQuotation` q left join `tabQuotation Item` qi on qi.parent = q.name
-                                left join `tabCustomer` c on c.name =  q.party_name  left join `tabCustomer Metal Line No` cmn on cmn.parent = c.name
-                                left join  `tabCustomer Product Dimension Code` cpd  on cpd.parent = c.name left join `tabCustomer Collection Code` ccc on ccc.parent = c.name
-                                left join `tabBOM`b on b.name = qi.quotation_bom left join `tabBOM Diamond Detail` bdm on bdm.parent = b.name
-                                {conditions} """,
-		filters,
-		as_dict=True,
+	# diamond_data = frappe.db.sql(
+	# 	f"""select qi.item_code as "item",ifnull(qi.quotation_bom,"NA") as 'bom',bdm.pcs as 'diamond_pcs',b.total_diamond_weight,"Diamond",bdm.item as "diamond_stone_item",
+    #                             ifnull(bdm.name,"NA") as "dname",bdm.diamond_cut as "diamond_cut",bdm.setting_type as "sub_setting",bdm.size_type as "diamond_size_name", bdm.diamond_sieve_size,bdm.stone_shape,bdm.diamond_cut,bdm.pcs,bdm.quantity,bdm.weight_per_pcs,"CT"
+    #                             from `tabQuotation` q left join `tabQuotation Item` qi on qi.parent = q.name
+    #                             left join `tabCustomer` c on c.name =  q.party_name  left join `tabCustomer Metal Line No` cmn on cmn.parent = c.name
+    #                             left join  `tabCustomer Product Dimension Code` cpd  on cpd.parent = c.name left join `tabCustomer Collection Code` ccc on ccc.parent = c.name
+    #                             left join `tabBOM`b on b.name = qi.quotation_bom left join `tabBOM Diamond Detail` bdm on bdm.parent = b.name
+    #                             {conditions} """,
+	# 	filters,
+	# 	as_dict=True,
+	# )
+	Quotation = DocType("Quotation").as_("q")
+	QI = DocType("Quotation Item").as_("qi")
+	C = DocType("Customer").as_("c")
+	CMN = DocType("Customer Metal Line No").as_("cmn")
+	CPD = DocType("Customer Product Dimension Code").as_("cpd")
+	CCC = DocType("Customer Collection Code").as_("ccc")
+	B = DocType("BOM").as_("b")
+	BDM = DocType("BOM Diamond Detail").as_("bdm")
+
+	diamond_data = (
+		qb.from_(Quotation)
+		.left_join(QI).on(QI.parent == Quotation.name)
+		.left_join(C).on(C.name == Quotation.party_name)
+		.left_join(CMN).on(CMN.parent == C.name)
+		.left_join(CPD).on(CPD.parent == C.name)
+		.left_join(CCC).on(CCC.parent == C.name)
+		.left_join(B).on(B.name == QI.quotation_bom)
+		.left_join(BDM).on(BDM.parent == B.name)
+		.select(
+			QI.item_code.as_("item"),
+		    IfNull(QI.quotation_bom, "NA").as_("bom"),
+			BDM.pcs.as_("diamond_pcs"),
+			B.total_diamond_weight,
+			LiteralValue('"Diamond"'),
+			BDM.item.as_("diamond_stone_item"),
+			IfNull(BDM.name, "NA").as_("dname"),
+			BDM.diamond_cut.as_("diamond_cut"),
+			BDM.setting_type.as_("sub_setting"),
+			BDM.size_type.as_("diamond_size_name"),
+			BDM.diamond_sieve_size,
+			BDM.stone_shape,
+			BDM.diamond_cut,
+			BDM.pcs,
+			BDM.quantity,
+			BDM.weight_per_pcs,
+			LiteralValue('"CT"')
+		)
+		.where(conditions)
+		.run(as_dict=True)
 	)
 	return diamond_data
 
 
 def get_gemstone(filters):
 	conditions = condition(filters)
-	gemstone_data = frappe.db.sql(
-		f"""select qi.item_code as "item",ifnull(qi.quotation_bom,"NA") as 'bom', ifnull(bgd.name,"NA") as "gname",bgd.stone_shape as "color_stone_shape",bgd.gemstone_type,bgd.cut_and_cab ,bgd.gemstone_size,bgd.gemstone_code, bgd.pcs as colour_stone_pcs,bgd.quantity as "colour_stone_qty","CT",
-                                CONCAT(cpd.code,"",cpd.product_dimension) as "prod_dimension_gp", CONCAT(ccc.code,"",ccc.collection) as "revision_collection_code","CA" ,"SR",c.vendor_code
-                                from `tabQuotation` q left join `tabQuotation Item` qi on qi.parent = q.name
-                                left join `tabCustomer` c on c.name =  q.party_name  left join `tabCustomer Metal Line No` cmn on cmn.parent = c.name
-                                left join  `tabCustomer Product Dimension Code` cpd  on cpd.parent = c.name left join `tabCustomer Collection Code` ccc on ccc.parent = c.name
-                                left join `tabBOM`b on b.name = qi.quotation_bom left join `tabBOM Gemstone Detail` bgd  on bgd.parent = b.name
-                                {conditions} """,
-		filters,
-		as_dict=True,
-	)
+	# gemstone_data = frappe.db.sql(
+	# 	f"""select qi.item_code as "item",ifnull(qi.quotation_bom,"NA") as 'bom', ifnull(bgd.name,"NA") as "gname",bgd.stone_shape as "color_stone_shape",bgd.gemstone_type,bgd.cut_and_cab ,bgd.gemstone_size,bgd.gemstone_code, bgd.pcs as colour_stone_pcs,bgd.quantity as "colour_stone_qty","CT",
+    #                             CONCAT(cpd.code,"",cpd.product_dimension) as "prod_dimension_gp", CONCAT(ccc.code,"",ccc.collection) as "revision_collection_code","CA" ,"SR",c.vendor_code
+    #                             from `tabQuotation` q left join `tabQuotation Item` qi on qi.parent = q.name
+    #                             left join `tabCustomer` c on c.name =  q.party_name  left join `tabCustomer Metal Line No` cmn on cmn.parent = c.name
+    #                             left join  `tabCustomer Product Dimension Code` cpd  on cpd.parent = c.name left join `tabCustomer Collection Code` ccc on ccc.parent = c.name
+    #                             left join `tabBOM`b on b.name = qi.quotation_bom left join `tabBOM Gemstone Detail` bgd  on bgd.parent = b.name
+    #                             {conditions} """,
+	# 	filters,
+	# 	as_dict=True,
+	# )
+
+	Quotation = DocType("Quotation").as_("q")
+	QI = DocType("Quotation Item").as_("qi")
+	C = DocType("Customer").as_("c")
+	CMN = DocType("Customer Metal Line No").as_("cmn")
+	CPD = DocType("Customer Product Dimension Code").as_("cpd")
+	CCC = DocType("Customer Collection Code").as_("ccc")
+	B = DocType("BOM").as_("b")
+	BGD = DocType("BOM Gemstone Detail").as_("bgd")
+
+	gemstone_data = (
+		frappe.qb.from_(Quotation)
+		.left_join(QI).on(QI.parent == Quotation.name)
+		.left_join(C).on(C.name == Quotation.party_name)
+		.left_join(CMN).on(CMN.parent == C.name)
+		.left_join(CPD).on(CPD.parent == C.name)
+		.left_join(CCC).on(CCC.parent == C.name)
+		.left_join(B).on(B.name == QI.quotation_bom)
+		.left_join(BGD).on(BGD.parent == B.name)
+		.select(
+			QI.item_code.as_("item"),
+			IfNull(QI.quotation_bom, "NA").as_("bom"),
+			IfNull(BGD.name, "NA").as_("gname"),
+			BGD.stone_shape.as_("color_stone_shape"),
+			BGD.gemstone_type,
+			BGD.cut_and_cab,
+			BGD.gemstone_size,
+			BGD.gemstone_code,
+			BGD.pcs.as_("colour_stone_pcs"),
+			BGD.quantity.as_("colour_stone_qty"),
+			LiteralValue('"CT"'),
+			Concat(CPD.code, CPD.product_dimension).as_("prod_dimension_gp"),
+			Concat(CCC.code, CCC.collection).as_("revision_collection_code"),
+			LiteralValue('"CA"'),
+			LiteralValue('"SR"'),
+			C.vendor_code
+		)
+		.where(conditions)
+		.run(as_dict=True)	
+		)
+
 	return gemstone_data
 
 
 def max_length(filters):
 	conditions = condition(filters)
-	length = frappe.db.sql(
-		f""" select q.name,count(distinct bmd.name) as "mname",count(distinct bgd.name) as "gname",count(distinct bdm.name) as "dname"from `tabQuotation` q left join `tabQuotation Item` qi on qi.parent = q.name
-                                left join `tabCustomer` c on c.name =  q.party_name  left join `tabCustomer Metal Line No` cmn on cmn.parent = c.name
-                                left join  `tabCustomer Product Dimension Code` cpd  on cpd.parent = c.name left join `tabCustomer Collection Code` ccc on ccc.parent = c.name
-                                left join `tabBOM`b on b.name = qi.quotation_bom right join `tabBOM Metal Detail` bmd  on bmd.parent = b.name
-                                left join `tabBOM Diamond Detail` bdm on bdm.parent = b.name
-                                left join `tabBOM Gemstone Detail` bgd  on bgd.parent = b.name
-                                {conditions} """,
-		filters,
-		as_dict=True,
+	# length = frappe.db.sql(
+	# 	f""" select q.name,count(distinct bmd.name) as "mname",count(distinct bgd.name) as "gname",count(distinct bdm.name) as "dname"from `tabQuotation` q left join `tabQuotation Item` qi on qi.parent = q.name
+    #                             left join `tabCustomer` c on c.name =  q.party_name  left join `tabCustomer Metal Line No` cmn on cmn.parent = c.name
+    #                             left join  `tabCustomer Product Dimension Code` cpd  on cpd.parent = c.name left join `tabCustomer Collection Code` ccc on ccc.parent = c.name
+    #                             left join `tabBOM`b on b.name = qi.quotation_bom right join `tabBOM Metal Detail` bmd  on bmd.parent = b.name
+    #                             left join `tabBOM Diamond Detail` bdm on bdm.parent = b.name
+    #                             left join `tabBOM Gemstone Detail` bgd  on bgd.parent = b.name
+    #                             {conditions} """,
+	# 	filters,
+	# 	as_dict=True,
+	# )
+	Quotation = DocType("Quotation").as_("q")
+	QI = DocType("Quotation Item").as_("qi")
+	C = DocType("Customer").as_("c")
+	CMN = DocType("Customer Metal Line No").as_("cmn")
+	CPD = DocType("Customer Product Dimension Code").as_("cpd")
+	CCC = DocType("Customer Collection Code").as_("ccc")
+	B = DocType("BOM").as_("b")
+	BMD = DocType("BOM Metal Detail").as_("bmd")
+	BDM = DocType("BOM Diamond Detail").as_("bdm")
+	BGD = DocType("BOM Gemstone Detail").as_("bgd")
+
+	length = (
+		frappe.qb.from_(Quotation)
+		.left_join(QI).on(QI.parent == Quotation.name)
+		.left_join(C).on(C.name == Quotation.party_name)
+		.left_join(CMN).on(CMN.parent == C.name)
+		.left_join(CPD).on(CPD.parent == C.name)
+		.left_join(CCC).on(CCC.parent == C.name)
+		.left_join(B).on(B.name == QI.quotation_bom)
+		.right_join(BMD).on(BMD.parent == B.name)
+		.left_join(BDM).on(BDM.parent == B.name)
+		.left_join(BGD).on(BGD.parent == B.name)
+		.select(
+			Quotation.name,
+			Count(BMD.name).distinct().as_("mname"),
+			Count(BGD.name).distinct().as_("gname"),
+			Count(BDM.name).distinct().as_("dname")
+		)
+		.where(conditions).run(as_dict=True)  # Replace with your conditions	
 	)
 	return length
 
 
 def get_items(filters):
 	conditions = condition(filters)
-	items_data = frappe.db.sql(
-		f""" select q.name,q.transaction_date as 'quotation_date', qi.item_code as "item", ifnull(qi.quotation_bom,"NA") as 'bom',b.total_gemstone_pcs as "total_gemstone_pcs" from `tabQuotation` q left join `tabQuotation Item` qi on qi.parent = q.name
-                                 left join `tabBOM` b on b.name = qi.quotation_bom
-                                {conditions} """,
-		filters,
-		as_dict=True,
+	# items_data = frappe.db.sql(
+	# 	f""" select q.name,q.transaction_date as 'quotation_date', qi.item_code as "item", ifnull(qi.quotation_bom,"NA") as 'bom',b.total_gemstone_pcs as "total_gemstone_pcs" from `tabQuotation` q left join `tabQuotation Item` qi on qi.parent = q.name
+    #                              left join `tabBOM` b on b.name = qi.quotation_bom
+    #                             {conditions} """,
+	# 	filters,
+	# 	as_dict=True,
+	# )
+
+	Quotation = DocType("Quotation").as_("q")
+	QI = DocType("Quotation Item").as_("qi")
+	B = DocType("BOM").as_("b")
+
+	items_data = (
+		frappe.qb.from_(Quotation)
+		.left_join(QI).on(QI.parent == Quotation.name)
+		.left_join(B).on(B.name == QI.quotation_bom)
+		.select(
+			Quotation.name,
+			Quotation.transaction_date.as_("quotation_date"),
+			QI.item_code.as_("item"),
+			IfNull(QI.quotation_bom, "NA").as_("bom"),
+			B.total_gemstone_pcs.as_("total_gemstone_pcs")
+		)
+		.where(conditions)
+		.run(as_dict=True)
 	)
+
 	# frappe.msgprint(length)
 	return items_data

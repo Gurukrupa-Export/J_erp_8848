@@ -1,4 +1,11 @@
 frappe.ui.form.on("Quotation", {
+	onload(frm) {
+		if (frm.doc.company) {
+			frappe.db.get_value("Company", frm.doc.company, "supplier_code", function (r) {
+				frm.doc.supplier_code = r.supplier_code;
+			});
+		}
+	},
 	refresh(frm) {
 		frm.add_custom_button(
 			__("Purchase Order"),
@@ -14,7 +21,7 @@ frappe.ui.form.on("Quotation", {
 							fieldtype: "Link",
 							options: "Supplier",
 							read_only: 1,
-							default: frm.doc.company,
+							default: frm.doc.supplier_code,
 						},
 					],
 					get_query_filters: {

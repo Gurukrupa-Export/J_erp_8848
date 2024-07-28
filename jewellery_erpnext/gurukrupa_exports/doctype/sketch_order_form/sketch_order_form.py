@@ -5,17 +5,17 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
-from frappe.utils import get_link_to_form
 from frappe.query_builder import DocType
+from frappe.utils import get_link_to_form
 
 
 class SketchOrderForm(Document):
 	def on_submit(self):
 		create_sketch_order(self)
 
-	def on_cancel(self):
-		delete_auto_created_sketch_order(self)
-		frappe.db.set_value("Sketch Order Form", self.name, "workflow_state", "Cancelled")
+	# def on_cancel(self):
+	# 	delete_auto_created_sketch_order(self)
+	# 	frappe.db.set_value("Sketch Order Form", self.name, "workflow_state", "Cancelled")
 
 	def validate(self):
 		self.validate_category_subcaegory()
@@ -134,13 +134,12 @@ def make_sketch_order(doctype, source_name, parent_doc=None, target_doc=None):
 
 @frappe.whitelist()
 def get_customer_orderType(customer_code):
-	OrderType = DocType('Order Type')
+	OrderType = DocType("Order Type")
 	order_type = (
-        frappe.qb
-            .from_(OrderType)
-            .select(OrderType.order_type)
-            .where(OrderType.parent == customer_code)
-            .run(as_dict=True)
-    )
+		frappe.qb.from_(OrderType)
+		.select(OrderType.order_type)
+		.where(OrderType.parent == customer_code)
+		.run(as_dict=True)
+	)
 
 	return order_type

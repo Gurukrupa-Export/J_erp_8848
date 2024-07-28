@@ -5,6 +5,7 @@ import frappe
 from erpnext.stock.doctype.batch.batch import get_batch_qty
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import flt
 
 from jewellery_erpnext.jewellery_erpnext.doctype.main_slip.main_slip import get_item_loss_item
 
@@ -16,6 +17,26 @@ class GemstoneConversion(Document):
 			frappe.throw(_("Source Qty greater then batch available qty"))
 
 	def validate(self):
+		loss_item = get_loss_item(self.company, self.g_source_item, self.loss_type)
+		remove_list = []
+		target_qty = 0
+		for row in self.sc_target_table:
+			if row.item_code == loss_item:
+				remove_list.append(row)
+				continue
+			target_qty += row.qty
+
+		for row in remove_list:
+			self.remove(row)
+
+		if loss_item and flt(self.g_source_qty - target_qty, 2) > 0:
+			self.append(
+				"sc_target_table", {"item_code": loss_item, "qty": (self.g_source_qty - target_qty)}
+			)
+
+		if target_qty > self.g_source_qty:
+			frappe.throw(_("Target Qty does not match with Source Qty"))
+
 		if self.g_loss_qty < 0:
 			frappe.throw(_("Target Qty not allowed greater than Source Qty"))
 		if self.g_target_qty > self.batch_avail_qty:
@@ -112,22 +133,11 @@ def make_gemstone_stock_entry(self):
 			"s_warehouse": source_wh,
 		}
 	)
-	target_item.append(
-		{
-			"item_code": self.g_target_item,
-			"qty": self.g_target_qty,
-			"inventory_type": inventory_type,
-			"department": self.department,
-			"employee": self.employee,
-			"manufacturer": self.manufacturer,
-			"t_warehouse": target_wh,
-		}
-	)
-	if self.g_loss_qty > 0:
+	for row in self.sc_target_table:
 		target_item.append(
 			{
-				"item_code": self.g_loss_item,
-				"qty": self.g_loss_qty,
+				"item_code": row.item_code,
+				"qty": row.qty,
 				"inventory_type": inventory_type,
 				"department": self.department,
 				"employee": self.employee,
@@ -135,6 +145,18 @@ def make_gemstone_stock_entry(self):
 				"t_warehouse": target_wh,
 			}
 		)
+	# if self.g_loss_qty > 0:
+	# 	target_item.append(
+	# 		{
+	# 			"item_code": self.g_loss_item,
+	# 			"qty": self.g_loss_qty,
+	# 			"inventory_type": inventory_type,
+	# 			"department": self.department,
+	# 			"employee": self.employee,
+	# 			"manufacturer": self.manufacturer,
+	# 			"t_warehouse": target_wh,
+	# 		}
+	# 	)
 	for row in source_item:
 		se.append(
 			"items",
@@ -147,6 +169,8 @@ def make_gemstone_stock_entry(self):
 				"employee": row["employee"],
 				"manufacturer": row["manufacturer"],
 				"s_warehouse": row["s_warehouse"],
+				"use_serial_batch_fields": True,
+				"serial_and_batch_bundle": None,
 			},
 		)
 	for row in target_item:

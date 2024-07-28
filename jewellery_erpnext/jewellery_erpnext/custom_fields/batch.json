@@ -1,35 +1,42 @@
 {
-	"Batch": [
-		{
-            "fieldname": "custom_voucher_detail_no",
-            "fieldtype": "Data",
-            "insert_after": "reference_name",
-            "label": "Voucher Detail No",
-            "module": "Jewellery Erpnext"
-		},
-        {
-            "fieldname": "custom_inventory_type",
-            "fieldtype": "Link",
-            "insert_after": "custom_voucher_detail_no",
-            "label": "Inventory Type",
-            "options": "Inventory Type",
-            "module": "Jewellery Erpnext"
-        },
-        {
-            "fieldname": "custom_customer",
-            "fieldtype": "Link",
-            "insert_after": "custom_inventory_type",
-            "label": "Customer",
-            "options": "Customer",
-            "module": "Jewellery Erpnext"
-        },
-        {
-            "fieldname": "custom_origin_entries",
-            "fieldtype": "Table MultiSelect",
-            "insert_after": "produced_qty",
-            "label": "Batch MultiSelect",
-            "options": "Batch MultiSelect",
-            "module": "Jewellery Erpnext"
-        }
-	]
+ "Batch": [
+  {
+   "dt": "Batch",
+   "fieldname": "custom_origin_entries",
+   "fieldtype": "Table MultiSelect",
+   "insert_after": "produced_qty",
+   "label": "Batch MultiSelect",
+   "module": "Jewellery Erpnext",
+   "options": "Batch MultiSelect"
+  },
+  {
+   "dt": "Batch",
+   "fieldname": "custom_customer",
+   "fieldtype": "Link",
+   "insert_after": "custom_inventory_type",
+   "label": "Customer",
+   "module": "Jewellery Erpnext",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "dt": "Batch",
+   "fieldname": "custom_inventory_type",
+   "fieldtype": "Link",
+   "insert_after": "custom_voucher_detail_no",
+   "label": "Inventory Type",
+   "module": "Jewellery Erpnext",
+   "options": "Inventory Type",
+   "read_only": 1
+  },
+  {
+   "dt": "Batch",
+   "fieldname": "custom_voucher_detail_no",
+   "fieldtype": "Data",
+   "insert_after": "reference_name",
+   "label": "Voucher Detail No",
+   "module": "Jewellery Erpnext",
+   "read_only": 1
+  }
+ ]
 }

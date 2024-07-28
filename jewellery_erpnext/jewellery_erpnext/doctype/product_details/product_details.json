@@ -81,14 +81,14 @@
    "label": "Total Weight"
   },
   {
-   "depends_on": "eval: parent.service_type == \"Fire SI Services\";",
+   "depends_on": "eval: parent.service_type == \"Fire Assy Service\";",
    "fieldname": "tree_no",
    "fieldtype": "Link",
    "label": "Tree No",
    "options": "Tree Number"
   },
   {
-   "depends_on": "eval: parent.service_type == \"Fire SI Services\";",
+   "depends_on": "eval: parent.service_type == \"Fire Assy Service\";",
    "fieldname": "main_slip",
    "fieldtype": "Link",
    "label": "Main Slip",

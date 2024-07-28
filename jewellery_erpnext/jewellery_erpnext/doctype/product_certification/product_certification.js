@@ -84,18 +84,18 @@ frappe.ui.form.on("Product Details", {
 			);
 		}
 	},
-	main_slip(frm, cdt, cdn) {
+	tree_no(frm, cdt, cdn) {
 		let d = locals[cdt][cdn];
-		if (!d.main_slip) {
+		if (!d.tree_no) {
 			return;
 		}
 		frappe.call({
 			method: "get_item_from_main_slip",
-			args: { main_slip: d.main_slip },
+			args: { tree_no: d.tree_no },
 			doc: frm.doc,
 			callback: function (r) {
 				d.item_code = r.message.item_code;
-				d.tree_no = r.message.tree_no;
+				d.main_slip = r.message.main_slip;
 			},
 		});
 	},

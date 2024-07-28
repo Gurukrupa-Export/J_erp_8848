@@ -15,6 +15,8 @@
   "column_break_aaanu",
   "branch",
   "abbr",
+  "is_finding_mwo",
+  "final_transfer_entry",
   "section_break_fsrwq",
   "for_fg",
   "seq",
@@ -117,6 +119,7 @@
   },
   {
    "fetch_from": "manufacturing_order.item_code",
+   "fetch_if_empty": 1,
    "fieldname": "item_code",
    "fieldtype": "Link",
    "label": "Design Code",
@@ -211,6 +214,7 @@
   },
   {
    "fetch_from": "manufacturing_order.master_bom",
+   "fetch_if_empty": 1,
    "fieldname": "master_bom",
    "fieldtype": "Link",
    "label": "Design Code BOM",
@@ -559,6 +563,19 @@
    "fieldname": "diamond_wt_in_gram",
    "fieldtype": "Float",
    "label": "Diamond Wt(in gram)"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_finding_mwo",
+   "fieldtype": "Check",
+   "label": "Is Finding MWO"
+  },
+  {
+   "fieldname": "final_transfer_entry",
+   "fieldtype": "Link",
+   "label": "Final Transfer Entry",
+   "options": "Stock Entry",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -585,7 +602,7 @@
    "link_fieldname": "manufacturing_work_order"
   }
  ],
- "modified": "2024-05-15 16:21:03.168486",
+ "modified": "2024-07-04 12:31:42.080405",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Work Order",

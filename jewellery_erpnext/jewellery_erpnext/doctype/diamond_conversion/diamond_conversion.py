@@ -5,6 +5,7 @@ import frappe
 from erpnext.stock.doctype.batch.batch import get_batch_qty
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import flt
 
 
 class DiamondConversion(Document):
@@ -128,9 +129,23 @@ def make_diamond_stock_entry(self):
 					"manufacturer": self.manufacturer,
 					"t_warehouse": target_wh,
 					"inventory_type": inventory,
+					"set_basic_rate_manually": 1,
 					"customer": inventory_wise_data[inventory].get("customer"),
 				},
 			)
+	se.save()
+	amount = 0
+	for row in se.items:
+		if row.s_warehouse:
+			amount += row.amount
+
+	avg_amount = amount / self.sum_source_table
+	for row in se.items:
+		if row.t_warehouse:
+			row.basic_rate = flt(avg_amount, 3)
+			row.amount = row.qty * avg_amount
+			row.basic_amount = row.qty * avg_amount
+
 	se.save()
 	se.submit()
 	self.stock_entry = se.name

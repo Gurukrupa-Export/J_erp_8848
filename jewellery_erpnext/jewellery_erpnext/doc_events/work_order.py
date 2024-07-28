@@ -1,6 +1,7 @@
 import frappe
 from frappe import _
 from frappe.utils import get_link_to_form
+from frappe.query_builder.functions import Count
 
 
 def validate(self, method):
@@ -25,15 +26,31 @@ def validate(self, method):
 def get_work_orders(self):
 	if not self.get("is_combine"):
 		return
+	
 	operations = frappe.get_list("Operation", {"combine_job_card": 1}, pluck="name")
 	# ops = ", ".join(map(frappe.db.escape, operations))
 	ops = ", ".join([frappe.db.escape(op) for op in operations])
-	work_orders = frappe.db.sql(
-		f"""SELECT work_order, item_code FROM `tabJob Card` WHERE docstatus != 2 AND operation IN ({ops})
-								AND status = 'Open' AND work_order not in (select wod.work_order from `tabWork Order Details` wod where wod.docstatus!=2)
-								GROUP BY work_order HAVING COUNT(DISTINCT operation) = {len(operations)}""",
-		as_dict=True,
+
+	JobCard = frappe.qb.DocType("Job Card")
+	WorkOrderDetails = frappe.qb.DocType("Work Order Details")
+	# Create a query to fetch work orders
+	subquery = (
+		frappe.qb.from_(WorkOrderDetails)
+		.select(WorkOrderDetails.work_order)
+		.where(WorkOrderDetails.docstatus != 2)
 	)
+
+	query = (
+		frappe.qb.from_(JobCard)
+		.select(JobCard.work_order, JobCard.item_code)
+		.where(JobCard.docstatus != 2)
+		.where(JobCard.operation.isin(operations))
+		.where(JobCard.status == 'Open')
+		.where(JobCard.work_order.notin(subquery))
+		.groupby(JobCard.work_order)
+		.having(Count(JobCard.operation).distinct() == len(operations))
+	)
+	work_orders = query.run(as_dict=True)
 
 	if not work_orders:
 		frappe.msgprint(_("No pending Work Orders"))

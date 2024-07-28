@@ -28,19 +28,22 @@
    "fieldname": "rate_per_gm",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Rate per gm"
+   "label": "Rate per gm",
+   "options": "currency"
   },
   {
    "fieldname": "rate_per_pc",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Rate per pc"
+   "label": "Rate per pc",
+   "options": "currency"
   },
   {
    "fieldname": "rate_per_diamond",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Rate per diamond"
+   "label": "Rate per diamond",
+   "options": "currency"
   },
   {
    "fieldname": "column_break_4",
@@ -63,13 +66,14 @@
   {
    "fieldname": "supplier_fg_purchase_rate",
    "fieldtype": "Currency",
-   "label": "Supplier FG Purchase Rate"
+   "label": "Supplier FG Purchase Rate",
+   "options": "currency"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-02-19 18:21:03.486309",
+ "modified": "2024-07-11 14:46:10.806585",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Making Charge Price Item Subcategory",

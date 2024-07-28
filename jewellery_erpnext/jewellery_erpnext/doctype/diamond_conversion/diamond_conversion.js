@@ -17,6 +17,15 @@ frappe.ui.form.on("Diamond Conversion", {
 	refresh(frm) {
 		set_batch_filter(frm, "sc_source_table");
 		// set_batch_filter(frm,"sc_target_table");
+		frm.fields_dict["sc_source_table"].grid.get_field("item_code").get_query = function (
+			frm,
+			cdt,
+			cdn
+		) {
+			return {
+				query: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.filters.item_query_filters",
+			};
+		};
 	},
 	employee(frm) {
 		get_detail_tab_value(frm);
@@ -114,7 +123,7 @@ function get_detail_tab_value(frm) {
 }
 
 function validate_diamond(frm) {
-	if (frm.doc.sum_source_table != frm.doc.sum_target_table) {
+	if (flt(frm.doc.sum_source_table, 3) != flt(frm.doc.sum_target_table, 3)) {
 		frappe.throw(__("Source & Target Sum Must be Equal"));
 	}
 }
@@ -124,7 +133,7 @@ function calculateSum(frm) {
 		frm.doc.sc_source_table.forEach(function (row) {
 			sum += flt(row.qty) || 0;
 		});
-		frm.set_value("sum_source_table", sum);
+		frm.set_value("sum_source_table", flt(sum, 3));
 		frm.refresh_field("sum_source_table");
 	}
 	if (frm.doc.sc_target_table) {
@@ -132,7 +141,7 @@ function calculateSum(frm) {
 		frm.doc.sc_target_table.forEach(function (row) {
 			sum += flt(row.qty) || 0;
 		});
-		frm.set_value("sum_target_table", sum);
+		frm.set_value("sum_target_table", flt(sum, 3));
 		frm.refresh_field("sum_target_table");
 	}
 }

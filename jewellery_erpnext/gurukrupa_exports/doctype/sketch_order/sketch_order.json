@@ -28,58 +28,57 @@
   "section_break_2",
   "design_by",
   "sketch_order_form",
+  "index",
   "column_break_2",
   "design_type",
-  "section_break_10",
   "sketch_order_form_detail",
-  "sketch_order_form_category",
-  "index",
+  "flow_type",
+  "section_break_10",
   "amended_from",
   "section_break_8",
-  "season",
-  "column_break_10",
-  "column_break_12",
-  "section_break_25",
   "tag__design_id",
   "item_code",
   "tag_id",
   "master_bom_no",
   "reference_designid",
   "reference_tagid",
-  "column_break_32",
-  "qty",
+  "section_break_25",
+  "category",
+  "subcategory",
   "setting_type",
   "sub_setting_type1",
   "sub_setting_type2",
-  "product_size",
   "column_break_mclrz",
-  "category",
-  "subcategory",
-  "gold_target",
-  "diamond_target",
+  "qty",
+  "metal_type",
+  "metal_touch",
+  "metal_colour",
   "budget",
   "section_break_82",
+  "metal_target",
+  "diamond_target",
+  "product_size",
+  "sizer_type",
+  "column_break_zkkp",
+  "length",
+  "width",
+  "height",
+  "section_break_y4y2c",
   "gemstone_type1",
   "column_break_7dbz",
   "gemstone_size",
   "section_break_q9yyc",
   "design_image",
-  "image",
-  "column_break_xevqd",
+  "column_break_32",
   "sketch_image",
-  "sketch_image_preview",
+  "column_break_xevqd",
   "design_image1",
-  "image_preview1",
   "column_break_oshmy",
   "design_image2",
-  "image_preview2",
   "column_break_cvjx1",
   "design_image3",
-  "image_preview3",
   "column_break_sf403",
   "design_image4",
-  "image_preview4",
-  "section_break_y4y2c",
   "section_break_53",
   "remark",
   "section_break_47",
@@ -112,8 +111,7 @@
   "india_states",
   "column_break_zasix",
   "usa",
-  "usa_states",
-  "delivery_days"
+  "usa_states"
  ],
  "fields": [
   {
@@ -192,14 +190,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "sketch_order_form_category",
-   "fieldtype": "Link",
-   "hidden": 1,
-   "label": "Sketch Order Form Category",
-   "options": "Sketch Order Form Category",
-   "read_only": 1
-  },
-  {
    "fieldname": "index",
    "fieldtype": "Data",
    "label": "Index",
@@ -219,18 +209,11 @@
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "column_break_10",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "column_break_12",
-   "fieldtype": "Column Break"
-  },
-  {
    "fieldname": "design_style",
    "fieldtype": "Table MultiSelect",
    "label": "Design Style",
-   "options": "Design Attribute - Multiselect"
+   "options": "Design Attribute - Multiselect",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_25",
@@ -295,15 +278,14 @@
    "fetch_from": "sketch_order_form_detail.category",
    "fieldname": "category",
    "fieldtype": "Link",
-   "label": "Category",
-   "options": "Attribute Value",
-   "read_only": 1
+   "label": "Item Category",
+   "options": "Attribute Value"
   },
   {
    "fetch_from": "sketch_order_form_detail.subcategory",
    "fieldname": "subcategory",
    "fieldtype": "Link",
-   "label": "Sub Category",
+   "label": "Item Sub Category",
    "options": "Attribute Value",
    "read_only": 1
   },
@@ -313,21 +295,9 @@
    "label": "Design Image1"
   },
   {
-   "fieldname": "image_preview1",
-   "fieldtype": "Image",
-   "label": "Image Preview1",
-   "options": "design_image1"
-  },
-  {
    "fieldname": "sketch_image",
    "fieldtype": "Attach Image",
    "label": "Sketch Image"
-  },
-  {
-   "fieldname": "sketch_image_preview",
-   "fieldtype": "Image",
-   "label": "Sketch Image Preview",
-   "options": "sketch_image"
   },
   {
    "fieldname": "design_image2",
@@ -335,21 +305,9 @@
    "label": "Design Image2"
   },
   {
-   "fieldname": "image_preview2",
-   "fieldtype": "Image",
-   "label": "Image Preview2",
-   "options": "design_image2"
-  },
-  {
    "fieldname": "design_image3",
    "fieldtype": "Attach Image",
    "label": "Design Image3"
-  },
-  {
-   "fieldname": "image_preview3",
-   "fieldtype": "Image",
-   "label": "Image Preview3",
-   "options": "design_image3"
   },
   {
    "fieldname": "design_image4",
@@ -357,12 +315,7 @@
    "label": "Design Image4"
   },
   {
-   "fieldname": "image_preview4",
-   "fieldtype": "Image",
-   "label": "Image Preview4",
-   "options": "design_image4"
-  },
-  {
+   "fetch_from": "sketch_order_form_detail.setting_type",
    "fieldname": "setting_type",
    "fieldtype": "Link",
    "label": "Setting Type",
@@ -375,13 +328,6 @@
    "fieldtype": "Link",
    "label": "Sub Setting Type2",
    "options": "Attribute Value",
-   "read_only": 1
-  },
-  {
-   "fetch_from": "sketch_order_form_detail.gold_target",
-   "fieldname": "gold_target",
-   "fieldtype": "Data",
-   "label": "Gold Target ",
    "read_only": 1
   },
   {
@@ -399,6 +345,7 @@
    "read_only": 1
   },
   {
+   "fetch_from": "sketch_order_form_detail.qty",
    "fieldname": "qty",
    "fieldtype": "Int",
    "label": "No of Designs",
@@ -420,6 +367,7 @@
    "read_only": 1
   },
   {
+   "fetch_from": "sketch_order_form_detail.gemstone_type1",
    "fieldname": "gemstone_type1",
    "fieldtype": "Link",
    "label": "Gemstone Type1",
@@ -435,7 +383,6 @@
    "fieldtype": "Section Break"
   },
   {
-   "fetch_from": "sketch_order_form_detail.remarks",
    "fieldname": "remarks",
    "fieldtype": "Text",
    "in_list_view": 1,
@@ -477,7 +424,7 @@
    "permlevel": 1
   },
   {
-   "depends_on": "eval:(!in_list(['Unassigned','Assigned','On Hold', 'On Hold - Assigned','Rough Sketch Approval (HOD)','On Hold - Rough Sketch Approval','Final Sketch Approval (HOD)','Final Sketch Approval (HOD)','Customer Approval'], doc.workflow_state))",
+   "depends_on": "eval:(!in_list(['Unassigned','Assigned','On Hold', 'On Hold - Assigned','Rough Sketch Approval (HOD)','On Hold - Rough Sketch Approval','Final Sketch Approval (HOD)','ON Hold - Final Sketch Approved (HOD)','Customer Approval'], doc.workflow_state))",
    "fieldname": "section_break_43",
    "fieldtype": "Section Break"
   },
@@ -507,6 +454,7 @@
   },
   {
    "depends_on": "eval:((doc.design_type==\"Mod\"))",
+   "fetch_from": "sketch_order_form_detail.tag_id",
    "fieldname": "tag_id",
    "fieldtype": "Link",
    "label": "Master Serial No",
@@ -555,12 +503,6 @@
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "image",
-   "fieldtype": "Image",
-   "label": "Image",
-   "options": "design_image"
-  },
-  {
    "fieldname": "column_break_xevqd",
    "fieldtype": "Column Break"
   },
@@ -577,7 +519,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "fetch_from": "sketch_order_form_detail.subsetting_type",
+   "fetch_from": "sketch_order_form_detail.sub_setting_type1",
    "fieldname": "sub_setting_type1",
    "fieldtype": "Link",
    "label": "Sub Setting Type1",
@@ -615,6 +557,7 @@
    "read_only": 1
   },
   {
+   "fetch_from": "sketch_order_form.due_days",
    "fieldname": "due_days",
    "fieldtype": "Int",
    "label": "Due Days",
@@ -624,12 +567,6 @@
    "fieldname": "territories_tab",
    "fieldtype": "Tab Break",
    "label": "Territories"
-  },
-  {
-   "fieldname": "delivery_days",
-   "fieldtype": "Data",
-   "label": "Delivery Days",
-   "read_only": 1
   },
   {
    "default": "0",
@@ -672,32 +609,37 @@
    "fieldtype": "Table MultiSelect",
    "label": "Age Group",
    "options": "Design Attribute - Multiselect",
+   "read_only": 1,
    "reqd": 1
   },
   {
    "fieldname": "alphabetnumber",
    "fieldtype": "Table MultiSelect",
    "label": "Alphabet/Number",
-   "options": "Design Attribute - Multiselect"
+   "options": "Design Attribute - Multiselect",
+   "read_only": 1
   },
   {
    "fieldname": "animalbirds",
    "fieldtype": "Table MultiSelect",
    "label": "Animal/Birds",
-   "options": "Design Attribute - Multiselect"
+   "options": "Design Attribute - Multiselect",
+   "read_only": 1
   },
   {
    "fieldname": "gender",
    "fieldtype": "Table MultiSelect",
    "label": "Gender",
    "options": "Design Attribute - Multiselect",
+   "read_only": 1,
    "reqd": 1
   },
   {
    "fieldname": "lines_rows",
    "fieldtype": "Table MultiSelect",
    "label": "Lines & Rows",
-   "options": "Design Attribute - Multiselect"
+   "options": "Design Attribute - Multiselect",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_a3fv",
@@ -707,13 +649,15 @@
    "fieldname": "language",
    "fieldtype": "Table MultiSelect",
    "label": "Language",
-   "options": "Design Attribute - Multiselect"
+   "options": "Design Attribute - Multiselect",
+   "read_only": 1
   },
   {
    "fieldname": "occasion",
    "fieldtype": "Table MultiSelect",
    "label": "Occasion",
    "options": "Design Attribute - Multiselect",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -721,25 +665,29 @@
    "fieldtype": "Table MultiSelect",
    "label": "Rhodium",
    "options": "Design Attribute - Multiselect",
+   "read_only": 1,
    "reqd": 1
   },
   {
    "fieldname": "religious",
    "fieldtype": "Table MultiSelect",
    "label": "Religious",
-   "options": "Design Attribute - Multiselect"
+   "options": "Design Attribute - Multiselect",
+   "read_only": 1
   },
   {
    "fieldname": "shapes",
    "fieldtype": "Table MultiSelect",
    "label": "Shapes",
-   "options": "Design Attribute - Multiselect"
+   "options": "Design Attribute - Multiselect",
+   "read_only": 1
   },
   {
    "fieldname": "zodiac",
    "fieldtype": "Table MultiSelect",
    "label": "Zodiac",
-   "options": "Design Attribute - Multiselect"
+   "options": "Design Attribute - Multiselect",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_y4y2c",
@@ -749,25 +697,95 @@
    "fieldname": "collection_1",
    "fieldtype": "Table MultiSelect",
    "label": "Collection",
-   "options": "Design Attribute - Multiselect"
+   "options": "Design Attribute - Multiselect",
+   "read_only": 1
   },
   {
-    "fetch_from": "sketch_order_form_detail.gemstone_size",
-    "fieldname": "gemstone_size",
-    "fieldtype": "Link",
-    "label": "Gemstone Size",
-    "options": "Attribute Value",
-    "read_only": 1
-   },
-   {
-    "fieldname": "column_break_7dbz",
-    "fieldtype": "Column Break"
-   }
+   "fetch_from": "sketch_order_form_detail.gemstone_size",
+   "fieldname": "gemstone_size",
+   "fieldtype": "Link",
+   "label": "Gemstone Size",
+   "options": "Attribute Value",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_7dbz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "sketch_order_form_detail.metal_type",
+   "fieldname": "metal_type",
+   "fieldtype": "Link",
+   "label": "Metal Type",
+   "options": "Attribute Value"
+  },
+  {
+   "fetch_from": "sketch_order_form_detail.metal_touch",
+   "fieldname": "metal_touch",
+   "fieldtype": "Link",
+   "label": "Metal Touch",
+   "options": "Attribute Value"
+  },
+  {
+   "fetch_from": "sketch_order_form_detail.metal_colour",
+   "fieldname": "metal_colour",
+   "fieldtype": "Link",
+   "label": "Metal Colour",
+   "options": "Attribute Value"
+  },
+  {
+   "fetch_from": "sketch_order_form_detail.metal_target",
+   "fieldname": "metal_target",
+   "fieldtype": "Data",
+   "label": "Metal Target ",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "sketch_order_form_detail.sizer_type",
+   "fieldname": "sizer_type",
+   "fieldtype": "Data",
+   "label": "Sizer Type"
+  },
+  {
+   "fieldname": "column_break_zkkp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "sketch_order_form_detail.length",
+   "fieldname": "length",
+   "fieldtype": "Float",
+   "label": "Length"
+  },
+  {
+   "fetch_from": "sketch_order_form_detail.width",
+   "fieldname": "width",
+   "fieldtype": "Float",
+   "label": "Width"
+  },
+  {
+   "fetch_from": "sketch_order_form_detail.height",
+   "fieldname": "height",
+   "fieldtype": "Float",
+   "label": "Height"
+  },
+  {
+   "fetch_from": "sketch_order_form.flow_type",
+   "fieldname": "flow_type",
+   "fieldtype": "Select",
+   "label": "Flow Type",
+   "options": "MTO\nMTBI\nFILLER\nGCC\nUS\nJWO",
+   "read_only": 1
+  }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
- "links": [],
- "modified": "2024-02-20 12:19:42.002556",
+ "links": [
+  {
+   "link_doctype": "Item",
+   "link_fieldname": "custom_sketch_order_id"
+  }
+ ],
+ "modified": "2024-07-03 18:01:14.033784",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Sketch Order",

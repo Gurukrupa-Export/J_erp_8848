@@ -2,7 +2,7 @@ frappe.provide("erpnext.item");
 
 frappe.ui.form.on("Purchase Invoice", {
 	refresh(frm) {
-		set_si_reference_field_filter();
+		// set_si_reference_field_filter();
 		get_items(frm);
 	},
 	onload(frm) {

@@ -116,7 +116,9 @@
   "section_break_okxuw",
   "stock_summery",
   "show_details_section",
-  "stock_entry_details"
+  "stock_entry_details",
+  "sent_for_customer_approval",
+  "customer_status"
  ],
  "fields": [
   {
@@ -436,6 +438,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "manufacturing_end_due_days",
    "fieldtype": "Int",
    "label": "Est. MFG End Due Days"
@@ -472,11 +475,13 @@
    "fieldtype": "Column Break"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "due_days",
    "fieldtype": "Int",
    "label": "Due Days"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "est_delivery_days",
    "fieldtype": "Int",
    "label": "Est. Delivery Days"
@@ -735,7 +740,7 @@
    "fieldname": "type",
    "fieldtype": "Select",
    "label": "Type",
-   "options": "\nManufacturing\nRepair"
+   "options": "\nManufacturing\nRepair\nFinding Manufacturing"
   },
   {
    "collapsible": 1,
@@ -786,6 +791,18 @@
    "fieldtype": "Float",
    "label": "Other Weight",
    "precision": "2"
+  },
+  {
+   "default": "0",
+   "fieldname": "sent_for_customer_approval",
+   "fieldtype": "Check",
+   "label": "Sent for Customer Approval"
+  },
+  {
+   "fieldname": "customer_status",
+   "fieldtype": "Select",
+   "label": "Customer Status",
+   "options": "Issue\nReceive"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -804,7 +821,7 @@
    "link_fieldname": "manufacturing_order"
   }
  ],
- "modified": "2024-05-20 10:35:28.049354",
+ "modified": "2024-07-03 16:04:35.377563",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Parent Manufacturing Order",

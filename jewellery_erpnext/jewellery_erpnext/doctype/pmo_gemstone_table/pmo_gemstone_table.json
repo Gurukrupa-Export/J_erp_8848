@@ -44,7 +44,7 @@
    "fieldname": "price_list_type",
    "fieldtype": "Select",
    "label": "Price List Type",
-   "options": "Weight (in cts)\nFixed"
+   "options": "Weight (in cts)\nFixed\nMultiplier"
   },
   {
    "fieldname": "gemstone_type",
@@ -185,7 +185,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-01-25 23:57:19.478198",
+ "modified": "2024-06-25 12:41:16.815604",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "PMO Gemstone Table",

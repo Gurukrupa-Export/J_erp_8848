@@ -1,6 +1,6 @@
 frappe.ui.form.on("Purchase Receipt", {
 	refresh(frm) {
-		set_si_reference_field_filter();
+		// set_si_reference_field_filter();
 		get_items(frm);
 	},
 	purchase_type(frm) {

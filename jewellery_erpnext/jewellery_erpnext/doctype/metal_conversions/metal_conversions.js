@@ -11,6 +11,11 @@ frappe.ui.form.on("Metal Conversions", {
 		if (frm.doc.multiple_metal_converter == 1) {
 			set_child_table_batch_filter(frm, "mc_source_table");
 		}
+		frm.fields_dict["source_item"].get_query = function (frm) {
+			return {
+				query: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.filters.item_query_filters",
+			};
+		};
 	},
 	setup(frm) {
 		// Set Metal Tab Filter

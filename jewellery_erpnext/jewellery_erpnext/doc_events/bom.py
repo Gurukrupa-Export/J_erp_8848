@@ -16,6 +16,24 @@ def before_validate(self, method):
 	self.doc_pricision = (
 		2 if frappe.db.get_value("Customer", self.customer, "custom_consider_2_digit_for_bom") else 3
 	)
+	self.diamond_pricision = (
+		2 if frappe.db.get_value("Customer", self.customer, "custom_consider_2_digit_for_diamond") else 3
+	)
+	self.gemstone_pricision = (
+		2
+		if frappe.db.get_value("Customer", self.customer, "custom_consider_2_digit_for_gemstone")
+		else 3
+	)
+	gemstone_price_list_type = frappe.db.get_value(
+		"Customer", self.customer, "custom_gemstone_price_list_type"
+	)
+
+	if self.customer and not gemstone_price_list_type:
+		frappe.throw(_("Gemstone Price list type not mentioned into customer"))
+
+	for row in self.gemstone_detail:
+		row.price_list_type = gemstone_price_list_type
+
 	system_item_validation(self)
 	set_item_variant(self)
 	set_bom_items(self)
@@ -32,6 +50,12 @@ def validate(self, method):
 	if frappe.db.exists("BOM", self.name):
 		update_serial_details(self)
 
+	for row in self.finding_detail:
+		if row.item_variant and frappe.db.exists("Item", row.item_variant):
+			row.ignore_work_order = frappe.db.get_value(
+				"Item", row.item_variant, "custom_ignore_work_order"
+			)
+
 
 def after_insert(self, method):
 	update_serial_details(self)
@@ -46,9 +70,15 @@ def on_update_after_submit(self, method):
 	if frappe.db.get_value("Customer", self.customer, "custom_consider_2_digit_for_bom"):
 		pricision = 2
 		self.db_set("doc_pricision", pricision)
-	# self.doc_pricision = (
-	# 	2 if frappe.db.get_value("Customer", self.customer, "custom_consider_2_digit_for_bom") else 3
-	# )
+
+	if frappe.db.get_value("Customer", self.customer, "custom_consider_2_digit_for_diamond"):
+		pricision = 2
+		self.db_set("diamond_pricision", pricision)
+
+	if frappe.db.get_value("Customer", self.customer, "custom_consider_2_digit_for_gemstone"):
+		pricision = 2
+		self.db_set("gemstone_pricision", pricision)
+
 	set_bom_rate(self)
 	calculate_total(self)
 
@@ -90,11 +120,17 @@ def set_item_variant(self):
 						attr.attribute for attr in template.attributes
 					]  # Store the attributes in the dictionary
 				# Create a dictionary of the attribute values from the row
-				args = {
-					attr: row.get(attr.replace(" ", "_").lower())
-					for attr in attributes[template.name]
-					if row.get(attr.replace(" ", "_").lower())
-				}
+				args = {}
+				for attr in attributes[template.name]:
+					key = attr
+					normalized_attr = frappe.scrub(key)
+					if attr == "Finding Sub-Category":
+						key = "Finding Sub-Category"
+						normalized_attr = "finding_type"
+
+					if row.get(normalized_attr):
+						args[key] = row.get(normalized_attr)
+
 				variant = get_variant(
 					row.item, args
 				)  # Get the variant for the current item and attribute values
@@ -211,15 +247,9 @@ def calculate_metal_qty(self):
 			AV = frappe.qb.DocType("Attribute Value")
 			conditions = []
 			for value in color:
-				condition = (AV.name.like(f'%{value}%'))
+				condition = AV.name.like(f"%{value}%")
 				conditions.append(condition)
-			query = (
-				frappe.qb.from_(AV)
-				.select(AV.name)
-				.where(
-					(AV.is_metal_colour == 1) 
-				)
-			)
+			query = frappe.qb.from_(AV).select(AV.name).where((AV.is_metal_colour == 1))
 			for cond in conditions:
 				query = query.where(cond)
 
@@ -434,7 +464,7 @@ def get_records_universal_attribute_value(filters):
 @frappe.whitelist()
 def get_bom_details(serial_no, customer):
 	try:
-		return frappe.get_doc("BOM", {"tag_no": serial_no, "is_active": 1, "customer": customer})
+		return frappe.get_doc("BOM", {"tag_no": serial_no, "is_active": 1})
 	except Exception as e:
 		frappe.db.rollback()
 		frappe.log_error(e)
@@ -446,12 +476,9 @@ def calculate_rates(self):
 	finding_weight = self.finding_weight if self.get("finding_weight") else 0
 	other_weight = self.other_weight if self.get("other_weight") else 0
 	diamond_weight = self.diamond_weight if self.get("diamond_weight") else 0
-	self.diamond_inclusive = flt(
-		gross_weight - gemstone_weight - finding_weight - other_weight, self.doc_pricision
-	)
+	self.diamond_inclusive = flt(gross_weight - gemstone_weight - finding_weight - other_weight, 3)
 	self.net_wt = flt(
-		gross_weight - diamond_weight - gemstone_weight - finding_weight - other_weight,
-		self.doc_pricision,
+		gross_weight - diamond_weight - gemstone_weight - finding_weight - other_weight, 3
 	)
 
 
@@ -463,6 +490,8 @@ def update_totals(parent_doctype, parent_doctype_name):
 	gold_gst_rate = frappe.db.get_single_value("Jewellery Settings", "gold_gst_rate")
 
 	self.db_set("gold_bom_amount", 0)
+	self.db_set("making_charge", 0)
+	self.db_set("total_making_amount", 0)
 	self.db_set("making_fg_purchase", 0)
 	for row in self.metal_detail + self.finding_detail:
 		metal_purity = frappe.db.get_value(
@@ -477,13 +506,16 @@ def update_totals(parent_doctype, parent_doctype_name):
 		row.db_set("making_amount", (row.making_rate * row.quantity))
 		row.db_set("wastage_amount", (row.wastage_rate * row.amount / 100))
 
+		self.db_set("making_charge", self.making_charge + row.making_amount)
+		self.db_set("total_making_amount", (self.total_making_amount + row.making_amount))
 		self.db_set("gold_bom_amount", (self.gold_bom_amount + row.amount))
 		self.db_set("making_fg_purchase", (self.making_fg_purchase + row.fg_purchase_amount))
 
-		if company_metal_purity != metal_purity:
-			company_rate = (
-				flt(self.gold_rate_with_gst) * flt(company_metal_purity) / (100 + int(gold_gst_rate))
-			)
+		if flt(company_metal_purity, 3) != flt(metal_purity, 3):
+			# company_rate = (
+			# 	flt(self.gold_rate_with_gst) * flt(company_metal_purity) / (100 + int(gold_gst_rate))
+			# )
+			company_rate = flt(row.rate) * flt(company_metal_purity) / (100 + int(gold_gst_rate))
 			company_amount = flt(row.quantity) * company_rate
 			row.db_set("difference", (row.amount - company_amount))
 		else:

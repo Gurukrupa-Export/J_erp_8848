@@ -16,7 +16,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Certification Type",
-   "options": "Hall Marking Service\nDiamond Certificate service\nFire SI Services\nXRF Services"
+   "options": "Hall Marking Service\nDiamond Certificate service\nFire Assy Service\nXRF Services"
   },
   {
    "fieldname": "purchase_item",
@@ -35,7 +35,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-06-04 16:00:46.996850",
+ "modified": "2024-07-24 11:47:17.384129",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Product Certification Details",

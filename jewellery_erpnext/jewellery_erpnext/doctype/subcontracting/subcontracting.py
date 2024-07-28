@@ -124,17 +124,37 @@ class Subcontracting(Document):
 	def custom_get_item_details(self, args=None, for_update=False):
 		if isinstance(args, str):
 			args = json.loads(args)
-		item = frappe.db.sql(
-			"""select i.name, i.stock_uom, i.description, i.image, i.item_name, i.item_group,
-				i.has_batch_no, i.sample_quantity, i.has_serial_no, i.allow_alternative_item,
-				id.expense_account, id.buying_cost_center
-			from `tabItem` i LEFT JOIN `tabItem Default` id ON i.name=id.parent and id.company=%s
-			where i.name=%s
-				and i.disabled=0
-				and (i.end_of_life is null or i.end_of_life<'1900-01-01' or i.end_of_life > %s)""",
-			(self.company, args.get("item_code"), nowdate()),
-			as_dict=1,
+		
+		Item = frappe.qb.DocType("Item")
+		ItemDefault = frappe.qb.DocType("Item Default")
+		query = (
+			frappe.qb.from_(Item)
+			.left_join(ItemDefault).on((Item.name == ItemDefault.parent) & (ItemDefault.company == self.company))
+			.select(
+				Item.name,
+				Item.stock_uom,
+				Item.description,
+				Item.image,
+				Item.item_name,
+				Item.item_group,
+				Item.has_batch_no,
+				Item.sample_quantity,
+				Item.has_serial_no,
+				Item.allow_alternative_item,
+				ItemDefault.expense_account,
+				ItemDefault.buying_cost_center
+			)
+			.where(
+				(Item.name == args.get("item_code")) &
+				(Item.disabled == 0) &
+				(
+					(Item.end_of_life.isnull()) |
+					(Item.end_of_life < '1900-01-01') |
+					(Item.end_of_life > nowdate())
+				)
+			)
 		)
+		item = query.run(as_dict=True)
 		if not item:
 			frappe.throw(
 				("Item {0} is not active or end of life has been reached").format(args.get("item_code"))

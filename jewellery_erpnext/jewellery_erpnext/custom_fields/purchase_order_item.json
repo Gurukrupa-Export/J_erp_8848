@@ -327,6 +327,15 @@
    "is_system_generated": 1,
    "label": "HSN/SAC",
    "module": "Jewellery Erpnext"
+  },
+  {
+   "dt": "Purchase Order Item",
+   "fieldname": "custom_pmo",
+   "fieldtype": "Link",
+   "insert_after": "blanket_order_rate",
+   "label": "PMO",
+   "module": "Jewellery Erpnext",
+   "options": "Parent Manufacturing Order"
   }
  ]
 }

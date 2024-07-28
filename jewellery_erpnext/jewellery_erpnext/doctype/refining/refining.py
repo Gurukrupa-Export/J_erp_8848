@@ -37,16 +37,34 @@ class Refining(Document):
 		create_refining_entry(self)
 
 	def check_overlap(self):
+
 		if not self.multiple_operation:
-			condition = f"""docstatus != 2 and dustname = '{self.dustname}' and multiple_operation = {self.multiple_operation}
-					and operation = '{self.operation}' and employee = '{self.employee}' and (
-					(('{self.date_from}' > date_from) and ('{self.date_from}' < date_to))
-					or (('{self.date_to}' > date_from) and ('{self.date_to}' < date_to))
-					or (('{self.date_from}' <= date_from) and ('{self.date_to}' >= date_to))
-				)"""
-			name = frappe.db.sql(
-				f"select name from `tabRefining` where name != '{self.name}' and {condition}"
+			Refining = frappe.qb.DocType("Refining")
+		
+			# Build the conditions
+			conditions = (
+				(Refining.docstatus != 2) &
+				(Refining.dustname == self.dustname) &
+				(Refining.multiple_operation == self.multiple_operation) &
+				(Refining.operation == self.operation) &
+				(Refining.employee == self.employee) &
+				(
+					((self.date_from > Refining.date_from) & (self.date_from < Refining.date_to)) |
+					((self.date_to > Refining.date_from) & (self.date_to < Refining.date_to)) |
+					((self.date_from <= Refining.date_from) & (self.date_to >= Refining.date_to))
+				)
 			)
+			# query
+			query = (
+				frappe.qb.from_(Refining)
+				.select(Refining.name)
+				.where(
+					(Refining.name != name) &
+					conditions
+				)
+			)
+			name = query.run()
+
 			if name:
 				frappe.throw(
 					f"Document is overlapping with <b><a href='/app/refining/{name[0][0]}'>{name[0][0]}</a></b>"
@@ -54,16 +72,36 @@ class Refining(Document):
 		else:
 			if not self.refining_operation_detail:
 				return
-			operation = [frappe.db.escape(row.operation) for row in self.refining_operation_detail]
-			condition = f"""r.docstatus != 2 and dustname = '{self.dustname}' and r.multiple_operation = {self.multiple_operation} and
-					ro.operation in ({', '.join(operation)}) and ((('{self.date_from}' >= r.date_from) and ('{self.date_from}' <= r.date_to))
-					or (('{self.date_to}' >= r.date_from) and ('{self.date_to}' <= r.date_to))
-					or (('{self.date_from}' <= r.date_from) and ('{self.date_to}' >= r.date_to))
-				)"""
-			name = frappe.db.sql(
-				f"""select r.name from `tabRefining` r, `tabRefining Operation Detail` ro where
-									r.name = ro.parent and r.name != '{self.name}' and {condition}"""
+			
+			Refining = frappe.qb.DocType("Refining")
+			RefiningOperationDetail = frappe.qb.DocType("Refining Operation Detail")
+			operation_list = [frappe.db.escape(row.operation) for row in self.refining_operation_detail]
+
+			# Build the conditions
+			conditions = (
+				(Refining.docstatus != 2) &
+				(Refining.dustname == self.dustname) &
+				(Refining.multiple_operation == self.multiple_operation) &
+				(RefiningOperationDetail.operation.isin(operation_list)) &
+				(
+					((self.date_from >= Refining.date_from) & (self.date_from <= Refining.date_to)) |
+					((self.date_to >= Refining.date_from) & (self.date_to <= Refining.date_to)) |
+					((self.date_from <= Refining.date_from) & (self.date_to >= Refining.date_to))
+				)
+			)	
+			# query
+			query = (
+				frappe.qb.from_(Refining)
+				.join(RefiningOperationDetail)
+				.on(Refining.name == RefiningOperationDetail.parent)
+				.select(Refining.name)
+				.where(
+					(Refining.name != self.name) &
+					conditions
+				)
 			)
+			name = query.run()
+			
 			if name:
 				frappe.throw(
 					f"Document is overlapping with <b><a href='/app/refining/{name[0][0]}'>{name[0][0]}</b>"
@@ -123,18 +161,30 @@ class Refining(Document):
 		for row in self.manufacturing_work_order:
 			mwo = row.manufacturing_work_order
 			mop = row.manufacturing_operation
-			data = frappe.db.sql(
-				f"""
-				SELECT se.manufacturing_work_order, se.manufacturing_operation, sed.parent,
-				sed.item_code,sed.item_name, sed.qty, sed.uom
-				FROM `tabStock Entry Detail` sed LEFT JOIN `tabStock Entry` se ON sed.parent = se.name
-				WHERE se.docstatus = 1
-				AND sed.t_warehouse = '{target_wh}'
-				AND se.manufacturing_operation = '{mop}'
-				AND se.manufacturing_work_order = '{mwo}'
-				""",
-				as_dict=1,
+			StockEntry = frappe.qb.DocType("Stock Entry")
+			StockEntryDetail = frappe.qb.DocType("Stock Entry Detail")
+
+			query = (
+				frappe.qb.from_(StockEntryDetail)
+				.join(StockEntry)
+				.on(StockEntryDetail.parent == StockEntry.name)
+				.select(
+					StockEntry.manufacturing_work_order,
+					StockEntry.manufacturing_operation,
+					StockEntryDetail.parent,
+					StockEntryDetail.item_code,
+					StockEntryDetail.item_name,
+					StockEntryDetail.qty,
+					StockEntryDetail.uom
+				)
+				.where(
+					(StockEntry.docstatus == 1) &
+					(StockEntryDetail.t_warehouse == target_wh) &
+					(StockEntry.manufacturing_operation == mop) &
+					(StockEntry.manufacturing_work_order == mwo)
+				)
 			)
+			data = query.run(as_dict=True)
 
 			all_stock_entry += data
 

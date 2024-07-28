@@ -6,8 +6,13 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
 from frappe.model.naming import make_autoname
-from frappe.utils import cint, flt, now
+from frappe.utils import cint, flt, get_datetime, now
 
+from jewellery_erpnext.jewellery_erpnext.doctype.manufacturing_work_order.doc_events.utils import (
+	add_time_log,
+	create_se_entry,
+	create_stock_transfer_entry,
+)
 from jewellery_erpnext.utils import get_item_from_attribute, set_values_in_bulk
 
 
@@ -65,18 +70,35 @@ class ManufacturingWorkOrder(Document):
 	@frappe.whitelist()
 	def get_linked_stock_entries(self):  # MWO Details Tab code
 		mwo = frappe.get_all("Manufacturing Work Order", {"name": self.name}, pluck="name")
-		data = frappe.db.sql(
-			f"""select se.manufacturing_operation, se.name, sed.item_code,sed.item_name, sed.qty, sed.uom
-							from `tabStock Entry Detail` sed left join `tabStock Entry` se
-							on sed.parent = se.name
-							where se.docstatus = 1 and se.manufacturing_work_order in ('{"', '".join(mwo)}') ORDER BY se.modified ASC""",
-			as_dict=1,
+		StockEntryDetail = frappe.qb.DocType("Stock Entry Detail")
+		StockEntry = frappe.qb.DocType("Stock Entry")
+
+		query = (
+			frappe.qb.from_(StockEntryDetail)
+			.left_join(StockEntry)
+			.on(StockEntryDetail.parent == StockEntry.name)
+			.select(
+				StockEntry.manufacturing_operation,
+				StockEntry.name,
+				StockEntryDetail.item_code,
+				StockEntryDetail.item_name,
+				StockEntryDetail.qty,
+				StockEntryDetail.uom,
+			)
+			.where((StockEntry.docstatus == 1) & (StockEntry.manufacturing_work_order.isin(mwo)))
+			.orderby(StockEntry.modified, order=frappe.qb.asc)
 		)
+		data = query.run(as_dict=True)
+
 		total_qty = len([item["name"] for item in data])
 		return frappe.render_template(
 			"jewellery_erpnext/jewellery_erpnext/doctype/manufacturing_work_order/stock_entry_details.html",
 			{"data": data, "total_qty": total_qty},
 		)
+
+	@frappe.whitelist()
+	def transfer_to_mwo(self):
+		create_stock_transfer_entry(self)
 
 	@frappe.whitelist()
 	def create_repair_un_pack_stock_entry(self):
@@ -212,8 +234,15 @@ class ManufacturingWorkOrder(Document):
 		se.save()
 		se.submit()
 
+	@frappe.whitelist()
+	def create_mfg_entry(self):
+		create_se_entry(self)
+
 
 def create_manufacturing_operation(doc):
+	# timer code
+	dt_string = get_datetime()
+
 	mop = get_mapped_doc(
 		"Manufacturing Work Order",
 		doc.name,
@@ -248,6 +277,9 @@ def create_manufacturing_operation(doc):
 	mop.save()
 	mop.db_set("employee", None)
 	doc.db_set("manufacturing_operation", mop.name)
+	values = {"operation": operation}
+	values["department_start_time"] = dt_string
+	add_time_log(mop, values)
 
 
 @frappe.whitelist()

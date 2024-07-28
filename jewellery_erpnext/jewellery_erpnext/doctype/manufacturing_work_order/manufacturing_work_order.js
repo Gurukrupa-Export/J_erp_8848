@@ -13,7 +13,74 @@ frappe.ui.form.on("Manufacturing Work Order", {
 				frm.trigger("unpack_raw_material");
 			});
 		}
+		if (
+			frm.doc.docstatus == 1 &&
+			frm.doc.is_finding_mwo == 1 &&
+			!frm.doc.final_transfer_entry
+		) {
+			frm.add_custom_button(__("Finish PMO"), function () {
+				frm.trigger("transfer_to_raw");
+			});
+			frm.add_custom_button(__("Transfer Finding"), function () {
+				frm.trigger("transfer_finding");
+			});
+		}
 		set_html(frm);
+	},
+	transfer_to_raw: function (frm) {
+		frm.call({
+			doc: frm.doc,
+			method: "create_mfg_entry",
+			freeze: true,
+			freeze_message: __("Manufacturing...."),
+			callback: (r) => {
+				if (!r.exc) {
+					frappe.msgprint(__("Manufacturing Entry has been generated."));
+					frm.refresh();
+				}
+			},
+		});
+	},
+	transfer_finding: function (frm) {
+		const dialog = new frappe.ui.Dialog({
+			title: __("Transfer to another MWO"),
+			fields: [
+				{
+					fieldname: "mwo",
+					fieldtype: "Link",
+					options: "Manufacturing Work Order",
+					label: "Manufacturing Work Order",
+					reqd: 1,
+					get_query: () => {
+						return {
+							filters: {
+								manufacturing_order: frm.doc.manufacturing_order,
+								docstatus: 1,
+								is_finding_mwo: 0,
+							},
+						};
+					},
+				},
+			],
+			primary_action: function () {
+				frm.doc.transfer_mwo = dialog.get_values()["mwo"];
+				frm.call({
+					doc: frm.doc,
+					method: "transfer_to_mwo",
+					freeze: true,
+					freeze_message: __("Transfering...."),
+					callback: (r) => {
+						if (!r.exc) {
+							frappe.msgprint(__("Material Tranfered to the MWO."));
+							frm.refresh();
+						}
+					},
+				});
+				dialog.hide();
+			},
+			primary_action_label: __("Submit"),
+		});
+		dialog.show();
 	},
 	unpack_raw_material: function (frm) {
 		frm.call({

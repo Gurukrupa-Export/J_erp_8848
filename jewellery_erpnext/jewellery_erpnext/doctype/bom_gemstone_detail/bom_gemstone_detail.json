@@ -16,10 +16,12 @@
   "is_customer_item",
   "total_gemstone_rate",
   "fg_purchase_rate",
+  "item_category",
   "column_break_8",
   "gemstone_size",
   "gemstone_code",
   "sub_setting_type",
+  "se_rate",
   "pcs",
   "quantity",
   "weight_in_gms",
@@ -43,7 +45,7 @@
    "fieldname": "price_list_type",
    "fieldtype": "Select",
    "label": "Price List Type",
-   "options": "Weight (in cts)\nFixed"
+   "options": "Weight (in cts)\nFixed\nMultiplier"
   },
   {
    "fieldname": "gemstone_type",
@@ -179,12 +181,24 @@
    "fieldtype": "Currency",
    "label": "FG Purchase Amount",
    "read_only": 1
+  },
+  {
+   "fieldname": "item_category",
+   "fieldtype": "Link",
+   "label": "Item Category",
+   "options": "Attribute Value"
+  },
+  {
+   "fieldname": "se_rate",
+   "fieldtype": "Currency",
+   "label": "SE Rate",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-02-22 15:01:48.960851",
+ "modified": "2024-07-09 17:27:45.022226",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "BOM Gemstone Detail",

@@ -1,5 +1,6 @@
 import frappe
 from frappe import _
+from frappe.query_builder.custom import ConstantColumn
 from frappe.utils import flt
 
 
@@ -132,7 +133,7 @@ def get_diamond_rate(self):
 	ss_range = {}
 	for diamond in self.diamond_detail:
 		actual_qty = diamond.quantity
-		diamond.quantity = flt(diamond.quantity, self.doc_pricision)
+		diamond.quantity = flt(diamond.quantity, self.diamond_pricision)
 		diamond.difference = actual_qty - diamond.quantity
 		if not diamond.sieve_size_range:
 			continue
@@ -187,6 +188,7 @@ def _calculate_diamond_amount(self, diamond, cust_diamond_price_list_type, range
 		filters["sieve_size_range"] = sieve_size_range
 	elif price_list_type == "Size (in mm)":
 		filters["size_in_mm"] = size_in_mm
+		filters["diamond_size_in_mm"] = diamond.diamond_size_in_mm
 	else:
 		frappe.msgprint(_("Price List Type Not Specified"))
 		return 0
@@ -232,40 +234,77 @@ def get_gemstone_rate(self):
 	gemstone_amount = 0
 	for stone in self.gemstone_detail:
 		actual_qty = stone.quantity
-		stone.quantity = flt(stone.quantity, self.doc_pricision)
+		stone.quantity = flt(stone.quantity, self.gemstone_pricision)
 		stone.difference = actual_qty - stone.quantity
 		# Calculate the weight per piece
-		stone.pcs = stone.pcs or 1
+		stone.pcs = int(stone.pcs) or 1
 		gemstone_weight_per_pcs = stone.quantity / stone.pcs
 
 		# Create filters for retrieving the Gemstone Price List
 		filters = {
 			"price_list": self.selling_price_list,
-			"gemstone_type": stone.gemstone_type,
-			"stone_shape": stone.stone_shape,
-			"gemstone_quality": stone.gemstone_quality,
 			"price_list_type": stone.price_list_type,
 			"customer": self.customer,
 			"cut_or_cab": stone.cut_or_cab,
+			"gemstone_grade": stone.gemstone_grade,
 		}
 		if stone.price_list_type == "Weight (in cts)":
 			filters.update(
 				{
+					"gemstone_type": stone.gemstone_type,
+					"stone_shape": stone.stone_shape,
+					"gemstone_quality": stone.gemstone_quality,
 					"from_weight": ["<=", gemstone_weight_per_pcs],
 					"to_weight": [">=", gemstone_weight_per_pcs],
 				}
 			)
+		elif stone.price_list_type == "Multiplier" and stone.gemstone_size:
+			filters.update(
+				{
+					"to_stone_size": [">=", stone.gemstone_size],
+					"from_stone_size": ["<=", stone.gemstone_size],
+				}
+			)
 		else:
+			filters["gemstone_type"] = stone.gemstone_type
+			filters["stone_shape"] = stone.stone_shape
+			filters["gemstone_quality"] = stone.gemstone_quality
+			filters["gemstone_quality"] = stone.gemstone_quality
 			filters["gemstone_size"] = stone.gemstone_size
 
 		# Retrieve the Gemstone Price List and calculate the rate
 		gemstone_price_list = frappe.get_list(
 			"Gemstone Price List",
 			filters=filters,
-			fields=["rate", "handling_rate", "supplier_fg_purchase_rate"],
+			fields=["name", "rate", "handling_rate", "supplier_fg_purchase_rate"],
 			order_by="effective_from desc",
 			limit=1,
 		)
+
+		multiplier = 0
+		item_category = frappe.db.get_value("Item", self.item, "item_category")
+		if stone.price_list_type == "Multiplier":
+			for row in gemstone_price_list:
+				multiplier = (
+					frappe.db.get_value(
+						"Gemstone Multiplier",
+						{"parent": row.name, "item_category": item_category, "parentfield": "gemstone_multiplier"},
+						frappe.scrub(stone.gemstone_quality),
+					)
+					or 0
+				)
+				fg_multiplier = (
+					frappe.db.get_value(
+						"Gemstone Multiplier",
+						{
+							"parent": row.name,
+							"item_category": item_category,
+							"parentfield": "supplier_fg_multiplier",
+						},
+						frappe.scrub(stone.gemstone_quality),
+					)
+					or 0
+				)
 
 		if not gemstone_price_list:
 			frappe.msgprint(
@@ -274,17 +313,26 @@ def get_gemstone_rate(self):
 			return 0
 
 		# Get Handling Rate of the Diamond if it is a cutomer provided Diamond
-		rate = (
-			gemstone_price_list[0].get("handling_rate")
-			if stone.is_customer_item
-			else gemstone_price_list[0].get("rate")
-		)
+		pr = int(stone.gemstone_pr)
+		if stone.price_list_type == "Multiplier":
+			rate = multiplier * pr
+		else:
+			rate = (
+				gemstone_price_list[0].get("handling_rate")
+				if stone.is_customer_item
+				else gemstone_price_list[0].get("rate")
+			)
 		stone.total_gemstone_rate = rate
 		stone.gemstone_rate_for_specified_quantity = int(rate) * stone.quantity
 		gemstone_amount += int(rate) * stone.quantity
 
-		stone.fg_purchase_rate = gemstone_price_list[0].get("supplier_fg_purchase_rate")
-		stone.fg_purchase_amount = stone.quantity * stone.fg_purchase_rate
+		if stone.price_list_type != "Multiplier":
+			stone.fg_purchase_rate = gemstone_price_list[0].get("supplier_fg_purchase_rate")
+			stone.fg_purchase_amount = stone.quantity * stone.fg_purchase_rate
+		else:
+			stone.fg_purchase_rate = pr * fg_multiplier
+			stone.fg_purchase_amount = stone.quantity * stone.fg_purchase_rate
+
 	return gemstone_amount
 
 
@@ -316,49 +364,94 @@ def get_metal_and_finding_making_rate(self, sub_category, setting_type):
 	# Get Making Charge From Making Charge Price Master for mentioned Combinations
 	self.set_additional_rate = False
 	for row in self.metal_detail + self.finding_detail:
-		child_table = (
-			"tabMaking Charge Price Item Subcategory"
-			if row.parentfield == "metal_detail"
-			else "tabMaking Charge Price Finding Subcategory"
-		)
 
-		making_charge_details = frappe.db.sql(
-			f"""
-			SELECT
-				mcp.metal_purity, subcat.rate_per_gm, subcat.rate_per_pc, subcat.rate_per_gm_threshold,subcat.wastage, subcat.supplier_fg_purchase_rate
-			FROM `tabMaking Charge Price` mcp
-				LEFT JOIN `{child_table}` subcat
-			ON subcat.parent = mcp.name
-			WHERE
-				mcp.customer = '{self.customer}'
-				AND IF (NOT EXISTS(select name from `{child_table}` where parent = mcp.name and subcategory = '{sub_category if not row.get('finding_type') else row.get('finding_type')}'),
-					   subcat.subcategory is null or subcat.subcategory = '', subcat.subcategory = '{sub_category if not row.get('finding_type') else row.get('finding_type')}')
-				AND mcp.setting_type = '{setting_type}'
-				AND mcp.metal_type = '{row.metal_type}'
-				{f"AND subcat.metal_touch = '{row.metal_touch}'" if row.parentfield != "metal_detail" else ""}
-				LIMIT 1
-			""",
-			as_dict=True,
+		MCP = frappe.qb.DocType("Making Charge Price")
+		MCPIS = frappe.qb.DocType("Making Charge Price Item Subcategory")
+		MCPFS = frappe.qb.DocType("Making Charge Price Finding Subcategory")
+
+		if row.parentfield == "metal_detail":
+			child_table = MCPIS
+		else:
+			child_table = MCPFS
+		subcat_subcategory = sub_category if not row.get("finding_type") else row.get("finding_type")
+		# Build query
+		query = (
+			frappe.qb.from_(MCP)
+			.left_join(child_table)
+			.on(child_table.parent == MCP.name)
+			.select(
+				child_table.rate_per_gm,
+				child_table.rate_per_pc,
+				child_table.rate_per_gm_threshold,
+				child_table.wastage,
+				child_table.supplier_fg_purchase_rate,
+			)
+			.where(
+				(MCP.customer == self.customer)
+				& (MCP.setting_type == setting_type)
+				& (MCP.metal_type == row.metal_type)
+			)
 		)
+		# Subquery to check for existence
+		subquery = (
+			frappe.qb.from_(child_table)
+			.left_join(MCP)
+			.on(child_table.parent == MCP.name)
+			.select(child_table.name)
+			.where((child_table.parent == MCP.name))
+			.run()
+		)
+		if subquery:
+			query = query.where(child_table.subcategory == subcat_subcategory)
+		else:
+			query = query.where((child_table.subcategory.isnull()) | (child_table.subcategory == ""))
+
+		# Add dynamic conditions
+		if row.parentfield != "metal_detail":
+			query = query.where(child_table.metal_touch == row.metal_touch)
+
+		query = query.limit(1)
+		making_charge_details = query.run(as_dict=True)
+
 		# AND mcp.metal_purity = '{row.metal_purity}'
 		if not making_charge_details and row.parentfield != "metal_detail":
-			making_charge_details = frappe.db.sql(
-				f"""
-				SELECT
-					mcp.metal_purity, subcat.rate_per_gm, subcat.rate_per_pc, subcat.rate_per_gm_threshold,subcat.wastage, subcat.subcategory, subcat.supplier_fg_purchase_rate, 1 as non_finding_rate
-				FROM `tabMaking Charge Price` mcp
-					LEFT JOIN `tabMaking Charge Price Item Subcategory` subcat
-				ON subcat.parent = mcp.name
-				WHERE
-					mcp.customer = '{self.customer}'
-					AND IF (NOT EXISTS(select name from `tabMaking Charge Price Item Subcategory` where parent = mcp.name and subcategory = '{sub_category}'),
-						subcat.subcategory is null or subcat.subcategory = '', subcat.subcategory = '{sub_category}')
-					AND mcp.setting_type = '{setting_type}'
-					AND mcp.metal_type = '{row.metal_type}'
-				LIMIT 1
-				""",
-				as_dict=True,
+			# Subquery to check for existence
+			subquery = (
+				frappe.qb.from_(MCPIS)
+				.left_join(MCP)
+				.on(MCPIS.parent == MCP.name)
+				.select(MCPIS.name)
+				.where((MCPIS.parent == MCP.name) & (MCPIS.subcategory == sub_category))
+				.run()
 			)
+			query = (
+				frappe.qb.from_(MCP)
+				.left_join(MCPIS)
+				.on(MCPIS.parent == MCP.name)
+				.select(
+					MCP.metal_purity,
+					MCPIS.rate_per_gm,
+					MCPIS.rate_per_pc,
+					MCPIS.rate_per_gm_threshold,
+					MCPIS.wastage,
+					MCPIS.subcategory,
+					MCPIS.supplier_fg_purchase_rate,
+					ConstantColumn(1).as_("non_finding_rate"),
+				)
+				.where(
+					(MCP.customer == self.customer)
+					& (MCP.setting_type == setting_type)
+					& (MCP.metal_type == row.metal_type)
+				)
+				.limit(1)
+			)
+			if subquery:
+				query = query.where(MCPIS.subcategory == sub_category)
+			else:
+				query = query.where((MCPIS.subcategory.isnull()) | (MCPIS.subcategory == ""))
+
+			making_charge_details = query.run(as_dict=True)
+
 			# AND mcp.metal_purity = '{row.metal_purity}'
 
 		_set_total_making_charges(self, row, making_charge_details or [])
