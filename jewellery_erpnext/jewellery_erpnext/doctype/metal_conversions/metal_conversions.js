@@ -294,6 +294,7 @@ function calculate_Multiple_conversion(frm) {
 		callback: (r) => {
 			console.log(r.message);
 			if (r.message) {
+				frm.set_value("alloy_qty", 0);
 				frm.set_value("m_target_qty", r.message[0]);
 				frm.refresh_field("m_target_qty");
 

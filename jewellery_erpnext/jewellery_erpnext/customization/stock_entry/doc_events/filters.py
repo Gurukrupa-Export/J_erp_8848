@@ -16,8 +16,11 @@ def item_query_filters(doctype, txt, searchfield, start, page_len, filters):
 		.select(Item.name, Item.item_name, Item.item_group)
 		.where(Item.is_stock_item == 1)
 		.where(Item.has_variants == 0)
-		.where(Item.variant_of.notin(loss_variants))
 	)
+
+	if loss_variants:
+		query = query.where(Item.variant_of.notin(loss_variants))
+
 	# Construct the query with search conditions
 	query = (
 		query.where(

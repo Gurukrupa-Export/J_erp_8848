@@ -4,12 +4,12 @@
 import json
 
 import frappe
-from frappe import _
+from frappe import _, qb
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
 from frappe.query_builder import DocType
-from frappe import qb
 from frappe.query_builder.functions import Sum
+
 # timer code
 from frappe.utils import cint, flt, get_datetime, time_diff_in_seconds, today
 
@@ -672,23 +672,24 @@ def create_stock_entry(doc, row, difference_wt=0):
 	# 	as_dict=1,
 	# 	pluck=1,
 	# )
-	sed = frappe.qb.DocType('Stock Entry Detail').as_('sed')
-	se = frappe.qb.DocType('Stock Entry').as_('se')
+	sed = frappe.qb.DocType("Stock Entry Detail").as_("sed")
+	se = frappe.qb.DocType("Stock Entry").as_("se")
 	query = (
-	qb.from_(sed)
-	.left_join(se).on(sed.parent == se.name)
-	.select(se.name)
-	.where(
-		(se.auto_created == 1) &
-		(se.docstatus == 1) &
-		(sed.manufacturing_operation == row.manufacturing_operation) &
-		(sed.t_warehouse if doc.type == "Issue" else sed.s_warehouse==department_wh) &
-		(sed.to_department == doc.department)
+		qb.from_(sed)
+		.left_join(se)
+		.on(sed.parent == se.name)
+		.select(se.name)
+		.where(
+			(se.auto_created == 1)
+			& (se.docstatus == 1)
+			& (sed.manufacturing_operation == row.manufacturing_operation)
+			& (sed.t_warehouse if doc.type == "Issue" else sed.s_warehouse == department_wh)
+			& (sed.to_department == doc.department)
+		)
+		.groupby(se.name)
+		.orderby(se.posting_date)
 	)
-	.groupby(se.name)
-	.orderby(se.posting_date)
-	)
-	stock_entries= query.run(as_dict=True, pluck=True)
+	stock_entries = query.run(as_dict=True, pluck=True)
 	manual_se_entries = []
 	if doc.type == "Issue":
 		# manual_se_entries = frappe.db.sql(
@@ -699,23 +700,24 @@ def create_stock_entry(doc, row, difference_wt=0):
 		# 	as_dict=1,
 		# 	pluck=1,
 		# )
-		sed = frappe.qb.DocType('Stock Entry Detail').as_('sed')
-		se = frappe.qb.DocType('Stock Entry').as_('se')
+		sed = frappe.qb.DocType("Stock Entry Detail").as_("sed")
+		se = frappe.qb.DocType("Stock Entry").as_("se")
 		query = (
-		qb.from_(sed)
-		.left_join(se).on(sed.parent == se.name)
-		.select(se.name)
-		.where(
-			(se.auto_created == 1) &
-			(se.docstatus == 1) &
-			(sed.manufacturing_operation == row.manufacturing_operation) &
-			(sed.t_warehouse if doc.type == "Issue" else sed.s_warehouse==department_wh) &
-			(sed.to_department == doc.department)
+			qb.from_(sed)
+			.left_join(se)
+			.on(sed.parent == se.name)
+			.select(se.name)
+			.where(
+				(se.auto_created == 1)
+				& (se.docstatus == 1)
+				& (sed.manufacturing_operation == row.manufacturing_operation)
+				& (sed.t_warehouse if doc.type == "Issue" else sed.s_warehouse == department_wh)
+				& (sed.to_department == doc.department)
+			)
+			.groupby(se.name)
+			.orderby(se.posting_date)
 		)
-		.groupby(se.name)
-		.orderby(se.posting_date)
-		)
-		manual_se_entries= query.run(as_dict=True, pluck=True)
+		manual_se_entries = query.run(as_dict=True, pluck=True)
 
 		if not stock_entries:
 			prev_mfg_operation = get_previous_operation(row.manufacturing_operation)
@@ -727,22 +729,23 @@ def create_stock_entry(doc, row, difference_wt=0):
 			# 	as_dict=1,
 			# 	pluck=1,
 			# )
-			sed = DocType('Stock Entry Detail').as_('sed')
-			se = DocType('Stock Entry').as_('se')
+			sed = DocType("Stock Entry Detail").as_("sed")
+			se = DocType("Stock Entry").as_("se")
 			query = (
 				frappe.qb.from_(sed)
-				.left_join(se).on(sed.parent == se.name)
+				.left_join(se)
+				.on(sed.parent == se.name)
 				.select(se.name)
 				.where(
-					(se.docstatus == 1) &
-					(sed.manufacturing_operation == prev_mfg_operation) &
-					(sed.t_warehouse == department_wh) &
-					((sed.employee.notnull()) | (sed.subcontractor.notnull())) &
-					(sed.to_department == doc.department)
+					(se.docstatus == 1)
+					& (sed.manufacturing_operation == prev_mfg_operation)
+					& (sed.t_warehouse == department_wh)
+					& ((sed.employee.notnull()) | (sed.subcontractor.notnull()))
+					& (sed.to_department == doc.department)
 				)
 				.groupby(se.name)
 				.orderby(se.posting_date)
-				)
+			)
 			stock_entries = query.run(as_dict=True, pluck=True)
 	item = None
 	metal_item = None
@@ -763,8 +766,8 @@ def create_stock_entry(doc, row, difference_wt=0):
 		# 	as_dict=1,
 		# 	pluck=1,
 		# )
-		StockEntryDetail = DocType('Stock Entry Detail').as_('sed')
-		StockEntry = DocType('Stock Entry').as_('se')
+		StockEntryDetail = DocType("Stock Entry Detail").as_("sed")
+		StockEntry = DocType("Stock Entry").as_("se")
 		query = (
 			qb.from_(StockEntryDetail)
 			.left_join(StockEntry)
@@ -780,8 +783,8 @@ def create_stock_entry(doc, row, difference_wt=0):
 			.orderby(StockEntry.creation)
 		)
 		if stock_entries:
-			query.where(StockEntry.name.notin(stock_entries))
-		non_automated_entries=query.run(as_dict=True, pluck=True)
+			query = query.where(StockEntry.name.notin(stock_entries))
+		non_automated_entries = query.run(as_dict=True, pluck=True)
 	existing_items = frappe.get_all(
 		"Stock Entry Detail",
 		{"parent": ["in", stock_entries + non_automated_entries]},
@@ -1163,21 +1166,21 @@ def create_stock_entry(doc, row, difference_wt=0):
 					# """,
 					# 	as_dict=1,
 					# )
-					StockEntryDetail = DocType('Stock Entry Detail').as_('sed')
-					StockEntry = DocType('Stock Entry').as_('se')
+					StockEntryDetail = DocType("Stock Entry Detail").as_("sed")
+					StockEntry = DocType("Stock Entry").as_("se")
 					query = (
 						qb.from_(StockEntryDetail)
 						.join(StockEntry)
 						.on(StockEntry.name == StockEntryDetail.parent)
-						.select(Sum(StockEntryDetail.qty).as_('qty'))
+						.select(Sum(StockEntryDetail.qty).as_("qty"))
 						.where(
-							(StockEntry.docstatus == 1) &
-							(StockEntry.auto_created == 0) &
-							(StockEntryDetail.s_warehouse == child.t_warehouse) &
-							(StockEntryDetail.manufacturing_operation == child.manufacturing_operation) &
-							(StockEntryDetail.batch_no == child.batch_no)
-							)
-						)	
+							(StockEntry.docstatus == 1)
+							& (StockEntry.auto_created == 0)
+							& (StockEntryDetail.s_warehouse == child.t_warehouse)
+							& (StockEntryDetail.manufacturing_operation == child.manufacturing_operation)
+							& (StockEntryDetail.batch_no == child.batch_no)
+						)
+					)
 					temp_qty = query.run(as_dict=True)
 					if temp_qty:
 						temp_qty = temp_qty[0]["qty"] or 0
@@ -1401,16 +1404,15 @@ def create_qc_record(row, operation, employee_ir):
 		# 	f"""select name from `tabQC` where manufacturing_operation = '{row.manufacturing_operation}' and
 		# 			quality_inspection_template = '{template}' and ((docstatus = 1 and status in ('Accepted', 'Force Approved')) or docstatus = 0)"""
 		# ):
-		QC = DocType('QC')
+		QC = DocType("QC")
 		query = (
 			frappe.qb.from_(QC)
 			.select(QC.name)
 			.where(
-				(QC.manufacturing_operation == row.manufacturing_operation) &
-				(QC.quality_inspection_template == template) &
-				(
-					((QC.docstatus == 1) & (QC.status.isin(['Accepted', 'Force Approved']))) |
-					(QC.docstatus == 0)
+				(QC.manufacturing_operation == row.manufacturing_operation)
+				& (QC.quality_inspection_template == template)
+				& (
+					((QC.docstatus == 1) & (QC.status.isin(["Accepted", "Force Approved"]))) | (QC.docstatus == 0)
 				)
 			)
 		)

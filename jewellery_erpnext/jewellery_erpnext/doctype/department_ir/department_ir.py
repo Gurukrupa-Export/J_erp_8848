@@ -837,7 +837,7 @@ def department_receive_query(doctype, txt, searchfield, start, page_len, filters
 		.where(
 			(DIR.type == "Issue")
 			& (DIR.docstatus == 1)
-			& (DIR.name.like(txt))
+			& (DIR.name.like("%{0}%".format(txt)))
 			& (
 				DIR.name.notin(
 					frappe.qb.from_(DP)
@@ -847,10 +847,10 @@ def department_receive_query(doctype, txt, searchfield, start, page_len, filters
 			)
 		)
 	)
-	if filters.get("current_department"):
+	if filters.get("current_department") and filters.get("current_department") != "":
 		query = query.where(DIR.current_department == filters.get("current_department"))
 
-	if filters.get("next_department"):
+	if filters.get("next_department") and filters.get("next_department") != "":
 		query = query.where(DIR.next_department == filters.get("next_department"))
 	data = query.run()
 

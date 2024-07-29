@@ -175,13 +175,20 @@ class SwapMetal(Document):
 				"auto_created": 1,
 			}
 		)
+		customer = frappe.db.get_value(
+			"Parent Manufacturing Order", self.manufacturing_order, "customer"
+		)
 		for row_st in self.source_table:
 			copy_row = row_st.__dict__.copy()
 			copy_row["name"] = None
 			copy_row["idx"] = None
 			copy_row["parentfield"] = None
+			copy_row["serial_and_batch_bundle"] = None
+			copy_row["use_serial_batch_fields"] = 1
 
 			row_data = row_st.__dict__.copy()
+			row_data["serial_and_batch_bundle"] = None
+			row_data["use_serial_batch_fields"] = 1
 			row_data["name"] = None
 			row_data["idx"] = None
 			row_data["parentfield"] = None
@@ -189,6 +196,8 @@ class SwapMetal(Document):
 			row_data["s_warehouse"] = None
 			row_data["batch_no"] = None
 			row_data["inventory_type"] = swap_inventroy_type  # "Customer Stock"
+			if swap_inventroy_type in ["Customer Stock", "Customer Goods"]:
+				row_data["customer"] = customer
 
 			source_item.append(copy_row)
 			source_item.append(row_data)
@@ -234,9 +243,8 @@ class SwapMetal(Document):
 
 		query = (
 			frappe.qb.from_(Item)
-			.left_join(ItemDefault).on(
-				(Item.name == ItemDefault.parent) & (ItemDefault.company == self.company)
-			)
+			.left_join(ItemDefault)
+			.on((Item.name == ItemDefault.parent) & (ItemDefault.company == self.company))
 			.select(
 				Item.name,
 				Item.stock_uom,
@@ -249,15 +257,13 @@ class SwapMetal(Document):
 				Item.has_serial_no,
 				Item.allow_alternative_item,
 				ItemDefault.expense_account,
-				ItemDefault.buying_cost_center
+				ItemDefault.buying_cost_center,
 			)
 			.where(
-				(Item.name == args.get("item_code")) &
-				(Item.disabled == 0) &
-				(
-					Item.end_of_life.isnull() |
-					(Item.end_of_life < '1900-01-01') |
-					(Item.end_of_life > nowdate())
+				(Item.name == args.get("item_code"))
+				& (Item.disabled == 0)
+				& (
+					Item.end_of_life.isnull() | (Item.end_of_life < "1900-01-01") | (Item.end_of_life > nowdate())
 				)
 			)
 		)

@@ -15,9 +15,19 @@ def validate(doc, method=None):
 
 
 def check_unique_multifield(doc, **kwargs):
-	if doc.department and doc.warehouse_type not in ["Manufacturing", "Raw Material", "Reserve"]:
+	existing_type = [
+		"Manufacturing",
+		"Raw Material",
+		"Reserve",
+		"Transit",
+		"Consumables",
+		"Material",
+		"Finished Goods",
+		"Reserve",
+	]
+	if doc.department and doc.warehouse_type not in existing_type:
 		frappe.throw(_("Warehouse type must be set one of this <b>(Manufacturing or Raw Material)</b>"))
-	if doc.employee and doc.warehouse_type not in ["Manufacturing", "Raw Material", "Reserve"]:
+	if doc.employee and doc.warehouse_type not in existing_type:
 		frappe.throw(_("Warehouse type must be set one of this <b>(Manufacturing or Raw Material)</b>"))
 	if not any(kwargs.values()):
 		return
