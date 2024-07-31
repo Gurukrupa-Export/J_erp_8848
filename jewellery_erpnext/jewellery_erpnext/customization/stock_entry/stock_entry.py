@@ -4,6 +4,7 @@ import frappe
 from erpnext.stock.doctype.batch.batch import get_batch_qty
 from erpnext.stock.doctype.stock_entry.stock_entry import StockEntry
 from frappe import _
+from frappe.utils import flt
 
 from jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.inventory_utils import (
 	validate_customer_voucher,
@@ -104,7 +105,11 @@ class CustomStockEntry(StockEntry):
 		data = []
 		for row in itemwise_data:
 			data.append(
-				{"item_code": row, "qty": itemwise_data[row].get("qty"), "pcs": itemwise_data[row].get("pcs")}
+				{
+					"item_code": row,
+					"qty": flt(itemwise_data[row].get("qty"), 3),
+					"pcs": itemwise_data[row].get("pcs"),
+				}
 			)
 
 		return data

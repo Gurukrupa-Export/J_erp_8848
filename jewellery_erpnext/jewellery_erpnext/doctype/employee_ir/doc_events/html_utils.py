@@ -1,4 +1,5 @@
 import frappe
+from frappe.utils import flt
 
 
 def get_summary_data(self):
@@ -20,6 +21,6 @@ def get_summary_data(self):
 				value = row.get(i)
 				if i in ["diamond_pcs", "gemstone_pcs"] and row.get(i):
 					value = int(row.get(i))
-				data[0][i] += value
+				data[0][i] += flt(value, 3)
 
 	return data
