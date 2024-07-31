@@ -56,6 +56,7 @@
   "power_value_individual",
   "water_value",
   "water_value_individual",
+  "inventory_type",
   "column_break_eo1lh",
   "boric_value",
   "special_powder_boric_value",
@@ -501,11 +502,17 @@
    "fieldname": "water_value_individual",
    "fieldtype": "Float",
    "label": "Water Value (Individual)"
+  },
+  {
+   "fieldname": "inventory_type",
+   "fieldtype": "Link",
+   "label": "Inventory Type",
+   "options": "Inventory Type"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-07-03 18:30:09.407352",
+ "modified": "2024-07-26 16:03:31.495515",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Setting",

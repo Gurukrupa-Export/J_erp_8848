@@ -373,7 +373,7 @@ frappe.ui.form.on("Stock Entry", {
 				cdn
 			) {
 				return {
-					query: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.se_utils.warehouse_query_filters",
+					query: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.filters.warehouse_query_filters",
 					filters: {
 						company: company,
 						stock_entry_type: stock_entry_type,
@@ -386,7 +386,7 @@ frappe.ui.form.on("Stock Entry", {
 				cdn
 			) {
 				return {
-					query: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.se_utils.warehouse_query_filters",
+					query: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.filters.warehouse_query_filters",
 					filters: {
 						company: company,
 						stock_entry_type: stock_entry_type,

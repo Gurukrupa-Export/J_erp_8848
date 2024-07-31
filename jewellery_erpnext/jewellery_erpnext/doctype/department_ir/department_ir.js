@@ -2,6 +2,9 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Department IR", {
+	refresh: function (frm) {
+		set_html(frm);
+	},
 	setup: function (frm) {
 		frm.set_query("receive_against", function (doc) {
 			return {
@@ -244,3 +247,44 @@ var department_filter = function (frm) {
 		},
 	};
 };
+
+function set_html(frm) {
+	var template = `
+		<table class="table table-bordered table-hover" width="100%" style="border: 1px solid #d1d8dd;">
+			<thead>
+				<tr style = "text-align:center">
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Gross WT</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Net WT</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Finding WT</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Diamond WT</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Gemstone WT</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Diamond PCs</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Gemstone PCs</th>
+				</tr>
+			</thead>
+			<tbody>
+			{% for item in data %}
+				<tr style = "text-align:center">
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.gross_wt }}</td>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.net_wt }}</td>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.finding_wt }}</td>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.diamond_wt }}</td>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.gemstone_wt }}</td>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.diamond_pcs }}</td>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.gemstone_pcs }}</td>
+				</tr>
+			{% endfor %}
+			</tbody>
+		</table>`;
+	frappe.call({
+		doc: frm.doc,
+		method: "get_summary_data",
+		callback: function (r) {
+			if (r.message) {
+				frm.get_field("summary").$wrapper.html(
+					frappe.render_template(template, { data: r.message })
+				);
+			}
+		},
+	});
+}

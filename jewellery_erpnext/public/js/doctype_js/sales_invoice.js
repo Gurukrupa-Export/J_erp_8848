@@ -31,7 +31,7 @@ frappe.ui.form.on("Sales Invoice", {
 	},
 	gold_rate_with_gst: function (frm) {
 		if (frm.doc.gold_rate_with_gst) {
-			let gold_rate = frm.doc.gold_rate_with_gst - frm.doc.gold_rate_with_gst * 0.03;
+			let gold_rate = flt(frm.doc.gold_rate_with_gst / 1.03, 3);
 			if (gold_rate != frm.doc.gold_rate) {
 				frappe.model.set_value(frm.doc.doctype, frm.doc.name, "gold_rate", gold_rate);
 			}
@@ -39,7 +39,7 @@ frappe.ui.form.on("Sales Invoice", {
 	},
 	gold_rate: function (frm) {
 		if (frm.doc.gold_rate) {
-			let gold_rate_with_gst = frm.doc.gold_rate / 0.97;
+			let gold_rate_with_gst = flt(frm.doc.gold_rate * 1.03, 3);
 			if (gold_rate_with_gst != frm.doc.gold_rate_with_gst) {
 				frappe.model.set_value(
 					frm.doc.doctype,
@@ -56,6 +56,11 @@ frappe.ui.form.on("Sales Invoice Item", {
 	serial_no(frm, cdt, cdn) {
 		var child = locals[cdt][cdn];
 		if (child.serial_no) {
+			if (!child.item_code) {
+				frappe.db.get_value("Serial No", child.serial_no, ["item_code"]).then((r) => {
+					frappe.model.set_value(cdt, cdn, "item_code", r.message.item_code);
+				});
+			}
 			frappe.db
 				.get_value("BOM", { tag_no: child.serial_no, is_active: 1 }, "name")
 				.then((r) => {

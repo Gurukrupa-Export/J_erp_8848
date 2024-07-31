@@ -609,14 +609,33 @@ def set_bom_rate_in_quotation(self):
 	"""
 	Fetch BOM Rates FROM BOM and replace the rate with BOM RATE
 	"""
-	for item in self.items:
-		if item.quotation_bom:
-			bom_doc = frappe.get_doc("BOM", item.quotation_bom)
-			item.gold_bom_rate = bom_doc.gold_bom_amount
-			item.diamond_bom_rate = bom_doc.diamond_bom_amount
-			item.gemstone_bom_rate = bom_doc.gemstone_bom_amount
-			item.other_bom_rate = bom_doc.other_bom_amount
-			item.making_charge = bom_doc.making_charge
-			item.bom_rate = bom_doc.total_bom_amount
-			item.rate = bom_doc.total_bom_amount
-			self.total = bom_doc.total_bom_amount
+	for row in self.items:
+		if row.quotation_bom:
+			bom_doc = frappe.get_doc("BOM", row.quotation_bom)
+			if self.gold_rate_with_gst > 0 and bom_doc.gold_rate_with_gst > 0:
+				row.metal_amount = (
+					bom_doc.gold_bom_amount / bom_doc.gold_rate_with_gst
+				) * self.gold_rate_with_gst
+			else:
+				row.metal_amount = bom_doc.gold_bom_amount
+			row.making_amount = bom_doc.making_charge
+			row.finding_amount = bom_doc.finding_bom_amount
+			row.diamond_amount = bom_doc.diamond_bom_amount
+			row.gemstone_amount = bom_doc.gemstone_bom_amount
+			row.custom_certification_amount = bom_doc.certification_amount
+			row.custom_freight_amount = bom_doc.freight_amount
+			row.custom_hallmarking_amount = bom_doc.hallmarking_amount
+			row.custom_custom_duty_amount = bom_doc.custom_duty_amount
+
+			row.rate = flt(
+				row.metal_amount
+				+ row.making_amount
+				+ row.finding_amount
+				+ row.diamond_amount
+				+ row.gemstone_amount
+				+ row.custom_certification_amount
+				+ row.custom_freight_amount
+				+ row.custom_hallmarking_amount
+				+ row.custom_custom_duty_amount,
+				3,
+			)

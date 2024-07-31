@@ -9,6 +9,9 @@ from frappe.query_builder import Case
 from frappe.query_builder.functions import Locate
 from frappe.utils import flt
 
+from jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.subcontracting_utils import (
+	create_subcontracting_doc,
+)
 from jewellery_erpnext.utils import get_item_from_attribute
 
 
@@ -41,35 +44,17 @@ def validate_inventory_dimention(self):
 			):
 				frappe.throw(_("Only {0} allowed in Stock Entry").format(pmo_data.get("customer")))
 			else:
-				if row.custom_variant_of in ["M", "F"]:
-					if pmo_data.get("is_customer_gold") == 1 and row.inventory_type != "Customer Goods":
-						frappe.throw(_("Can not use regular stock inventory for Customer provided Item"))
-					else:
-						if allow_customer_goods:
-							frappe.msgprint(_("Can not use Customer Goods inventory for non provided customer Item"))
-						else:
-							frappe.throw(_("Can not use Customer Goods inventory for non provided customer Item"))
+				variant_mapping = {
+					"M": "is_customer_gold",
+					"F": "is_customer_gold",
+					"D": "is_customer_diamond",
+					"G": "is_customer_gemstone",
+					"O": "is_customer_material",
+				}
 
-				if row.custom_variant_of == "D":
-					if pmo_data.get("is_customer_diamond") == 1 and row.inventory_type != "Customer Goods":
-						frappe.throw(_("Can not use regular stock inventory for Customer provided Item"))
-					else:
-						if allow_customer_goods:
-							frappe.msgprint(_("Can not use Customer Goods inventory for non provided customer Item"))
-						else:
-							frappe.throw(_("Can not use Customer Goods inventory for non provided customer Item"))
-
-				if row.custom_variant_of == "G":
-					if pmo_data.get("is_customer_gemstone") == 1 and row.inventory_type != "Customer Goods":
-						frappe.throw(_("Can not use regular stock inventory for Customer provided Item"))
-					else:
-						if allow_customer_goods:
-							frappe.msgprint(_("Can not use Customer Goods inventory for non provided customer Item"))
-						else:
-							frappe.throw(_("Can not use Customer Goods inventory for non provided customer Item"))
-
-				if row.custom_variant_of == "O":
-					if pmo_data.get("is_customer_material") == 1 and row.inventory_type != "Customer Goods":
+				if row.custom_variant_of in variant_mapping:
+					customer_key = variant_mapping[row.custom_variant_of]
+					if pmo_data.get(customer_key) == 1 and row.inventory_type != "Customer Goods":
 						frappe.throw(_("Can not use regular stock inventory for Customer provided Item"))
 					else:
 						if allow_customer_goods:
@@ -94,9 +79,38 @@ def get_fifo_batches(self, row):
 				{"posting_date": self.posting_date, "item_code": row.item_code, "warehouse": row.s_warehouse}
 			)
 		)
+
+	customer_item_data = frappe._dict({})
+	if row.custom_parent_manufacturing_order:
+		customer_item_data = frappe.db.get_value(
+			"Parent Manufacturing Order",
+			row.custom_parent_manufacturing_order,
+			[
+				"is_customer_gold",
+				"is_customer_diamond",
+				"is_customer_gemstone",
+				"is_customer_material",
+				"customer",
+			],
+		)
+
+	variant_to_customer_key = {
+		"M": "is_customer_gold",
+		"F": "is_customer_gold",
+		"D": "is_customer_diamond",
+		"G": "is_customer_gemstone",
+		"O": "is_customer_material",
+	}
+
+	if row.custom_variant_of in variant_to_customer_key and customer_item_data.get(
+		variant_to_customer_key[row.custom_variant_of]
+	):
+		row.inventory_type = "Customer Goods"
+		row.customer = customer_item_data.customer
+
 	for batch in batch_data:
 		if (
-			row.inventory_type == "Customer Goods"
+			row.inventory_type in ["Customer Goods", "Customer Stock"]
 			and frappe.db.get_value("Batch", batch.batch_no, "custom_inventory_type") == row.inventory_type
 			and frappe.db.get_value("Batch", batch.batch_no, "custom_customer") == row.customer
 		):
@@ -117,7 +131,7 @@ def get_fifo_batches(self, row):
 					temp_row["qty"] = flt(min(total_qty, batch.qty), 4)
 					rows_to_append.append(temp_row)
 					total_qty -= batch.qty
-		elif row.inventory_type != "Customer Goods":
+		elif row.inventory_type not in ["Customer Goods", "Customer Stock"]:
 			if total_qty > 0 and batch.qty > 0:
 				if not existing_updated:
 					row.db_set("qty", min(total_qty, batch.qty))
@@ -142,9 +156,6 @@ def get_fifo_batches(self, row):
 				row.item_code, flt(total_qty, 2), row.s_warehouse
 			)
 		)
-		# frappe.msgprint(
-		# 	_(f"For <b>{row.item_code}</b> {flt(total_qty, 2)} is missing in <b>{row.s_warehouse}</b>")
-		# )
 
 	return rows_to_append
 
@@ -192,281 +203,6 @@ def create_repack_for_subcontracting(self, subcontractor, main_slip=None):
 
 	if repack_raws:
 		create_subcontracting_doc(self, subcontractor, self.department, repack_raws, main_slip, receive)
-
-
-def create_subcontracting_doc(
-	self, subcontractor, department, repack_raws, main_slip=None, receive=False
-):
-	if not frappe.db.exists("Subcontracting", {"parent_stock_entry": self.name, "docstatus": 0}):
-		sub_doc = frappe.new_doc("Subcontracting")
-		sub_doc.supplier = subcontractor
-		sub_doc.department = department
-		sub_doc.date = frappe.utils.today()
-		sub_doc.main_slip = main_slip
-		sub_doc.company = self.company
-		sub_doc.work_order = self.manufacturing_work_order
-		sub_doc.manufacturing_order = self.manufacturing_order
-		sub_doc.operation = self.manufacturing_operation
-
-		sub_doc.finish_item = frappe.db.get_value(
-			"Manufacturing Setting", self.company, "pure_gold_item"
-		)
-
-		if self.manufacturing_operation:
-			metal_data = frappe.db.get_value(
-				"Manufacturing Operation",
-				self.manufacturing_operation,
-				["metal_type", "metal_touch", "metal_purity", "metal_colour"],
-				as_dict=True,
-			)
-		elif main_slip:
-			metal_data = frappe.db.get_value(
-				"Main Slip",
-				main_slip,
-				["metal_type", "metal_touch", "metal_purity", "metal_colour"],
-				as_dict=True,
-			)
-
-		sub_doc.metal_type = metal_data.metal_type
-		sub_doc.metal_touch = metal_data.metal_touch
-		sub_doc.metal_purity = metal_data.metal_purity
-		sub_doc.metal_colour = metal_data.metal_colour
-
-		for row in repack_raws:
-
-			temp_warehouse = row["s_warehouse"]
-			row["s_warehouse"] = row["t_warehouse"] if receive else None
-			row["t_warehouse"] = temp_warehouse if not receive else None
-			sub_doc.append("source_table", row)
-
-		sub_doc.transaction_type = "Receive" if receive else "Issue"
-		sub_doc.parent_stock_entry = self.name
-		sub_doc.save()
-	else:
-		sub_doc = frappe.get_doc("Subcontracting", {"parent_stock_entry": self.name, "docstatus": 0})
-	if receive:
-		frappe.enqueue(
-			udpate_stock_entry,
-			queue="short",
-			event="Update Stock Entry",
-			enqueue_after_commit=True,
-			docname=self.name,
-			subcontracting=sub_doc.name,
-		)
-	else:
-		sub_doc.submit()
-
-
-def udpate_stock_entry(docname, subcontracting):
-	doc = frappe.get_doc("Stock Entry", docname)
-	doc.subcontracting = subcontracting
-	doc.save()
-
-
-@frappe.whitelist()
-@frappe.validate_and_sanitize_search_inputs
-def warehouse_query_filters(doctype, txt, searchfield, start, page_len, filters):
-	filters["department"] = frappe.db.get_value(
-		"Employee", {"user_id": frappe.session.user}, "department"
-	)
-
-	conditions = get_filters_cond(filters)
-
-	Warehouse = frappe.qb.DocType("Warehouse")
-
-	query = (
-		frappe.qb.from_(Warehouse)
-		.select(Warehouse.name, Warehouse.warehouse_name)
-		.where(Warehouse.is_group == 0)
-		.where(Warehouse.company == filters["company"])
-	)
-	# Add the dynamic conditions
-	for condition in conditions:
-		query = query.where(condition)
-
-	# Construct the query with search conditions
-	query = (
-		query.where(
-			(Warehouse[searchfield].like(f"%{txt}%")) | (Warehouse.warehouse_name.like(f"%{txt}%"))
-		)
-		.orderby(Case().when(Locate(txt, Warehouse.name) > 0, Locate(txt, Warehouse.name)).else_(99999))
-		.orderby(
-			Case()
-			.when(Locate(txt, Warehouse.warehouse_name) > 0, Locate(txt, Warehouse.warehouse_name))
-			.else_(99999)
-		)
-		.orderby(Warehouse.idx, order=frappe.qb.desc)
-		.orderby(Warehouse.name)
-		.orderby(Warehouse.warehouse_name)
-		.limit(page_len)
-		.offset(start)
-	)
-	data = query.run()
-	return data
-
-
-def get_filters_cond(filters):
-	Warehouse = frappe.qb.DocType("Warehouse")
-	conditions = []
-
-	if filters["stock_entry_type"] == "Material Transfer (DEPARTMENT)" and filters.get("department"):
-		raw_department = frappe.db.get_value(
-			"Warehouse", {"warehouse_type": "Raw Material", "department": filters.get("department")}
-		)
-		if raw_department:
-			conditions.append((Warehouse.warehouse_type == "Transit") | (Warehouse.name == raw_department))
-		else:
-			conditions.append(Warehouse.warehouse_type == "Transit")
-
-	elif filters["stock_entry_type"] in (
-		"Material Transfer (MAIN SLIP)",
-		"Material Transfer (Subcontracting Work Order)",
-	) and filters.get("department"):
-		raw_department = frappe.db.get_value(
-			"Warehouse", {"warehouse_type": "Raw Material", "department": filters.get("department")}
-		)
-
-		if filters["stock_entry_type"] == "Material Transfer (MAIN SLIP)":
-			conditions.append((Warehouse.employee != "") | (Warehouse.employee.isnull().negate()))
-		else:
-			conditions.append((Warehouse.subcontracter != "") | (Warehouse.subcontracter.isnull().negate()))
-
-		if raw_department and filters["stock_entry_type"] == "Material Transfer (MAIN SLIP)":
-			conditions.append(
-				(Warehouse.employee != "")
-				| (Warehouse.employee.isnull().negate())
-				| (Warehouse.name == raw_department) & (Warehouse.warehouse_type == "Raw Material")
-			)
-		elif raw_department:
-			conditions.append(
-				(Warehouse.subcontracter != "")
-				| (Warehouse.subcontracter.isnull().negate())
-				| (Warehouse.name == raw_department) & (Warehouse.warehouse_type == "Raw Material")
-			)
-		else:
-			conditions.append((Warehouse.subcontracter != "") | (Warehouse.subcontracter.isnull().negate()))
-
-	elif filters["stock_entry_type"] == "Material Transfer (WORK ORDER)" and filters.get(
-		"department"
-	):
-		raw_department = frappe.db.get_value(
-			"Warehouse", {"warehouse_type": "Raw Material", "department": filters.get("department")}
-		)
-		condition = (Warehouse.warehouse_type == "Manufacturing") & (
-			((Warehouse.employee != "") | (Warehouse.employee.isnull().negate()))
-			| ((Warehouse.department != "") | (Warehouse.department.isnull().negate()))
-		)
-		if raw_department:
-			conditions.append(condition | (Warehouse.name == raw_department))
-		else:
-			conditions.append(condition)
-
-	return conditions
-
-
-def update_main_slip_se_details(doc, stock_entry_type, se_row, auto_created=0, is_cancelled=False):
-	based_on = "employee"
-	based_on_value = doc.employee
-	if doc.subcontractor:
-		based_on = "subcontractor"
-		based_on_value = doc.subcontractor
-
-	m_warehouse = frappe.db.get_value(
-		"Warehouse", {based_on: based_on_value, "warehouse_type": "Manufacturing"}
-	)
-	r_warehouse = frappe.db.get_value(
-		"Warehouse", {based_on: based_on_value, "warehouse_type": "Raw Material"}
-	)
-
-	qty = "qty"
-	consume_qty = "consume_qty"
-	if se_row.manufacturing_operation and stock_entry_type not in (
-		"Material Transfer (MAIN SLIP)",
-		"Manufacture",
-	):
-		qty = "mop_qty"
-		consume_qty = "mop_consume_qty"
-
-	exsting_se_details = [row.se_item for row in doc.stock_details]
-	if se_row.s_warehouse == m_warehouse:
-		if se_row.name not in exsting_se_details:
-			if se_row.manufacturing_operation:
-				consume_qty = "mop_consume_qty"
-			doc.append(
-				"stock_details",
-				{
-					"batch_no": se_row.batch_no,
-					consume_qty: se_row.qty,
-					"se_item": se_row.name,
-					"auto_created": auto_created,
-					"stock_entry": se_row.parent,
-				},
-			)
-
-	if se_row.t_warehouse == r_warehouse:
-		if se_row.name not in exsting_se_details:
-			doc.append(
-				"stock_details",
-				{
-					"item_code": se_row.item_code,
-					"batch_no": se_row.batch_no,
-					qty: se_row.qty,
-					"se_item": se_row.name,
-					"auto_created": auto_created,
-					"stock_entry": se_row.parent,
-				},
-			)
-
-	if (se_row.s_warehouse == r_warehouse) and (se_row.t_warehouse == m_warehouse):
-		if se_row.name not in exsting_se_details:
-			doc.append(
-				"stock_details",
-				{
-					"item_code": se_row.item_code,
-					"batch_no": se_row.batch_no,
-					"consume_qty": se_row.qty,
-					"se_item": se_row.name,
-					"auto_created": auto_created,
-					"stock_entry": se_row.parent,
-				},
-			)
-			doc.append(
-				"stock_details",
-				{
-					"item_code": se_row.item_code,
-					"batch_no": se_row.batch_no,
-					"mop_qty": se_row.qty,
-					"se_item": se_row.name,
-					"auto_created": auto_created,
-					"stock_entry": se_row.parent,
-				},
-			)
-
-	elif se_row.s_warehouse == r_warehouse:
-		if se_row.name not in exsting_se_details:
-			doc.append(
-				"stock_details",
-				{
-					"batch_no": se_row.batch_no,
-					consume_qty: se_row.qty,
-					"se_item": se_row.name,
-					"auto_created": auto_created,
-					"stock_entry": se_row.parent,
-				},
-			)
-
-	elif se_row.t_warehouse == m_warehouse:
-		if se_row.name not in exsting_se_details:
-			doc.append(
-				"stock_details",
-				{
-					"batch_no": se_row.batch_no,
-					qty: se_row.qty,
-					"se_item": se_row.name,
-					"auto_created": auto_created,
-					"stock_entry": se_row.parent,
-				},
-			)
 
 
 def validate_gross_weight_for_unpack(self):

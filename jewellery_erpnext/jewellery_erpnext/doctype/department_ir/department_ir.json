@@ -32,7 +32,8 @@
   "scan_mop",
   "scan_mwo",
   "section_break_5huxg",
-  "department_ir_operation"
+  "department_ir_operation",
+  "summary"
  ],
  "fields": [
   {
@@ -181,6 +182,11 @@
    "fieldtype": "Select",
    "label": "Transfer Type",
    "options": "Next Department\nRepairing"
+  },
+  {
+   "fieldname": "summary",
+   "fieldtype": "HTML",
+   "label": "Summary"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -191,7 +197,7 @@
    "link_fieldname": "department_ir"
   }
  ],
- "modified": "2024-05-20 10:03:17.294232",
+ "modified": "2024-07-29 15:24:19.101217",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Department IR",

@@ -159,7 +159,7 @@ frappe.ui.form.on("Quotation", {
 	},
 	gold_rate_with_gst: function (frm) {
 		if (frm.doc.gold_rate_with_gst) {
-			let gold_rate = frm.doc.gold_rate_with_gst - frm.doc.gold_rate_with_gst * 0.03;
+			let gold_rate = flt(frm.doc.gold_rate_with_gst / 1.03, 3);
 			if (gold_rate != frm.doc.gold_rate) {
 				frappe.model.set_value(frm.doc.doctype, frm.doc.name, "gold_rate", gold_rate);
 			}
@@ -167,7 +167,7 @@ frappe.ui.form.on("Quotation", {
 	},
 	gold_rate: function (frm) {
 		if (frm.doc.gold_rate) {
-			let gold_rate_with_gst = frm.doc.gold_rate / 0.97;
+			let gold_rate_with_gst = flt(frm.doc.gold_rate * 1.03, 3);
 			if (gold_rate_with_gst != frm.doc.gold_rate_with_gst) {
 				frappe.model.set_value(
 					frm.doc.doctype,
@@ -210,9 +210,16 @@ frappe.ui.form.on("Quotation Item", {
 	serial_no(frm, cdt, cdn) {
 		var d = locals[cdt][cdn];
 		if (d.serial_no) {
-			frappe.db.get_value("Serial No", d.serial_no, "item_code", (r) => {
-				frappe.model.set_value(cdt, cdn, "item_code", r.item_code);
-			});
+			frappe.db.get_value(
+				"Serial No",
+				d.serial_no,
+				["item_code", "custom_bom_no", "custom_gross_wt"],
+				(r) => {
+					frappe.model.set_value(cdt, cdn, "item_code", r.item_code);
+					frappe.model.set_value(cdt, cdn, "custom_serial_id_bom", r.custom_bom_no);
+					// frappe.model.set_value(cdt, cdn, "item_code", r.item_code);
+				}
+			);
 		}
 	},
 	edit_bom: function (frm, cdt, cdn) {

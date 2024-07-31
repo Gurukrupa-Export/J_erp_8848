@@ -22,6 +22,12 @@ from jewellery_erpnext.jewellery_erpnext.doctype.employee_ir.doc_events.employee
 	get_po_rates,
 	valid_reparing_or_next_operation,
 )
+from jewellery_erpnext.jewellery_erpnext.doctype.employee_ir.doc_events.html_utils import (
+	get_summary_data,
+)
+from jewellery_erpnext.jewellery_erpnext.doctype.employee_ir.doc_events.mould_utils import (
+	create_mould,
+)
 from jewellery_erpnext.jewellery_erpnext.doctype.main_slip.main_slip import get_main_slip_item
 
 # from jewellery_erpnext.jewellery_erpnext.doctype.qc.qc import create_qc_record
@@ -150,6 +156,7 @@ class EmployeeIR(Document):
 
 	# for receive
 	def on_submit_receive(self, cancel=False):
+		create_mould(self)
 		# self.validate_qc("Stop")
 		# timer code
 		now = frappe.utils.now()
@@ -550,6 +557,10 @@ class EmployeeIR(Document):
 						entry["main_slip_consumption"] = ms_consum_book
 			# -------------------------------------------------------------------------
 		return data
+
+	@frappe.whitelist()
+	def get_summary_data(self):
+		return get_summary_data(self)
 
 
 def save_mop(mop_name):

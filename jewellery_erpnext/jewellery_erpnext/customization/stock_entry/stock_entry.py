@@ -5,6 +5,9 @@ from erpnext.stock.doctype.batch.batch import get_batch_qty
 from erpnext.stock.doctype.stock_entry.stock_entry import StockEntry
 from frappe import _
 
+from jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.inventory_utils import (
+	validate_customer_voucher,
+)
 from jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.se_utils import (
 	get_fifo_batches,
 	validate_inventory_dimention,
@@ -14,26 +17,9 @@ from jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry import (
 	custom_get_scrap_items_from_job_card,
 )
 
+
 def before_validate(self, method):
-	if not self.customer_voucher_type:
-		return
-
-	if self.customer_voucher_type == "Customer Subcontracting":
-		for row in self.items:
-			if frappe.db.get_value("Item", row.item_code, "has_serial_no") == 1:
-				frappe.throw(_("Serialized items not allowd in this Customer Voucher Type"))
-	elif self.customer_voucher_type in ["Customer Repair"]:
-		for row in self.items:
-			if frappe.db.get_value("Item", row.item_code, "has_batch_no") == 1:
-				frappe.throw(_("Batch items not allowd in this Customer Voucher Type"))
-
-	if self.customer_voucher_type == "Customer Sample Goods":
-		for row in self.items:
-			if (
-				row.manufacturing_operation
-				and frappe.db.get_value("Warehouse", row.t_warehouse, "warehouse_type") == "Manufacturing"
-			):
-				frappe.throw(_("Manufacturing Type warehouse not allowed in this Customer Voucher Type"))
+	validate_customer_voucher(self)
 
 
 def on_submit(self, method):
@@ -122,9 +108,9 @@ class CustomStockEntry(StockEntry):
 			)
 
 		return data
-	
+
 	def get_scrap_items_from_job_card(self):
 		custom_get_scrap_items_from_job_card(self)
-	
+
 	def get_bom_scrap_material(self, qty):
 		custom_get_bom_scrap_material(self, qty)

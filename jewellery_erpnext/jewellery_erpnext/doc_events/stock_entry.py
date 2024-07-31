@@ -15,6 +15,8 @@ from six import itervalues
 
 from jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.se_utils import (
 	create_repack_for_subcontracting,
+)
+from jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.update_utils import (
 	update_main_slip_se_details,
 )
 from jewellery_erpnext.utils import get_item_from_attribute, get_variant_of_item, update_existing
@@ -28,7 +30,7 @@ def before_validate(self, method):
 		amount = 0
 		source_qty = 0
 		for row in self.items:
-			if row.s_warehouse:
+			if row.s_warehouse and row.inventory_type not in ["Customer Goods", "Customer Stock"]:
 				source_qty += row.qty
 				amount += row.amount if row.get("amount") else 0
 
@@ -36,10 +38,14 @@ def before_validate(self, method):
 
 		for row in self.items:
 			if row.t_warehouse:
-				row.set_basic_rate_manually = 1
-				row.basic_rate = flt(avg_amount, 3)
-				row.amount = row.qty * avg_amount
-				row.basic_amount = row.qty * avg_amount
+				if row.inventory_type in ["Customer Goods", "Customer Stock"]:
+					row.allow_zero_valuation_rate = 1
+					row.basic_rate = 0
+				else:
+					row.set_basic_rate_manually = 1
+					row.basic_rate = flt(avg_amount, 3)
+					row.amount = row.qty * avg_amount
+					row.basic_amount = row.qty * avg_amount
 
 
 def validate(self, method):

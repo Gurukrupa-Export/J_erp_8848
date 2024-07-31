@@ -25,3 +25,27 @@ def valid_reparing_or_next_operation(self):
 		test = query.run(as_dict=True)
 		if test:
 			self.transfer_type = "Repairing"
+
+
+def get_summary_data(self):
+	data = [
+		{
+			"gross_wt": 0,
+			"net_wt": 0,
+			"finding_wt": 0,
+			"diamond_wt": 0,
+			"gemstone_wt": 0,
+			"other_wt": 0,
+			"diamond_pcs": 0,
+			"gemstone_pcs": 0,
+		}
+	]
+	for row in self.department_ir_operation:
+		for i in data[0]:
+			if row.get(i):
+				value = row.get(i)
+				if i in ["diamond_pcs", "gemstone_pcs"] and row.get(i):
+					value = int(row.get(i))
+				data[0][i] += value
+
+	return data

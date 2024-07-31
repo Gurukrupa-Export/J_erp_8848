@@ -4,35 +4,46 @@ from frappe.utils import flt
 
 
 def update_parent_batch_id(self):
-	if self.type_of_transaction == "Inward":
-		batch_list = []
-		outward_bundle = frappe.db.get_value(
+	if self.type_of_transaction == "Inward" and self.voucher_type in [
+		"Purchase Receipt",
+		"Stock Entry",
+	]:
+		if self.voucher_type == "Stock Entry" and frappe.db.get_value(
+			"Stock Entry", self.voucher_no, "purpose"
+		) not in ["Manufacture", "Repack"]:
+			return
+		outward_bundle = frappe.db.get_all(
 			"Serial and Batch Bundle",
 			{
 				"type_of_transaction": "Outward",
 				"voucher_type": self.voucher_type,
 				"voucher_no": self.voucher_no,
 			},
+			pluck="name",
 		)
 
 		if outward_bundle:
 			batch_list = [
-				row.batch_no
+				frappe._dict({"name": row.batch_no, "qty": abs(row.qty), "rate": row.incoming_rate})
 				for row in frappe.db.get_all(
-					"Serial and Batch Entry", {"parent": outward_bundle}, ["batch_no"]
+					"Serial and Batch Entry",
+					{"parent": ["in", outward_bundle]},
+					["batch_no", "qty", "incoming_rate"],
 				)
 			]
 
-		for row in self.entries:
-			if row.batch_no:
-				batch_doc = frappe.get_doc("Batch", row.batch_no)
+			for row in self.entries:
+				if row.batch_no:
+					batch_doc = frappe.get_doc("Batch", row.batch_no)
 
-				existing_entries = [row.batch_no for row in batch_doc.custom_origin_entries]
+					existing_entries = [row.batch_no for row in batch_doc.custom_origin_entries]
 
-				for batch in batch_list:
-					if batch not in existing_entries:
-						batch_doc.append("custom_origin_entries", {"batch_no": batch})
-				batch_doc.save()
+					for batch in batch_list:
+						if batch.name not in existing_entries:
+							batch_doc.append(
+								"custom_origin_entries", {"batch_no": batch.name, "qty": batch.qty, "rate": batch.rate}
+							)
+					batch_doc.save()
 
 
 class CustomSerialBatchBundle(SerialBatchBundle):

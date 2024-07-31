@@ -45,6 +45,10 @@
   "scan_mwo",
   "section_break_shn6x",
   "employee_ir_operations",
+  "summary",
+  "section_break_g3ck",
+  "no_of_moulds",
+  "mould_reference",
   "section_break_dxdag",
   "calculate_loss",
   "mop_loss_details_total",
@@ -317,6 +321,28 @@
    "fieldtype": "Select",
    "label": "Type of Work",
    "options": "Next Operation\nRepairing"
+  },
+  {
+   "fieldname": "summary",
+   "fieldtype": "HTML",
+   "label": "Summary"
+  },
+  {
+   "fieldname": "section_break_g3ck",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval: doc.type == \"Receive\";",
+   "fieldname": "no_of_moulds",
+   "fieldtype": "Int",
+   "label": "No of Moulds"
+  },
+  {
+   "depends_on": "eval: doc.no_of_moulds > 0;",
+   "fieldname": "mould_reference",
+   "fieldtype": "Table",
+   "label": "Mould Reference",
+   "options": "Mould Reference"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -335,7 +361,7 @@
    "link_fieldname": "employee_ir"
   }
  ],
- "modified": "2024-05-17 17:31:40.899128",
+ "modified": "2024-07-29 16:26:02.206938",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Employee IR",

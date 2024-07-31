@@ -3,6 +3,7 @@
 
 frappe.ui.form.on("Employee IR", {
 	refresh(frm) {
+		set_html(frm);
 		if (
 			frm.doc.docstatus == 0 &&
 			!frm.doc.__islocal &&
@@ -234,6 +235,15 @@ frappe.ui.form.on("Employee IR", {
 				});
 		}
 	},
+	no_of_moulds(frm) {
+		frm.doc.mould_reference = [];
+		if (frm.doc.no_of_moulds > 0) {
+			for (let i = 0; i < frm.doc.no_of_moulds; i++) {
+				frm.add_child("mould_reference", {});
+			}
+			frm.refresh_field("mould_reference");
+		}
+	},
 });
 function set_filters_on_parent_table_fields(frm, fields) {
 	fields.map(function (field) {
@@ -351,4 +361,45 @@ function add_subcon_button(frm) {
 			}
 		}).addClass("btn-primary");
 	}
+}
+
+function set_html(frm) {
+	var template = `
+		<table class="table table-bordered table-hover" width="100%" style="border: 1px solid #d1d8dd;">
+			<thead>
+				<tr style = "text-align:center">
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Gross WT</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Net WT</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Finding WT</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Diamond WT</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Gemstone WT</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Diamond PCs</th>
+					<th style="border: 1px solid #d1d8dd; font-size: 11px;">Gemstone PCs</th>
+				</tr>
+			</thead>
+			<tbody>
+			{% for item in data %}
+				<tr style = "text-align:center">
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.gross_wt }}</td>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.net_wt }}</td>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.finding_wt }}</td>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.diamond_wt }}</td>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.gemstone_wt }}</td>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.diamond_pcs }}</td>
+					<td style="border: 1px solid #d1d8dd; font-size: 11px;padding:0.25rem">{{ item.gemstone_pcs }}</td>
+				</tr>
+			{% endfor %}
+			</tbody>
+		</table>`;
+	frappe.call({
+		doc: frm.doc,
+		method: "get_summary_data",
+		callback: function (r) {
+			if (r.message) {
+				frm.get_field("summary").$wrapper.html(
+					frappe.render_template(template, { data: r.message })
+				);
+			}
+		},
+	});
 }

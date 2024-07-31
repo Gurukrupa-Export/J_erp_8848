@@ -6,7 +6,7 @@ from frappe import _
 from frappe.query_builder.custom import ConstantColumn
 from frappe.utils import flt, get_last_day
 
-from jewellery_erpnext.jewellery_erpnext.doc_events.bom_utils import get_diamond_rate
+from jewellery_erpnext.jewellery_erpnext.doc_events.bom_utils import _calculate_diamond_amount
 from jewellery_erpnext.jewellery_erpnext.doc_events.quotation import update_totals
 
 
@@ -66,8 +66,8 @@ def update_si_data(self):
 						"amount": row.custom_freight_amount,
 					}
 
-			for i in invoice_data:
-				invoice_data[i]["amount"] *= exchange_rate
+			# for i in invoice_data:
+			# 	invoice_data[i]["amount"] *= exchange_rate
 
 			update_einvoice_items(self, invoice_data, payment_terms_data)
 
@@ -88,7 +88,7 @@ def update_si_data(self):
 			row.custom_hallmarking_amount = bom_doc.hallmarking_amount * exchange_rate
 			row.custom_custom_duty_amount = bom_doc.custom_duty_amount * exchange_rate
 
-			row.rate = (
+			row.rate = flt(
 				row.metal_amount
 				+ row.making_amount
 				+ row.finding_amount
@@ -97,8 +97,10 @@ def update_si_data(self):
 				+ row.custom_certification_amount
 				+ row.custom_freight_amount
 				+ row.custom_hallmarking_amount
-				+ row.custom_custom_duty_amount
+				+ row.custom_custom_duty_amount,
+				3,
 			)
+			# frappe.throw(f"{row.rate}")
 	return payment_terms_data
 
 
@@ -107,9 +109,9 @@ def update_einvoice_items(self, invoice_data, payment_terms_data):
 	for row in invoice_data:
 		if invoice_data[row]["amount"] > 0:
 			if payment_terms_data.get(row):
-				payment_terms_data[row] += invoice_data[row]["amount"]
+				payment_terms_data[row] += flt(invoice_data[row]["amount"], 3)
 			else:
-				payment_terms_data[row] = invoice_data[row]["amount"]
+				payment_terms_data[row] = flt(invoice_data[row]["amount"], 3)
 			self.append(
 				"invoice_item",
 				{
@@ -119,9 +121,9 @@ def update_einvoice_items(self, invoice_data, payment_terms_data):
 					"gst_hsn_code": invoice_data[row]["hsn_code"],
 					"conversion_factor": 1,
 					"qty": invoice_data[row]["qty"],
-					"rate": (invoice_data[row]["amount"] / invoice_data[row]["qty"]),
-					"base_rate": (invoice_data[row]["amount"] / invoice_data[row]["qty"]),
-					"amount": invoice_data[row]["amount"],
+					"rate": flt(invoice_data[row]["amount"] / invoice_data[row]["qty"], 3),
+					"base_rate": flt(invoice_data[row]["amount"] / invoice_data[row]["qty"], 3),
+					"amount": flt(invoice_data[row]["amount"], 3),
 					"base_amount": invoice_data[row]["amount"],
 					"income_account": "Studded Jewellery Sales - GE",
 					"cost_center": "Main - GE",
@@ -146,6 +148,7 @@ def update_einvoice_items(self, invoice_data, payment_terms_data):
 def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 	gold_item = None
 	gold_making_item = None
+	bom_doc.customer = self.customer
 	for i in bom_doc.metal_detail:
 		amount = i.amount
 		if is_branch_customer:
@@ -285,8 +288,27 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 		invoice_data[f"{gold_making_item}"] = {"amount": bom_doc.operation_cost, "qty": 1}
 
 	einvoice_item = None
+	ss_range = {}
+	for diamond in bom_doc.diamond_detail:
+		actual_qty = diamond.quantity
+		diamond.quantity = flt(diamond.quantity, bom_doc.diamond_pricision)
+		diamond.difference = actual_qty - diamond.quantity
+		if not diamond.sieve_size_range:
+			continue
+		det = ss_range.get(diamond.sieve_size_range) or {}
+		# det['pcs'] = flt(det.get("pcs")) + diamond.pcs
+		det["pcs"] = (flt(det.get("pcs")) + flt(diamond.get("pcs"))) or 1
+		det["quantity"] = flt(flt(det.get("quantity")) + diamond.quantity, 3)
+		det["std_wt"] = flt(flt(det["quantity"], 2) / det["pcs"], 3)
+		ss_range[diamond.sieve_size_range] = det
+
+	cust_diamond_price_list_type = frappe.db.get_value(
+		"Customer", bom_doc.customer, "diamond_price_list"
+	)
 	for i in bom_doc.diamond_detail:
-		amount = i.diamond_rate_for_specified_quantity
+		det = ss_range.get(diamond.sieve_size_range) or {}
+		amount = _calculate_diamond_amount(bom_doc, i, cust_diamond_price_list_type, det)
+		# amount = i.diamond_rate_for_specified_quantity
 		if is_branch_customer:
 			amount = i.se_rate * i.quantity
 		if not einvoice_item:
@@ -318,6 +340,99 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 
 	einvoice_item = None
 	for i in bom_doc.gemstone_detail:
+		previous = i.gemstone_rate_for_specified_quantity
+		actual_qty = i.quantity
+		i.quantity = flt(i.quantity, self.gemstone_pricision)
+		i.difference = actual_qty - i.quantity
+		# Calculate the weight per piece
+		i.pcs = int(i.pcs) or 1
+		gemstone_weight_per_pcs = i.quantity / i.pcs
+
+		# Create filters for retrieving the Gemstone Price List
+		filters = {
+			"price_list": self.selling_price_list,
+			"price_list_type": i.price_list_type,
+			"customer": self.customer,
+			"cut_or_cab": i.cut_or_cab,
+			"gemstone_grade": i.gemstone_grade,
+		}
+		if i.price_list_type == "Weight (in cts)":
+			filters.update(
+				{
+					"gemstone_type": i.gemstone_type,
+					"stone_shape": i.stone_shape,
+					"gemstone_quality": i.gemstone_quality,
+					"from_weight": ["<=", gemstone_weight_per_pcs],
+					"to_weight": [">=", gemstone_weight_per_pcs],
+				}
+			)
+		elif i.price_list_type == "Multiplier" and i.gemstone_size:
+			filters.update(
+				{
+					"to_stone_size": [">=", i.gemstone_size],
+					"from_stone_size": ["<=", i.gemstone_size],
+				}
+			)
+		else:
+			filters["gemstone_type"] = i.gemstone_type
+			filters["stone_shape"] = i.stone_shape
+			filters["gemstone_quality"] = i.gemstone_quality
+			filters["gemstone_quality"] = i.gemstone_quality
+			filters["gemstone_size"] = i.gemstone_size
+
+		# Retrieve the Gemstone Price List and calculate the rate
+		gemstone_price_list = frappe.get_list(
+			"Gemstone Price List",
+			filters=filters,
+			fields=["name", "rate", "handling_rate", "supplier_fg_purchase_rate"],
+			order_by="effective_from desc",
+			limit=1,
+		)
+
+		multiplier = 0
+		item_category = frappe.db.get_value("Item", self.item, "item_category")
+		if i.price_list_type == "Multiplier":
+			for row in gemstone_price_list:
+				multiplier = (
+					frappe.db.get_value(
+						"Gemstone Multiplier",
+						{"parent": row.name, "item_category": item_category, "parentfield": "gemstone_multiplier"},
+						frappe.scrub(i.gemstone_quality),
+					)
+					or 0
+				)
+				fg_multiplier = (
+					frappe.db.get_value(
+						"Gemstone Multiplier",
+						{
+							"parent": row.name,
+							"item_category": item_category,
+							"parentfield": "supplier_fg_multiplier",
+						},
+						frappe.scrub(i.gemstone_quality),
+					)
+					or 0
+				)
+
+		if not gemstone_price_list:
+			frappe.msgprint(
+				f"Gemstone Amount for {i.gemstone_type} is 0\n Please Check if Gemstone Price Exists For {filters}"
+			)
+			return 0
+
+		# Get Handling Rate of the Diamond if it is a cutomer provided Diamond
+		pr = int(i.gemstone_pr)
+		if i.price_list_type == "Multiplier":
+			rate = multiplier * pr
+		else:
+			rate = (
+				gemstone_price_list[0].get("handling_rate")
+				if i.is_customer_item
+				else gemstone_price_list[0].get("rate")
+			)
+		i.total_gemstone_rate = rate
+		i.gemstone_rate_for_specified_quantity = int(rate) * i.quantity
+
 		amount = i.gemstone_rate_for_specified_quantity
 		if is_branch_customer:
 			amount = i.se_rate * i.quantity
@@ -617,8 +732,8 @@ def update_payment_terms(self, payment_terms_data=None):
 
 			due_date_list.append(due_date)
 			if payment_amount > 0:
-				if self.disable_rounded_total == 0:
-					payment_amount = flt(payment_amount, 0)
+				# if self.disable_rounded_total == 0:
+				payment_amount = flt(payment_amount, 3)
 
 				item_to_append.append(
 					{

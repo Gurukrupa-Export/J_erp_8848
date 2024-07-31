@@ -121,6 +121,26 @@ frappe.ui.form.on("Sales Order Item Child", {
 
 	serial_no: function (frm, cdt, cdn) {
 		var row = locals[cdt][cdn];
+		if (row.serial_no) {
+			if (!row.item_code) {
+				frappe.db
+					.get_value("Serial No", row.serial_no, [
+						"item_code",
+						"custom_bom_no",
+						"custom_gross_wt",
+					])
+					.then((r) => {
+						frappe.model.set_value(cdt, cdn, "item_code", r.message.item_code);
+						frappe.model.set_value(cdt, cdn, "bom_number", r.message.custom_bom_no);
+						frappe.model.set_value(
+							cdt,
+							cdn,
+							"gross_weight",
+							r.message.custom_gross_wt
+						);
+					});
+			}
+		}
 		let serial_item = [];
 		if (row.serial_no && typeof row.serial_no === "string" && row.serial_no != "") {
 			serial_item.push(...row.serial_no.split("\n"));

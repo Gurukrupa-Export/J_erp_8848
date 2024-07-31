@@ -15,6 +15,7 @@ from jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry import (
 	update_manufacturing_operation,
 )
 from jewellery_erpnext.jewellery_erpnext.doctype.department_ir.doc_events.department_ir_utils import (
+	get_summary_data,
 	valid_reparing_or_next_operation,
 )
 from jewellery_erpnext.jewellery_erpnext.doctype.manufacturing_operation.manufacturing_operation import (
@@ -370,6 +371,10 @@ class DepartmentIR(Document):
 				stock_doc.flags.ignore_permissions = True
 				stock_doc.save()
 				stock_doc.submit()
+
+	@frappe.whitelist()
+	def get_summary_data(self):
+		return get_summary_data(self)
 
 
 def save_mop(mop_name):

@@ -29,7 +29,7 @@ def before_validate(self, method):
 	)
 
 	if self.customer and not gemstone_price_list_type:
-		frappe.throw(_("Gemstone Price list type not mentioned into customer"))
+		frappe.throw(_("Gemstone Price list type not mentioned into customer {0}").format(self.customer))
 
 	for row in self.gemstone_detail:
 		row.price_list_type = gemstone_price_list_type

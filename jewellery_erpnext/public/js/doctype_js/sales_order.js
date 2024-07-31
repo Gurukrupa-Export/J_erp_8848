@@ -1,7 +1,7 @@
 frappe.ui.form.on("Sales Order", {
 	gold_rate_with_gst: function (frm) {
 		if (frm.doc.gold_rate_with_gst) {
-			let gold_rate = frm.doc.gold_rate_with_gst - frm.doc.gold_rate_with_gst * 0.03;
+			let gold_rate = flt(frm.doc.gold_rate_with_gst / 1.03, 3);
 			if (gold_rate != frm.doc.gold_rate) {
 				frappe.model.set_value(frm.doc.doctype, frm.doc.name, "gold_rate", gold_rate);
 			}
@@ -9,7 +9,7 @@ frappe.ui.form.on("Sales Order", {
 	},
 	gold_rate: function (frm) {
 		if (frm.doc.gold_rate) {
-			let gold_rate_with_gst = frm.doc.gold_rate / 0.97;
+			let gold_rate_with_gst = flt(frm.doc.gold_rate * 1.03, 3);
 			if (gold_rate_with_gst != frm.doc.gold_rate_with_gst) {
 				frappe.model.set_value(
 					frm.doc.doctype,
@@ -1238,6 +1238,29 @@ frappe.ui.form.on("Sales Order Item", {
 
 		dialog.show();
 		dialog.$wrapper.find(".modal-dialog").css("max-width", "90%");
+	},
+	serial_no: function (frm, cdt, cdn) {
+		let child = locals[cdt][cdn];
+		if (child.serial_no) {
+			if (!child.item_code) {
+				frappe.db
+					.get_value("Serial No", child.serial_no, [
+						"item_code",
+						"custom_bom_no",
+						"custom_gross_wt",
+					])
+					.then((r) => {
+						frappe.model.set_value(cdt, cdn, "item_code", r.message.item_code);
+						frappe.model.set_value(cdt, cdn, "master_bom", r.message.custom_bom_no);
+						frappe.model.set_value(
+							cdt,
+							cdn,
+							"custom_gross_weight",
+							r.message.custom_gross_wt
+						);
+					});
+			}
+		}
 	},
 });
 
