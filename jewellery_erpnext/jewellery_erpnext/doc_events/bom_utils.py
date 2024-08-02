@@ -429,7 +429,7 @@ def get_metal_and_finding_making_rate(self, sub_category, setting_type):
 				.left_join(MCPIS)
 				.on(MCPIS.parent == MCP.name)
 				.select(
-					MCP.metal_purity,
+					# MCP.metal_purity,
 					MCPIS.rate_per_gm,
 					MCPIS.rate_per_pc,
 					MCPIS.rate_per_gm_threshold,

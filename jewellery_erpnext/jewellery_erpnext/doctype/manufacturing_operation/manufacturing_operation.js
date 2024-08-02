@@ -355,6 +355,16 @@ function set_html(frm) {
 			frm.get_field("stock_entry").$wrapper.html(r.message);
 		},
 	});
+	frappe.call({
+		method: "get_bom_summary",
+		doc: frm.doc,
+		args: {
+			docname: frm.doc.name,
+		},
+		callback: function (r) {
+			frm.get_field("bom_summery").$wrapper.html(r.message);
+		},
+	});
 	// if (frm.doc.is_last_operation) {
 
 	// }

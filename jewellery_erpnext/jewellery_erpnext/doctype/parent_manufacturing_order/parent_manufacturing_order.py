@@ -447,6 +447,13 @@ def update_bom_based_on_diamond_quality(self):
 	if self.diamond_grade:
 		for row in bom.diamond_detail:
 			row.diamond_grade = self.diamond_grade
+
+		for row in bom.metal_detail:
+			row.metal_purity = self.metal_purity
+
+		for row in bom.finding_detail:
+			row.metal_purity = self.metal_purity
+
 	for pmo_row in self.gemstone_table:
 		for b_row in bom.gemstone_detail:
 			if (

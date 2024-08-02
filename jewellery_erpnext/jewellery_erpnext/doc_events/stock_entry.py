@@ -1076,6 +1076,7 @@ def create_material_receipt_for_customer_approval(source_name, cust_name):
 	target_doc.items = []
 	for item in frappe.get_all("Stock Entry Detail", filters={"parent": source_name}, fields=["*"]):
 		se_item = frappe.new_doc("Stock Entry Detail")
+		item.serial_and_batch_bundle = None
 		se_item.update(item)
 		se_item.qty = item_qty.get(item.item_code, {}).get("total_quantity", 0)
 		se_item.serial_no = item_qty.get(item.item_code, {}).get("serial_no", "")

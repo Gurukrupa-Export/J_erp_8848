@@ -32,6 +32,19 @@ class OverlapError(frappe.ValidationError):
 
 class ManufacturingOperation(Document):
 	# timer code
+	@frappe.whitelist()
+	def get_bom_summary(self):
+		if self.design_id_bom:
+			bom_data = frappe.get_doc("BOM", self.design_id_bom)
+			item_records = []
+			for bom_row in bom_data.items:
+				item_record = {"item_code": bom_row.item_code, "qty": bom_row.qty, "uom": bom_row.uom}
+				item_records.append(item_record)
+			return frappe.render_template(
+				"jewellery_erpnext/jewellery_erpnext/doctype/manufacturing_operation/bom_summery.html",
+				{"data": item_records},
+			)
+
 	def reset_timer_value(self, args):
 		self.started_time = None
 

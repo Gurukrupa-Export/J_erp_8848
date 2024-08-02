@@ -51,7 +51,7 @@ def create_sales_order_bom(self, row):
 	try:
 		doc.custom_creation_doctype = self.doctype
 		doc.is_default = 0
-		doc.is_active = 0
+		doc.is_active = 1
 		doc.bom_type = "Sales Order"
 		doc.gold_rate_with_gst = self.gold_rate_with_gst
 		doc.customer = self.customer

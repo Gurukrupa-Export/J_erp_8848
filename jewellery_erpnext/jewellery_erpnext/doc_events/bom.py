@@ -3,7 +3,10 @@ from erpnext.controllers.item_variant import create_variant, get_variant
 from frappe import _
 from frappe.utils import flt
 
-from jewellery_erpnext.jewellery_erpnext.customization.bom.doc_events.utils import product_ratio
+from jewellery_erpnext.jewellery_erpnext.customization.bom.doc_events.utils import (
+	product_ratio,
+	update_specifications,
+)
 from jewellery_erpnext.jewellery_erpnext.doc_events.bom_utils import (
 	calculate_gst_rate,
 	set_bom_item_details,
@@ -37,6 +40,7 @@ def before_validate(self, method):
 	system_item_validation(self)
 	set_item_variant(self)
 	set_bom_items(self)
+	update_specifications(self)
 
 
 def validate(self, method):

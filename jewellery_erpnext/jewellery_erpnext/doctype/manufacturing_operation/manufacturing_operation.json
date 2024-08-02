@@ -48,6 +48,8 @@
   "column_break_wnrc8",
   "finish_good_serial_number",
   "serial_no",
+  "section_break_tjs3",
+  "bom_summery",
   "section_break_535sx",
   "metal_type",
   "metal_touch",
@@ -108,7 +110,6 @@
   "section_break_fqd2",
   "on_hold",
   "time_logs",
-  "section_break_hvfb",
   "department_starttime",
   "column_break_ym8b",
   "department_finishtime",
@@ -746,6 +747,15 @@
    "fieldtype": "Datetime",
    "hidden": 1,
    "label": "Department Finish Time"
+  },
+  {
+   "fieldname": "section_break_tjs3",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "bom_summery",
+   "fieldtype": "HTML",
+   "label": "BOM Summery"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -764,7 +774,7 @@
    "link_fieldname": "manufacturing_operation"
   }
  ],
- "modified": "2024-05-16 18:32:38.828595",
+ "modified": "2024-08-02 16:17:11.596198",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Operation",
