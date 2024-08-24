@@ -54,9 +54,15 @@ frappe.ui.form.on("Product Details", {
 	serial_no: function (frm, cdt, cdn) {
 		var row = locals[cdt][cdn];
 		if (row.serial_no) {
-			frappe.db.get_value("Serial No", row.serial_no, "item_code", (r) => {
-				frappe.model.set_value(cdt, cdn, "item_code", r.item_code);
-			});
+			frappe.db.get_value(
+				"Serial No",
+				row.serial_no,
+				["item_code", "custom_gross_wt"],
+				(r) => {
+					frappe.model.set_value(cdt, cdn, "item_code", r.item_code);
+					frappe.model.set_value(cdt, cdn, "total_weight", r.custom_gross_wt);
+				}
+			);
 		}
 	},
 	manufacturing_work_order(frm, cdt, cdn) {

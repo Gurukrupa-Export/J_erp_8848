@@ -16,6 +16,13 @@ frappe.ui.form.on("Parent Manufacturing Order", {
 		set_filters_on_parent_table_fields(frm, parent_fields);
 	},
 	refresh(frm) {
+		frm.set_query("diamond_grade", function (doc) {
+			return {
+				query: "jewellery_erpnext.jewellery_erpnext.doctype.parent_manufacturing_order.doc_events.filters_query.get_diamond_grade",
+				searchfield: "diamond_grade",
+				filters: { customer: frm.doc.customer },
+			};
+		});
 		if (!frm.doc.__islocal) {
 			frm.set_df_property("diamond_grade", "reqd", 1);
 		}

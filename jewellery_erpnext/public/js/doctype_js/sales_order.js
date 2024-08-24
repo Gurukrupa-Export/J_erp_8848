@@ -2,7 +2,7 @@ frappe.ui.form.on("Sales Order", {
 	gold_rate_with_gst: function (frm) {
 		if (frm.doc.gold_rate_with_gst) {
 			let gold_rate = flt(frm.doc.gold_rate_with_gst / 1.03, 3);
-			if (gold_rate != frm.doc.gold_rate) {
+			if (gold_rate != flt(frm.doc.gold_rate, 3)) {
 				frappe.model.set_value(frm.doc.doctype, frm.doc.name, "gold_rate", gold_rate);
 			}
 		}
@@ -10,7 +10,7 @@ frappe.ui.form.on("Sales Order", {
 	gold_rate: function (frm) {
 		if (frm.doc.gold_rate) {
 			let gold_rate_with_gst = flt(frm.doc.gold_rate * 1.03, 3);
-			if (gold_rate_with_gst != frm.doc.gold_rate_with_gst) {
+			if (gold_rate_with_gst != flt(frm.doc.gold_rate_with_gst, 3)) {
 				frappe.model.set_value(
 					frm.doc.doctype,
 					frm.doc.name,
@@ -1575,7 +1575,7 @@ let get_sales_type = (frm) => {
 			method: "jewellery_erpnext.utils.get_type_of_party",
 			freeze: true,
 			args: {
-				doc: "Sales Type",
+				doc: "Sales Type Multiselect",
 				parent: frm.doc.customer,
 				field: "sales_type",
 			},

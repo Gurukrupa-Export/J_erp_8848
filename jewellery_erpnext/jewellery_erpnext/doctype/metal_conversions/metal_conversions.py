@@ -299,7 +299,7 @@ def make_metal_stock_entry(self):
 		source_item.append(
 			{
 				"item_code": self.source_alloy,
-				"qty": self.source_alloy_qty,
+				"qty": flt(self.source_alloy_qty, 3),
 				"inventory_type": "Regular Stock",
 				"batch_no": None,
 				"department": self.department,

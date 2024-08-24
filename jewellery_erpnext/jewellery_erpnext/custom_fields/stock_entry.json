@@ -419,7 +419,7 @@
    "dt": "Stock Entry",
    "fieldname": "branch",
    "fieldtype": "Link",
-   "insert_after": "column_break_prtgq",
+   "insert_after": "accounting_dimensions_section",
    "label": "Branch",
    "module": "Jewellery Erpnext",
    "options": "Branch"
@@ -456,7 +456,8 @@
    "fieldtype": "Section Break",
    "insert_after": "process_loss_qty",
    "label": "Inventory and Accounting Dimension",
-   "module": "Jewellery Erpnext"
+   "module": "Jewellery Erpnext",
+   "hidden": 1
   },
   {
    "depends_on": "eval: in_list([\"Customer Goods Received\",\"Customer Goods Issue\"], doc.stock_entry_type)",

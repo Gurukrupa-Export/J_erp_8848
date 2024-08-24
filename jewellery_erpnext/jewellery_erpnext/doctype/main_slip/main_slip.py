@@ -133,7 +133,7 @@ class MainSlip(Document):
 			)
 
 		existing_loss_data = {
-			row.item_code: {"msl_qty": row.msl_qty, "received_qty": row.received_qty}
+			row.item_code: {"msl_qty": flt(row.msl_qty, 3), "received_qty": row.received_qty}
 			for row in self.loss_details
 		}
 
@@ -141,10 +141,19 @@ class MainSlip(Document):
 		for row in loss_details:
 			if loss_details[row] > 0:
 				received_qty = 0
-				if existing_loss_data.get(row) and existing_loss_data[row]["msl_qty"] == loss_details[row]:
+				if existing_loss_data.get(row) and existing_loss_data[row]["msl_qty"] == flt(
+					loss_details[row], 3
+				):
 					received_qty = existing_loss_data[row]["received_qty"]
+				variant_of = frappe.db.get_value("Item", row, "variant_of")
 				self.append(
-					"loss_details", {"item_code": row, "msl_qty": loss_details[row], "received_qty": received_qty}
+					"loss_details",
+					{
+						"item_code": row,
+						"variant_of": variant_of,
+						"msl_qty": flt(loss_details[row], 3),
+						"received_qty": received_qty,
+					},
 				)
 
 	def on_submit(self):
@@ -165,7 +174,7 @@ class MainSlip(Document):
 			)
 		for row in self.loss_details:
 			create_loss_stock_entries(
-				self, row.item_code, row.received_qty, (row.msl_qty - row.received_qty)
+				self, row.item_code, row.variant_of, row.received_qty, (row.msl_qty - row.received_qty)
 			)
 
 	def validate_metal_properties(self):
@@ -276,7 +285,9 @@ def create_stock_entries(
 				}
 			)
 
-	create_metal_loss(doc, item, flt(metal_loss), batch_data)
+	variant_of = frappe.db.get_value("Item", item, "variant_of")
+
+	create_metal_loss(doc, item, variant_of, flt(metal_loss), batch_data)
 	stock_entry = frappe.new_doc("Stock Entry")
 	stock_entry.stock_entry_type = "Material Transfer to Department"
 	stock_entry.main_slip = doc.name
@@ -308,7 +319,7 @@ def create_stock_entries(
 	stock_entry.submit()
 
 
-def create_loss_stock_entries(self, item, actual_qty, metal_loss):
+def create_loss_stock_entries(self, item, variant_of, actual_qty, metal_loss):
 
 	if not item:
 		frappe.throw(_("No Item found for selected atrributes in main slip"))
@@ -334,13 +345,12 @@ def create_loss_stock_entries(self, item, actual_qty, metal_loss):
 				}
 			)
 
-	create_metal_loss(self, item, flt(metal_loss, 3), batch_data)
+	create_metal_loss(self, item, variant_of, flt(metal_loss, 3), batch_data)
 	if actual_qty > 0:
 		stock_entry = frappe.new_doc("Stock Entry")
 		stock_entry.stock_entry_type = "Material Transfer to Department"
 		stock_entry.main_slip = self.name
 		stock_entry.subcontractor = self.subcontractor
-		stock_entry.branch = "GE-BR-00001"
 		stock_entry.auto_created = 1
 		for row in batch_data:
 			if row.get("qty"):
@@ -483,11 +493,28 @@ def create_process_loss(
 	return se_doc.name
 
 
-def create_metal_loss(doc, item, metal_loss, batch_data, mop=None):
-	loss_warehouse = frappe.db.get_value("Manufacturer", doc.manufacturer, "default_loss_warehouse")
+def create_metal_loss(doc, item, variant_of, metal_loss, batch_data, mop=None):
+	variant_loss_details = frappe.db.get_value(
+		"Variant Loss Warehouse",
+		{"parent": doc.manufacturer, "variant": variant_of},
+		["loss_warehouse", "consider_department_warehouse", "warehouse_type"],
+		as_dict=1,
+	)
+
+	if variant_loss_details and variant_loss_details.get("loss_warehouse"):
+		loss_warehouse = variant_loss_details.get("loss_warehouse")
+
+	elif variant_loss_details.get("consider_department_warehouse") and variant_loss_details.get(
+		"warehouse_type"
+	):
+		loss_warehouse = frappe.db.get_value(
+			"Warehouse",
+			{"department": doc.department, "warehouse_type": variant_loss_details.get("warehouse_type")},
+		)
 
 	if not loss_warehouse:
-		frappe.throw(_("Mention loss warehouse in Manufacturer"))
+		frappe.throw(_("Default loss warehouse is not set in Manufacturer loss table"))
+
 	if metal_loss <= 0:
 		return
 	metal_loss_item = get_item_loss_item(doc.company, item, "M")
@@ -503,7 +530,6 @@ def create_metal_loss(doc, item, metal_loss, batch_data, mop=None):
 	se.subcontractor = doc.subcontractor
 	se.auto_created = 1
 	se.manufacturing_opeartion = mop
-	se.branch = "GE-BR-00001"
 
 	repack_qty = metal_loss
 	for row in batch_data:

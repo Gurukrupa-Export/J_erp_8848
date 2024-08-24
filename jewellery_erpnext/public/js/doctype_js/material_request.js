@@ -66,6 +66,23 @@ frappe.ui.form.on("Material Request", {
 });
 
 frappe.ui.form.on("Material Request Item", {
+	serial_no: function (frm, cdt, cdn) {
+		let child = locals[cdt][cdn];
+		if (child.serial_no) {
+			if (!child.item_code) {
+				frappe.db
+					.get_value("Serial No", child.serial_no, [
+						"item_code",
+						"custom_bom_no",
+						"custom_gross_wt",
+					])
+					.then((r) => {
+						frappe.model.set_value(cdt, cdn, "item_code", r.message.item_code);
+						frappe.model.set_value(cdt, cdn, "bom_no", r.message.custom_bom_no);
+					});
+			}
+		}
+	},
 	item_code(frm, cdt, cdn) {
 		frm.trigger("custom_insurance_rate");
 		let d = locals[cdt][cdn];

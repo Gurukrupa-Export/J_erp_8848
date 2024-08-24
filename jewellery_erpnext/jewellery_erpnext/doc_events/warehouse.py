@@ -24,6 +24,7 @@ def check_unique_multifield(doc, **kwargs):
 		"Material",
 		"Finished Goods",
 		"Reserve",
+		"Scrap",
 	]
 	if doc.department and doc.warehouse_type not in existing_type:
 		frappe.throw(_("Warehouse type must be set one of this <b>(Manufacturing or Raw Material)</b>"))

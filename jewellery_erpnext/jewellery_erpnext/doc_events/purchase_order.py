@@ -57,6 +57,8 @@ def make_subcontracting_order(doc):
 			po_doc.purchase_type = row.purchase_type
 			po_doc.ref_customer = row.get("customer", None)
 
+		po_doc.custom_customer_po = row.customer_po
+
 		if po_doc.purchase_type == "FG Purchase":
 			po_doc.append(
 				"items",
@@ -137,6 +139,8 @@ def make_quotation(source_name, target_doc=None):
 		target_doc = frappe.get_doc(target_doc)
 
 	po_doc = frappe.get_doc("Purchase Order", source_name)
+
+	target_doc.po_no = po_doc.custom_customer_po
 
 	for row in po_doc.items:
 		target_doc.append(

@@ -160,19 +160,23 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 			filter_value = "is_for_labour"
 		if not gold_item:
 			gold_item, hsn_code, gold_uom = frappe.db.get_value(
-				"E Invoice Item", {"is_for_metal": 1, "metal_type": i.metal_type}, ["name", "hsn_code", "uom"]
+				"E Invoice Item",
+				{"is_for_metal": 1, "metal_type": i.metal_type, "metal_purity": i.metal_touch},
+				["name", "hsn_code", "uom"],
 			)
 
 		if not gold_making_item:
 			gold_making_item, making_hsn_code, gold_making_uom = frappe.db.get_value(
-				"E Invoice Item", {filter_value: 1, "metal_type": i.metal_type}, ["name", "hsn_code", "uom"]
+				"E Invoice Item",
+				{filter_value: 1, "metal_type": i.metal_type, "metal_purity": i.metal_touch},
+				["name", "hsn_code", "uom"],
 			)
 
 		if gold_item:
-			if invoice_data.get(f"{gold_item} {i.metal_touch}"):
-				invoice_data[f"{gold_item} {i.metal_touch}"]["amount"] += amount
+			if invoice_data.get(gold_item):
+				invoice_data[gold_item]["amount"] += amount
 			else:
-				invoice_data[f"{gold_item} {i.metal_touch}"] = {
+				invoice_data[gold_item] = {
 					"amount": amount,
 					"hsn_code": hsn_code,
 					"qty": 0,
@@ -180,13 +184,13 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 				}
 
 			if amount > 0:
-				invoice_data[f"{gold_item} {i.metal_touch}"]["qty"] += i.quantity
+				invoice_data[gold_item]["qty"] += i.quantity
 
 		if gold_making_item and not is_branch_customer:
-			if invoice_data.get(f"{gold_making_item} {i.metal_touch}"):
-				invoice_data[f"{gold_making_item} {i.metal_touch}"]["amount"] += i.making_amount
+			if invoice_data.get(gold_making_item):
+				invoice_data[gold_making_item]["amount"] += i.making_amount
 			else:
-				invoice_data[f"{gold_making_item} {i.metal_touch}"] = {
+				invoice_data[gold_making_item] = {
 					"amount": i.making_amount,
 					"hsn_code": making_hsn_code,
 					"qty": 0,
@@ -194,7 +198,7 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 				}
 
 			if i.making_amount > 0:
-				invoice_data[f"{gold_making_item} {i.metal_touch}"]["qty"] += i.quantity
+				invoice_data[gold_making_item]["qty"] += i.quantity
 
 		if i.is_customer_item:
 			self.is_customer_metal = True
@@ -214,21 +218,23 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 		if not einvoice_item:
 			einvoice_item, hsn_code, uom = frappe.db.get_value(
 				"E Invoice Item",
-				{"is_for_finding": 1, "metal_type": i.metal_type},
+				{"is_for_finding": 1, "metal_type": i.metal_type, "metal_purity": i.metal_touch},
 				["name", "hsn_code", "uom"],
 			)
 
 		if not making_item:
 			making_item, making_hsn_code, making_uom = frappe.db.get_value(
-				"E Invoice Item", {filter_value: 1, "metal_type": i.metal_type}, ["name", "hsn_code", "uom"]
+				"E Invoice Item",
+				{filter_value: 1, "metal_type": i.metal_type, "metal_purity": i.metal_touch},
+				["name", "hsn_code", "uom"],
 			)
 
 		if not i.not_finding_rate:
 			if gold_item:
-				if invoice_data.get(f"{gold_item} {i.metal_touch}"):
-					invoice_data[f"{gold_item} {i.metal_touch}"]["amount"] += amount
+				if invoice_data.get(gold_item):
+					invoice_data[gold_item]["amount"] += amount
 				else:
-					invoice_data[f"{gold_item} {i.metal_touch}"] = {
+					invoice_data[gold_item] = {
 						"amount": amount,
 						"hsn_code": hsn_code,
 						"qty": 0,
@@ -236,13 +242,13 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 					}
 
 				if amount > 0:
-					invoice_data[f"{gold_item} {i.metal_touch}"]["qty"] += i.quantity
+					invoice_data[gold_item]["qty"] += i.quantity
 
 			if gold_making_item and not is_branch_customer:
-				if invoice_data.get(f"{gold_making_item} {i.metal_touch}"):
-					invoice_data[f"{gold_making_item} {i.metal_touch}"]["amount"] += i.making_amount
+				if invoice_data.get(gold_making_item):
+					invoice_data[gold_making_item]["amount"] += i.making_amount
 				else:
-					invoice_data[f"{gold_making_item} {i.metal_touch}"] = {
+					invoice_data[gold_making_item] = {
 						"amount": i.making_amount,
 						"hsn_code": making_hsn_code,
 						"qty": 0,
@@ -250,14 +256,14 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 					}
 
 				if i.making_amount > 0:
-					invoice_data[f"{gold_making_item} {i.metal_touch}"]["qty"] += i.quantity
+					invoice_data[gold_making_item]["qty"] += i.quantity
 
 		else:
 			if einvoice_item:
-				if invoice_data.get(f"{einvoice_item} {i.metal_touch}"):
-					invoice_data[f"{einvoice_item} {i.metal_touch}"]["amount"] += amount
+				if invoice_data.get(einvoice_item):
+					invoice_data[einvoice_item]["amount"] += amount
 				else:
-					invoice_data[f"{einvoice_item} {i.metal_touch}"] = {
+					invoice_data[einvoice_item] = {
 						"amount": amount,
 						"hsn_code": hsn_code,
 						"qty": 0,
@@ -265,13 +271,13 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 					}
 
 				if amount > 0:
-					invoice_data[f"{einvoice_item} {i.metal_touch}"]["qty"] += i.quantity
+					invoice_data[einvoice_item]["qty"] += i.quantity
 
 			if making_item:
-				if invoice_data.get(f"{making_item} {i.metal_touch}"):
-					invoice_data[f"{making_item} {i.metal_touch}"]["amount"] += i.making_amount
+				if invoice_data.get(making_item):
+					invoice_data[making_item]["amount"] += i.making_amount
 				else:
-					invoice_data[f"{making_item} {i.metal_touch}"] = {
+					invoice_data[making_item] = {
 						"amount": i.making_amount,
 						"hsn_code": making_hsn_code,
 						"qty": 0,
@@ -279,13 +285,13 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 					}
 
 				if i.making_amount > 0:
-					invoice_data[f"{making_item} {i.metal_touch}"]["qty"] += i.quantity
+					invoice_data[making_item]["qty"] += i.quantity
 
 		if i.is_customer_item:
 			self.is_customer_metal = True
 
 	if is_branch_customer and bom_doc.get("operation_cost"):
-		invoice_data[f"{gold_making_item}"] = {"amount": bom_doc.operation_cost, "qty": 1}
+		invoice_data[gold_making_item] = {"amount": bom_doc.operation_cost, "qty": 1}
 
 	einvoice_item = None
 	ss_range = {}
@@ -313,13 +319,15 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 			amount = i.se_rate * i.quantity
 		if not einvoice_item:
 			einvoice_item, hsn_code, uom = frappe.db.get_value(
-				"E Invoice Item", {"is_for_diamond": 1}, ["name", "hsn_code", "uom"]
+				"E Invoice Item",
+				{"is_for_diamond": 1, "diamond_quality": i.diamond_quality},
+				["name", "hsn_code", "uom"],
 			)
 
 		if einvoice_item:
-			einvoice_item_name = f"{einvoice_item}"
-			if i.diamond_type != "Real":
-				einvoice_item_name += f" {i.diamond_type}"
+			einvoice_item_name = einvoice_item
+			# if i.diamond_type != "Real":
+			# 	einvoice_item_name += f" {i.diamond_type}"
 
 			if invoice_data.get(einvoice_item_name):
 				invoice_data[einvoice_item_name]["amount"] += amount
@@ -340,7 +348,6 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 
 	einvoice_item = None
 	for i in bom_doc.gemstone_detail:
-		previous = i.gemstone_rate_for_specified_quantity
 		actual_qty = i.quantity
 		i.quantity = flt(i.quantity, self.gemstone_pricision)
 		i.difference = actual_qty - i.quantity
@@ -695,7 +702,7 @@ def update_payment_terms(self, payment_terms_data=None):
 
 			description = []
 			for item_type in payment_term_dict[row]["item_type"]:
-				charge_type = frappe.db.get_value("Item Type", item_type, "charge_type")
+				charge_type = frappe.db.get_value("E Invoice Item", item_type, "charge_type")
 				if charge_type in ["Making Charges", "Labour Charges"] and total_making_amount > 0:
 					if charge_type == "Making Charges" and not self.is_customer_metal:
 						payment_amount += total_making_amount

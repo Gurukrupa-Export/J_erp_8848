@@ -75,7 +75,7 @@ class ProductCertification(Document):
 
 		qty_data = {}
 		for row in self.product_details:
-			if qty_data.get(row.manufacturing_work_order, row.serial_no):
+			if qty_data.get((row.manufacturing_work_order, row.serial_no)):
 				qty_data[(row.manufacturing_work_order, row.serial_no)] += row.total_weight
 			else:
 				qty_data[(row.manufacturing_work_order, row.serial_no)] = row.total_weight
@@ -100,7 +100,22 @@ class ProductCertification(Document):
 			if row.serial_no:
 				add_to_serial_no(row.serial_no, self, row)
 			elif row.manufacturing_work_order:
-				frappe.set_value("Manufacturing Work Order", row.manufacturing_work_order, "huid", row.huid)
+				if row.huid or row.certification:
+					pmo = frappe.db.get_value(
+						"Manufacturing Work Order", row.manufacturing_work_order, "manufacturing_order"
+					)
+
+					pmo_doc = frappe.get_doc("Parent Manufacturing Order", pmo)
+					pmo_doc.append(
+						"product_certification_details",
+						{
+							"huid": row.huid,
+							"certification_no": row.certification,
+							"date": self.date if row.huid else None,
+							"certification_date": self.certification_date if row.certification else None,
+						},
+					)
+					pmo_doc.save()
 
 	def get_exploded_table(self):
 		exploded_product_details = []

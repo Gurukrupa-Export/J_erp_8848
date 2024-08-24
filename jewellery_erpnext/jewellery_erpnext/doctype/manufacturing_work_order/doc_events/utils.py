@@ -1,8 +1,9 @@
 import frappe
 from frappe import _
-from frappe.utils import get_datetime
-from frappe.query_builder.functions import IfNull, Sum
 from frappe.query_builder import CustomFunction
+from frappe.query_builder.functions import IfNull, Sum
+from frappe.utils import get_datetime
+
 
 def create_se_entry(self):
 	employee = frappe.db.get_value(
@@ -37,17 +38,12 @@ def create_se_entry(self):
 			SED.batch_no,
 			SED.qty,
 			SED.uom,
-			IfNull(
-				Sum(
-					IF(SED.uom == "Carat", SED.qty * 0.2, SED.qty)
-				),
-				0
-			).as_("gross_wt")
+			IfNull(Sum(IF(SED.uom == "Carat", SED.qty * 0.2, SED.qty)), 0).as_("gross_wt"),
 		)
 		.where(
-			(SE.docstatus == 1) &
-			(SED.manufacturing_operation == self.manufacturing_operation) &
-			(SED.t_warehouse == target_wh)
+			(SE.docstatus == 1)
+			& (SED.manufacturing_operation == self.manufacturing_operation)
+			& (SED.t_warehouse == target_wh)
 		)
 		.groupby(SED.manufacturing_operation, SED.item_code, SED.qty, SED.uom)
 	)
@@ -150,7 +146,7 @@ def create_stock_transfer_entry(self):
 	se_doc.stock_entry_type = "Material Transfer to Department"
 	se_doc.manufacturing_order = self.manufacturing_order
 	se_doc.manufacturing_work_order = self.transfer_mwo
-	se_doc.manufacturing_work_order = transfer_mop
+	se_doc.manufacturing_operation = transfer_mop
 	for row in stock_entry_data:
 		se_doc.append(
 			"items",

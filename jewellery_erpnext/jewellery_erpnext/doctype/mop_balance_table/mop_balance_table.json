@@ -379,12 +379,14 @@
   {
    "fieldname": "insurance_rate",
    "fieldtype": "Float",
-   "label": "Insurance Rate"
+   "label": "Insurance Rate",
+   "permlevel": 1
   },
   {
    "fieldname": "insurance_amount",
    "fieldtype": "Float",
-   "label": "Insurance Amount"
+   "label": "Insurance Amount",
+   "permlevel": 1
   },
   {
    "bold": 1,
@@ -395,6 +397,7 @@
    "oldfieldname": "incoming_rate",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "permlevel": 1,
    "print_hide": 1
   },
   {
@@ -402,6 +405,7 @@
    "fieldtype": "Currency",
    "label": "Additional Cost",
    "options": "Company:company:default_currency",
+   "permlevel": 1,
    "print_hide": 1,
    "read_only": 1
   },
@@ -410,6 +414,7 @@
    "fieldtype": "Currency",
    "label": "Valuation Rate",
    "options": "Company:company:default_currency",
+   "permlevel": 1,
    "read_only": 1
   },
   {
@@ -418,6 +423,7 @@
    "fieldtype": "Check",
    "label": "Allow Zero Valuation Rate",
    "no_copy": 1,
+   "permlevel": 1,
    "print_hide": 1,
    "read_only_depends_on": "eval:doc.s_warehouse"
   },
@@ -430,13 +436,15 @@
    "depends_on": "eval:parent.purpose===\"Repack\" && doc.t_warehouse",
    "fieldname": "set_basic_rate_manually",
    "fieldtype": "Check",
-   "label": "Set Basic Rate Manually"
+   "label": "Set Basic Rate Manually",
+   "permlevel": 1
   },
   {
    "fieldname": "basic_amount",
    "fieldtype": "Currency",
    "label": "Basic Amount",
    "options": "Company:company:default_currency",
+   "permlevel": 1,
    "print_hide": 1,
    "read_only": 1
   },
@@ -447,6 +455,7 @@
    "oldfieldname": "amount",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "permlevel": 1,
    "read_only": 1
   },
   {
@@ -811,7 +820,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-05-22 12:31:24.045317",
+ "modified": "2024-08-12 19:17:32.472703",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "MOP Balance Table",

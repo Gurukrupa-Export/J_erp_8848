@@ -143,6 +143,11 @@ def set_item_variant(self):
 				else:
 					# Create a new variant
 					variant = create_variant(row.item, args)
+					variant_item_group = frappe.db.get_value(
+						"Variant Item Group", {"parent": self.company, "item_variant": row.item}, "item_group"
+					)
+					if variant_item_group:
+						variant.item_group = variant_item_group
 					variant.save()
 					row.item_variant = variant.name
 

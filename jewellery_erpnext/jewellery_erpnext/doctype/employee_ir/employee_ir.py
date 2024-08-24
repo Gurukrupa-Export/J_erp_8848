@@ -11,7 +11,7 @@ from frappe.query_builder import DocType
 from frappe.query_builder.functions import Sum
 
 # timer code
-from frappe.utils import cint, flt, get_datetime, time_diff_in_seconds, today
+from frappe.utils import cint, flt, get_datetime, now, time_diff_in_seconds, today
 
 from jewellery_erpnext.jewellery_erpnext.doctype.department_ir.department_ir import (
 	get_material_wt,
@@ -27,6 +27,9 @@ from jewellery_erpnext.jewellery_erpnext.doctype.employee_ir.doc_events.html_uti
 )
 from jewellery_erpnext.jewellery_erpnext.doctype.employee_ir.doc_events.mould_utils import (
 	create_mould,
+)
+from jewellery_erpnext.jewellery_erpnext.doctype.employee_ir.doc_events.subcontracting_utils import (
+	create_so_for_subcontracting,
 )
 from jewellery_erpnext.jewellery_erpnext.doctype.main_slip.main_slip import get_main_slip_item
 
@@ -122,6 +125,7 @@ class EmployeeIR(Document):
 
 		mop_data = {}
 		for row in self.employee_ir_operations:
+			values["rpt_wt_issue"] = row.rpt_wt_issue
 			frappe.db.set_value(
 				"Manufacturing Operation", row.manufacturing_operation, "operation", operation
 			)
@@ -258,6 +262,12 @@ class EmployeeIR(Document):
 				res["status"] = status
 				# gross_wt = get_value("Stock Entry Detail", {'manufacturing_operation': row.manufacturing_operation, "employee":self.employee}, 'sum(if(uom="Carat",qty*0.2,qty))', 0)
 
+			if row.rpt_wt_receive:
+				issue_wt = frappe.db.get_value(
+					"Manufacturing Operation", row.manufacturing_operation, "rpt_wt_issue"
+				)
+				res["rpt_wt_receive"] = row.rpt_wt_receive
+				res["rpt_wt_loss"] = flt(row.rpt_wt_receive - issue_wt, 3)
 			frappe.set_value("Manufacturing Operation", row.manufacturing_operation, res)
 
 	def validate_qc(self, action="Warn"):
@@ -360,11 +370,14 @@ class EmployeeIR(Document):
 		skip_operations = []
 		po = frappe.new_doc("Purchase Order")
 		po.supplier = self.subcontractor
-		po.company = self.company
+		company = frappe.db.get_value("Company", {"supplier_code": self.subcontractor}, "name")
+		po.company = company or self.company
 		po.employee_ir = self.name
 		po.purchase_type = "FG Purchase"
+
+		allow_zero_qty = frappe.db.get_value("Department Operation", self.operation, "allow_zero_qty_wo")
 		for row in self.employee_ir_operations:
-			if not row.gross_wt:
+			if not row.gross_wt and not allow_zero_qty:
 				skip_operations.append(row.manufacturing_operation)
 				continue
 			rate = get_po_rates(self.subcontractor, self.operation, po.purchase_type, row)
@@ -376,7 +389,8 @@ class EmployeeIR(Document):
 				{
 					"item_code": service_item,
 					"qty": 1,
-					"rate": rate[0].get("rate_per_gm") if rate else 0,
+					"custom_gross_wt": row.gross_wt,
+					"rate": flt(rate[0].get("rate_per_gm") * row.gross_wt, 3) if rate else 0,
 					"schedule_date": today(),
 					"manufacturing_operation": row.manufacturing_operation,
 					"custom_pmo": pmo,
@@ -393,6 +407,10 @@ class EmployeeIR(Document):
 		po.db_set("schedule_date", None)
 		for row in po.items:
 			row.db_set("schedule_date", None)
+
+		supplier_group = frappe.db.get_value("Supplier", self.subcontractor, "supplier_group")
+		if frappe.db.get_value("Supplier Group", supplier_group, "custom_create_so_for_subcontracting"):
+			create_so_for_subcontracting(po)
 
 	@frappe.whitelist()
 	def validate_process_loss(self):
@@ -613,8 +631,9 @@ def create_operation_for_next_op(docname, target_doc=None, employee_ir=None):
 	target_doc.employee_target_table = []
 	target_doc.employee_ir = employee_ir
 	target_doc.time_taken = None
-	target_doc.save()
-	target_doc.db_set("employee", None)
+	target_doc.employee = None
+	# target_doc.save()
+	# target_doc.db_set("employee", None)
 
 	# timer code
 	target_doc.start_time = ""
@@ -908,7 +927,6 @@ def create_stock_entry(doc, row, difference_wt=0):
 			se_doc.subcontractor = doc.subcontractor
 			se_doc.auto_created = True
 			se_doc.employee_ir = doc.name
-			se_doc.branch = "GE-BR-00001"
 			warehouse = frappe.db.get_value("Main Slip", doc.main_slip, "raw_material_warehouse")
 
 			pmo = frappe.db.get_value(
@@ -990,6 +1008,7 @@ def create_stock_entry(doc, row, difference_wt=0):
 								"material_request_item": None,
 								"batch_no": b_id.batch_no,
 								"inventory_type": b_id.inventory_type,
+								"pcs": 1,
 							},
 						)
 						ms_transfer_data.update({(b_id.batch_no, b_id.inventory_type): se_qty})
@@ -1101,6 +1120,7 @@ def create_stock_entry(doc, row, difference_wt=0):
 							"material_request_item": None,
 							"batch_no": batch_doc.name,
 							"inventory_type": inventory_type,
+							"pcs": 1,
 						},
 					)
 					ms_transfer_data.update({(batch_doc.name, inventory_type): abs(flt(remaining_wt, 3))})
@@ -1143,8 +1163,10 @@ def create_stock_entry(doc, row, difference_wt=0):
 		existing_doc = frappe.get_doc("Stock Entry", stock_entry)
 		se_doc = frappe.copy_doc(existing_doc)
 		se_doc.outgoing_stock_entry = ""
+		se_doc.set_posting_time = 1
+		se_doc.posting_date = today()
+		se_doc.posting_time = now()
 		se_doc.inventory_type = None
-		se_doc.branch = "GE-BR-00001"
 		se_doc.from_warehouse = None
 		se_doc.to_warehouse = None
 		se_doc.auto_created = 1
@@ -1318,6 +1340,9 @@ def create_stock_entry(doc, row, difference_wt=0):
 		se_doc = frappe.new_doc("Stock Entry")
 		se_doc.stock_entry_type = "Material Transfer to Department"
 		se_doc.purpose = "Material Transfer"
+		se_doc.set_posting_time = 1
+		se_doc.posting_date = today()
+		se_doc.posting_time = now()
 		se_doc.manufacturing_order = frappe.db.get_value(
 			"Manufacturing Work Order", row.manufacturing_work_order, "manufacturing_order"
 		)

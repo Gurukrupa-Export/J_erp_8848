@@ -19,7 +19,7 @@ def update_delivery_date(self):
 
 
 def validate_duplicate_so(self):
-	if self.status != "Closed":
+	if self.status != "Closed" and self.docstatus == 0:
 		for row in self.items:
 			if row.serial_no:
 				so = DocType("Sales Order")

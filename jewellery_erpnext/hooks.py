@@ -51,6 +51,7 @@ doctype_js = {
 
 doc_events = {
 	"Quotation": {
+		"before_validate": "jewellery_erpnext.jewellery_erpnext.customization.quotation.quotation.before_validate",
 		"validate": "jewellery_erpnext.jewellery_erpnext.doc_events.quotation.validate",
 		"on_submit": "jewellery_erpnext.jewellery_erpnext.doc_events.quotation.on_submit",
 		"on_cancel": "jewellery_erpnext.jewellery_erpnext.doc_events.quotation.on_cancel",

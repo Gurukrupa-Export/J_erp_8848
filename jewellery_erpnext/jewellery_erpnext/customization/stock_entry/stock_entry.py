@@ -54,6 +54,33 @@ class CustomStockEntry(StockEntry):
 			if rows_to_append:
 				self.items = []
 				for item in rows_to_append:
+					if isinstance(item, dict):
+						item = frappe._dict(item)
+					if item.batch_no:
+						item.inventory_type = frappe.db.get_value("Batch", item.batch_no, "custom_inventory_type")
+						item.customer = frappe.db.get_value("Batch", item.batch_no, "custom_customer")
+					if frappe.db.get_value("Item", item.item_code, "variant_of") == "D":
+						attribute = frappe.db.get_value(
+							"Item Variant Attribute",
+							{"parent": item.item_code, "attribute": "Diamond Grade"},
+							"attribute_value",
+						)
+						diamond_sieve_size = frappe.db.get_value(
+							"Item Variant Attribute",
+							{"parent": item.item_code, "attribute": "Diamond Sieve Size"},
+							"attribute_value",
+						)
+						weight = (
+							frappe.db.get_value(
+								"Attribute Value Diamond Sieve Size",
+								{"parent": attribute, "diamond_sieve_size": diamond_sieve_size},
+								"per_pcs_average_weight",
+							)
+							or 0
+						)
+
+						if weight > 0 and item.qty:
+							item.pcs = int(item.qty / weight)
 					self.append("items", item)
 
 			if frappe.db.exists("Stock Entry", self.name):

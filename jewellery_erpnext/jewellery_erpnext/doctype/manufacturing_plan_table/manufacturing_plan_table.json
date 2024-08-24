@@ -16,6 +16,7 @@
   "estimated_delivery_date",
   "manufacturing_end_date",
   "customer",
+  "customer_po",
   "column_break_p3gkl",
   "pending_qty",
   "manufacturing_order_qty",
@@ -129,6 +130,7 @@
   {
    "depends_on": "eval: doc.subcontracting",
    "fetch_from": "item_code.product_supplier",
+   "fetch_if_empty": 1,
    "fieldname": "supplier",
    "fieldtype": "Link",
    "label": "Supplier Name",
@@ -304,12 +306,18 @@
    "hidden": 1,
    "label": "MWO",
    "options": "Manufacturing Work Order"
+  },
+  {
+   "fetch_from": "sales_order.po_no",
+   "fieldname": "customer_po",
+   "fieldtype": "Data",
+   "label": "Customer PO"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-06-13 23:26:59.151481",
+ "modified": "2024-08-05 14:17:47.116716",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Plan Table",

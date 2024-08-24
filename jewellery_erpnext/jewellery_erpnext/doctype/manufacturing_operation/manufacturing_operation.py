@@ -1075,7 +1075,6 @@ def create_manufacturing_entry(doc, row_data, mo_data=None):
 			"custom_serial_number_creator": doc.name,
 			# "inventory_type": "Regular Stock",
 			"auto_created": 1,
-			"branch": "GE-BR-00001",
 		}
 	)
 	for entry in row_data:
@@ -1189,9 +1188,12 @@ def genrate_serial_no(doc):
 	mwo_no = doc.manufacturing_work_order
 	if mwo_no:
 		series_start = frappe.db.get_value("Manufacturing Setting", doc.company, ["series_start"])
-		diamond_grade, manufacturer, posting_date = frappe.db.get_value(
-			"Manufacturing Work Order", mwo_no, ["diamond_grade", "manufacturer", "posting_date"]
+		metal_type, diamond_grade, manufacturer, posting_date = frappe.db.get_value(
+			"Manufacturing Work Order",
+			mwo_no,
+			["metal_type", "diamond_grade", "manufacturer", "posting_date"],
 		)
+		m_abbr = frappe.db.get_value("Attribute Value", metal_type, "abbreviation")
 		mnf_abbr = frappe.db.get_value("Manufacturer", manufacturer, ["custom_abbreviation"])
 		dg_abbr = frappe.db.get_value("Attribute Value", diamond_grade, ["abbreviation"])
 		date = f"{posting_date.year %100:02d}"
@@ -1212,7 +1214,7 @@ def genrate_serial_no(doc):
 	if errors:
 		frappe.throw("<br>".join(errors))
 
-	compose_series = str(series_start + mnf_abbr + dg_abbr + final_date + ".####")
+	compose_series = str(series_start + mnf_abbr + m_abbr + dg_abbr + final_date + ".####")
 	return compose_series
 
 

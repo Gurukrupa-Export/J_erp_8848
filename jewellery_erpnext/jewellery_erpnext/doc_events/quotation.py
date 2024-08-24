@@ -13,10 +13,11 @@ from jewellery_erpnext.jewellery_erpnext.doc_events.bom_utils import (
 
 def validate(self, method):
 	create_new_bom(self)
-	calculate_gst_rate(self)
-	if not self.get("__islocal"):
-		set_bom_item_details(self)
-	set_bom_rate_in_quotation(self)
+	if self.docstatus == 0:
+		calculate_gst_rate(self)
+		if not self.get("__islocal"):
+			set_bom_item_details(self)
+		set_bom_rate_in_quotation(self)
 
 
 def onload(self, method):
@@ -37,7 +38,7 @@ def create_new_bom(self):
 	"""
 	for row in self.items:
 		if row.quotation_bom:
-			return
+			continue
 		serial_bom = None
 		if serial := row.get("serial_no"):
 			serial_bom = frappe.db.get_value("BOM", {"item": row.item_code, "tag_no": serial}, "name")
@@ -157,7 +158,7 @@ def cancel_bom(self):
 			# bom.cancel()
 			bom.save()
 			# frappe.delete_doc("BOM", bom.name, force=1)
-			row.quotation_bom = ""
+			row.quotation_bom = None
 
 
 from jewellery_erpnext.jewellery_erpnext.doc_events.bom import update_totals

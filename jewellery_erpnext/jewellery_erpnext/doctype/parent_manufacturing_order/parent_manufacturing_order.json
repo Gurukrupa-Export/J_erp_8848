@@ -78,6 +78,8 @@
   "gemstone_product_tolerance",
   "section_break_royco",
   "order_remarks",
+  "serial_no_details_section",
+  "product_certification_details",
   "order_details_tab",
   "order_form_id",
   "quotation",
@@ -272,8 +274,8 @@
    "fieldname": "diamond_quality",
    "fieldtype": "Link",
    "label": "Diamond Quality",
-   "options": "Attribute Value",
-   "reqd": 1
+   "mandatory_depends_on": "eval: doc.type != \"Finding Manufacturing\";",
+   "options": "Attribute Value"
   },
   {
    "collapsible": 1,
@@ -296,6 +298,7 @@
    "fieldname": "diamond_grade",
    "fieldtype": "Link",
    "label": "Diamond Grade",
+   "mandatory_depends_on": "eval: doc.type != \"Finding Manufacturing\";",
    "options": "Attribute Value"
   },
   {
@@ -584,16 +587,16 @@
    "fieldtype": "Link",
    "ignore_user_permissions": 1,
    "label": "Diamond Department",
-   "options": "Department",
-   "reqd": 1
+   "mandatory_depends_on": "eval: doc.type != \"Finding Manufacturing\"",
+   "options": "Department"
   },
   {
    "fieldname": "gemstone_department",
    "fieldtype": "Link",
    "ignore_user_permissions": 1,
    "label": "Gemstone Department",
-   "options": "Department",
-   "reqd": 1
+   "mandatory_depends_on": "eval: doc.type != \"Finding Manufacturing\"",
+   "options": "Department"
   },
   {
    "fieldname": "default_material_request_department_section",
@@ -803,6 +806,19 @@
    "fieldtype": "Select",
    "label": "Customer Status",
    "options": "Issue\nReceive"
+  },
+  {
+   "fieldname": "serial_no_details_section",
+   "fieldtype": "Section Break",
+   "label": "Serial No Details"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "product_certification_details",
+   "fieldtype": "Table",
+   "label": "Product Certification Details",
+   "options": "HUID Detail",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -821,7 +837,7 @@
    "link_fieldname": "manufacturing_order"
   }
  ],
- "modified": "2024-07-03 16:04:35.377563",
+ "modified": "2024-08-07 16:33:53.874589",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Parent Manufacturing Order",

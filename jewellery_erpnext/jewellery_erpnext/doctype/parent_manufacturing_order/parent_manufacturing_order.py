@@ -37,6 +37,7 @@ class ParentManufacturingOrder(Document):
 		get_gemstone_details(self)
 
 	def validate(self):
+		self.metal_details()
 		update_bom_based_on_diamond_quality(self)
 		validate_mfg_date(self)
 
@@ -45,7 +46,7 @@ class ParentManufacturingOrder(Document):
 		validate_mfg_date(self)
 
 	def on_submit(self):
-		if not self.order_form_type:
+		if not self.order_form_type or self.order_form_type == "Order":
 			set_metal_tolerance_table(self)  # To Set Metal Product Tolerance Table
 			set_diamond_tolerance_table(self)  # To Set Diamond Product Tolerance Table
 			set_gemstone_tolerance_table(self)  # To Set Gemstone Product Tolerance Table

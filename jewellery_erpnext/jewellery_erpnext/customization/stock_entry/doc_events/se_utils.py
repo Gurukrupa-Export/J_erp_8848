@@ -54,9 +54,12 @@ def validate_inventory_dimention(self):
 
 				if row.custom_variant_of in variant_mapping:
 					customer_key = variant_mapping[row.custom_variant_of]
-					if pmo_data.get(customer_key) == 1 and row.inventory_type != "Customer Goods":
+					if pmo_data.get(customer_key) == 1 and row.inventory_type not in [
+						"Customer Goods",
+						"Customer Stock",
+					]:
 						frappe.throw(_("Can not use regular stock inventory for Customer provided Item"))
-					else:
+					elif row.inventory_type in ["Customer Goods", "Customer Stock"]:
 						if allow_customer_goods:
 							frappe.msgprint(_("Can not use Customer Goods inventory for non provided customer Item"))
 						else:
@@ -72,7 +75,7 @@ def get_fifo_batches(self, row):
 	msl = self.main_slip or self.to_main_slip
 	if msl and frappe.db.get_value("Main Slip", msl, "raw_material_warehouse") == row.s_warehouse:
 		main_slip = self.main_slip or self.to_main_slip
-		batch_data = get_batch_data_from_msl(main_slip, row.s_warehouse)
+		batch_data = get_batch_data_from_msl(row.item_code, main_slip, row.s_warehouse)
 	else:
 		batch_data = get_auto_batch_nos(
 			frappe._dict(
@@ -151,16 +154,21 @@ def get_fifo_batches(self, row):
 					total_qty -= batch.qty
 
 	if total_qty > 0:
-		frappe.msgprint(
-			_("For <b>{0}</b> {1} is missing in <b>{2}</b>").format(
-				row.item_code, flt(total_qty, 2), row.s_warehouse
-			)
+		message = _("For <b>{0}</b> {1} is missing in <b>{2}</b>").format(
+			row.item_code, flt(total_qty, 2), row.s_warehouse
 		)
+		if row.manufacturing_operation:
+			message += _("<br><b>Ref : {0}</b>").format(row.manufacturing_operation)
+		if self.flags.throw_batch_error:
+			frappe.throw(message)
+			self.flags.throw_batch_error = False
+		else:
+			frappe.msgprint(message)
 
 	return rows_to_append
 
 
-def get_batch_data_from_msl(main_slip, warehouse):
+def get_batch_data_from_msl(item_code, main_slip, warehouse):
 	batch_data = []
 	msl_doc = frappe.get_doc("Main Slip", main_slip)
 
@@ -169,7 +177,7 @@ def get_batch_data_from_msl(main_slip, warehouse):
 		return batch_data
 
 	for row in msl_doc.batch_details:
-		if row.qty != row.consume_qty:
+		if row.qty != row.consume_qty and row.item_code == item_code:
 			batch_row = frappe._dict()
 			batch_row.update({"batch_no": row.batch_no, "qty": row.qty - row.consume_qty})
 			batch_data.append(batch_row)

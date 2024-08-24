@@ -1628,7 +1628,7 @@ let get_purchase_type = (frm) => {
 			method: "jewellery_erpnext.utils.get_type_of_party",
 			freeze: true,
 			args: {
-				doc: "Purchase Type",
+				doc: "Purchase Type Multiselect",
 				parent: frm.doc.supplier,
 				field: "purchase_type",
 			},

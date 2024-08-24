@@ -50,15 +50,15 @@ def set_bom_rate(self):
 	del bom_fields["modified"]
 	del bom_fields["modified_by"]
 	# Update Quotation in which current BOM is present
-	frappe.db.set_value("Quotation Item", {"quotation_bom": self.name}, fields)
+	# frappe.db.set_value("Quotation Item", {"quotation_bom": self.name}, fields)
 
 	# calculate and update the total bom amount
 	self.total_bom_amount = sum(bom_fields.values())
-	frappe.db.set_value(
-		"Quotation Item",
-		{"quotation_bom": self.name},
-		{"bom_rate": self.total_bom_amount},
-	)
+	# frappe.db.set_value(
+	# 	"Quotation Item",
+	# 	{"quotation_bom": self.name},
+	# 	{"bom_rate": self.total_bom_amount},
+	# )
 
 	self.making_fg_purchase = 0
 	for row in self.metal_detail + self.finding_detail:
@@ -550,47 +550,43 @@ def set_bom_item_details(self):
 		if item.metal_colour:
 			remark += f"Colour: {item.metal_colour}"
 		if item.quotation_bom:
-			self = (
+			bom_doc = (
 				frappe.get_doc("BOM", item.quotation_bom)
 				if doctype == "Quotation"
 				else frappe.get_doc("BOM", item.bom)
 			)
 			# Set Metal Details Fields
-			for metal in self.metal_detail:
+			for metal in bom_doc.metal_detail + bom_doc.finding_detail:
 				if item.metal_colour:
 					metal.metal_colour = item.metal_colour
 
 			# Set Diamond Detail Fields
-			for diamond in self.diamond_detail:
-				set_diamond_fields(self, diamond, item)
+			for diamond in bom_doc.diamond_detail:
+				set_diamond_fields(diamond, item)
 
+			bom_doc.save()
 			# Set Gemstone Fields
-			for stone in self.gemstone_detail:
-				set_gemstone_fields(stone, item)
+			# for stone in self.gemstone_detail:
+			# 	set_gemstone_fields(stone, item)
 
-			# Set Finding Fields
-			for finding in self.finding_detail:
-				if item.metal_colour:
-					finding.metal_colour = item.metal_colour
 		item.remarks = remark
 
 
-def set_diamond_fields(self, diamond, item):
-	doctype = get_doctype_name(self)
-	customer = self.party_name if doctype == "Quotation" else self.customer
-	if not item.get("diamond_grade"):
-		diamond_grade_1 = frappe.db.get_value(
-			"Customer Diamond Grade",
-			{"parent": customer, "diamond_quality": item.diamond_quality},
-			"diamond_grade_1",
-		)
-		if diamond_grade_1:
-			diamond.diamond_grade = diamond_grade_1
-	else:
-		diamond.diamond_grade = item.diamond_grade
+def set_diamond_fields(diamond, item):
+	# doctype = get_doctype_name(self)
+	# customer = self.party_name if doctype == "Quotation" else self.customer
+	# if not item.get("diamond_grade"):
+	# 	diamond_grade_1 = frappe.db.get_value(
+	# 		"Customer Diamond Grade",
+	# 		{"parent": customer, "diamond_quality": item.diamond_quality},
+	# 		"diamond_grade_1",
+	# 	)
+	# 	if diamond_grade_1:
+	# 		diamond.diamond_grade = diamond_grade_1
+	# else:
+	# 	diamond.diamond_grade = item.diamond_grade
 	if item.get("diamond_quality"):
 		diamond.quality = item.diamond_quality
-	self.save()
 	return
 
 

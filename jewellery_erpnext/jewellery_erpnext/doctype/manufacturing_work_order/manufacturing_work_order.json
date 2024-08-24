@@ -12,6 +12,7 @@
   "company_details_section",
   "company",
   "posting_date",
+  "has_split_mwo",
   "column_break_aaanu",
   "branch",
   "abbr",
@@ -451,7 +452,7 @@
    "allow_on_submit": 1,
    "fieldname": "huid",
    "fieldtype": "Data",
-   "label": "HUID/Certification No",
+   "label": "HUID",
    "read_only": 1
   },
   {
@@ -576,6 +577,13 @@
    "label": "Final Transfer Entry",
    "options": "Stock Entry",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "has_split_mwo",
+   "fieldtype": "Check",
+   "label": "Has Split MWO",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -602,7 +610,7 @@
    "link_fieldname": "manufacturing_work_order"
   }
  ],
- "modified": "2024-07-04 12:31:42.080405",
+ "modified": "2024-08-07 16:50:33.149266",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Work Order",

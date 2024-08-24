@@ -26,6 +26,7 @@ frappe.ui.form.on("Quotation", {
 					],
 					get_query_filters: {
 						purchase_type: ["=", "FG Purchase"],
+						custom_quotation: ["is", "not set"],
 						docstatus: 1,
 					},
 				});

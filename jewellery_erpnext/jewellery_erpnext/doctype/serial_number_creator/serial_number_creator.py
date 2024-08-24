@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import json
+from copy import deepcopy
 
 import frappe
 from frappe import _
@@ -137,7 +138,7 @@ def to_prepare_data_for_make_mnf_stock_entry(self):
 				}
 
 		se_name = create_manufacturing_entry(self, row_data, mo_data)
-
+		self.fg_serial_no = se_name
 		create_finished_goods_bom(self, se_name, mo_data, total_time)
 
 
@@ -309,6 +310,42 @@ import copy
 
 
 def update_new_serial_no(self):
+	new_sn_doc = frappe.get_doc("Serial No", self.fg_serial_no)
+	existing_huid = []
+	existing_certification = []
+
+	for row in new_sn_doc.huid:
+		if row.huid and row.huid not in existing_huid:
+			existing_huid.append(row.huid)
+
+		if row.certification_no and row.certification_no not in existing_certification:
+			existing_certification.append(row.certification_no)
+
+	pmo_data = frappe.db.get_all(
+		"HUID Detail",
+		{"parent": self.parent_manufacturing_order},
+		["huid", "date", "certification_no", "certification_date"],
+	)
+
+	item_to_add = []
+	for row in pmo_data:
+		if row.huid and row.huid not in existing_huid:
+			duplicate_row = deepcopy(row)
+			duplicate_row["name"] = None
+			item_to_add.append(duplicate_row)
+
+	for row in item_to_add:
+		new_sn_doc.append(
+			"huid",
+			{
+				"huid": row.huid,
+				"date": row.date,
+				"certification_no": row.certification_no,
+				"certification_date": row.certification_date,
+			},
+		)
+	new_sn_doc.save()
+
 	if self.serial_no and self.fg_details:
 		serial_doc = frappe.get_doc("Serial No", self.fg_details[0].serial_no)
 		previos_sr = frappe.db.get_value(

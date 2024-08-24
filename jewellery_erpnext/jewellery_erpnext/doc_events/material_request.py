@@ -20,12 +20,17 @@ def before_validate(self, method):
 	elif self.material_request_type == "Manufacture":
 		self.custom_transfer_type = "Transfer to Reserve"
 
+	self.custom_total_quantity = 0
+	for row in self.items:
+		self.custom_total_quantity += row.qty
+
 
 def on_submit(self, method=None):
 	if self.custom_reserve_se:
 		se_doc = frappe.get_doc("Stock Entry", self.custom_reserve_se)
 		new_se_doc = frappe.copy_doc(se_doc)
 
+		new_se_doc.stock_entry_type = "Material Transfer From Reserve"
 		for row in new_se_doc.items:
 			t_warehouse = frappe.db.get_value(
 				"Material Request Item", row.material_request_item, "warehouse"
@@ -301,6 +306,7 @@ def create_stock_entry(self, method):
 				},
 			)
 
+		se_doc.flags.throw_batch_error = True
 		se_doc.save()
 		self.custom_reserve_se = se_doc.name
 		se_doc.submit()

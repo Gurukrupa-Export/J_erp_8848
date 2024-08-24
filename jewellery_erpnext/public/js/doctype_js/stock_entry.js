@@ -4,12 +4,35 @@ frappe.ui.form.on("Stock Entry", {
 	refresh(frm) {
 		set_html(frm);
 		if (
-			frm.doc.stock_entry_type == "Material Transfer to Department" &&
+			["Material Transfer (DEPARTMENT)", "Material Transfer to Department"].includes(
+				frm.doc.stock_entry_type
+			) &&
 			frm.doc.docstatus == 1
 		) {
 			frm.remove_custom_button("End Transit");
 		}
 		frm.trigger("get_items_from_customer_goods");
+
+		frm.add_custom_button(
+			__("Parent Manufacturing Order"),
+			function () {
+				erpnext.utils.map_current_doc({
+					method: "jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.update_utils.make_stock_in_entry",
+					source_doctype: "Parent Manufacturing Order",
+					target: frm,
+					date_field: "posting_date",
+					setters: {
+						company: frm.doc.company,
+					},
+					get_query_filters: {
+						docstatus: 1,
+					},
+					size: "extra-large",
+				});
+			},
+			__("Get Items From")
+		);
+
 		if (frm.doc.docstatus == 1) {
 			frm.add_custom_button(
 				__("Create Return"),
@@ -652,6 +675,13 @@ frappe.ui.form.on("Stock Entry Detail", {
 	serial_no: function (frm, cdt, cdn) {
 		var row = locals[cdt][cdn];
 		let serial_item = [];
+
+		if (row.serial_no) {
+			frappe.db.get_value("Serial No", row.serial_no, ["custom_gross_wt"]).then((r) => {
+				frappe.model.set_value(cdt, cdn, "gross_weight", r.message.custom_gross_wt);
+			});
+		}
+
 		if (row.serial_no && typeof row.serial_no === "string" && row.serial_no != "") {
 			disableSaveButton();
 			serial_item.push(...row.serial_no.split("\n"));

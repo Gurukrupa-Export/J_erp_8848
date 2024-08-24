@@ -12,7 +12,6 @@ def create_repack_entry(self):
 	se_doc.posting_date = self.date
 	se_doc.posting_time = frappe.utils.nowtime()
 	se_doc.inventory_type = "Regular Stock"
-	se_doc.branch = "GE-BR-00001"
 	se_doc.to_main_slip = self.main_slip
 	se_doc.to_subcontractor = self.supplier
 	se_doc.auto_created = 1

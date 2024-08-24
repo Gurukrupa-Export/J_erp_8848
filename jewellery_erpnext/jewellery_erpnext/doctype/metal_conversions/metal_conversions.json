@@ -366,8 +366,7 @@
    "fieldname": "branch",
    "fieldtype": "Link",
    "label": "Branch",
-   "options": "Branch",
-   "reqd": 1
+   "options": "Branch"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -378,7 +377,7 @@
    "link_fieldname": "custom_metal_conversion_reference"
   }
  ],
- "modified": "2024-04-23 12:33:09.143394",
+ "modified": "2024-08-20 17:24:54.728694",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Metal Conversions",

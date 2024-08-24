@@ -1,4 +1,5 @@
 import frappe
+from frappe.model.mapper import get_mapped_doc
 
 
 def update_main_slip_se_details(doc, stock_entry_type, se_row, auto_created=0, is_cancelled=False):
@@ -104,3 +105,65 @@ def update_main_slip_se_details(doc, stock_entry_type, se_row, auto_created=0, i
 					"stock_entry": se_row.parent,
 				},
 			)
+
+
+@frappe.whitelist()
+def make_stock_in_entry(source_name, target_doc=None):
+	def set_missing_values(source, target):
+		material_request = frappe.db.get_value("Material Request", {"manufacturing_order": source_name})
+
+		SE = frappe.qb.DocType("Stock Entry")
+		SEI = frappe.qb.DocType("Stock Entry Detail")
+
+		stock_se_data = (
+			frappe.qb.from_(SE)
+			.join(SEI)
+			.on(SE.name == SEI.parent)
+			.select(
+				SEI.item_code,
+				SEI.qty,
+				SEI.uom,
+				SEI.basic_rate,
+				SEI.inventory_type,
+				SEI.customer,
+				SEI.conversion_factor,
+				SEI.t_warehouse,
+			)
+			.where(SE.stock_entry_type == "Material Transfer From Reserve")
+			.where(SEI.material_request == material_request)
+			.where(SEI.custom_parent_manufacturing_order == source_name)
+		).run(as_dict=1)
+
+		for row in stock_se_data:
+			target.append(
+				"items",
+				{
+					"s_warehouse": row.t_warehouse,
+					"item_code": row.item_code,
+					"qty": row.qty,
+					"uom": row.uom,
+					"conversion_factor": row.conversion_factor,
+					"basic_rate": row.basic_rate,
+					"inventory_type": row.inventory_type,
+					"customer": row.get("customer"),
+					"custom_parent_manufacturing_order": source_name,
+				},
+			)
+		target.stock_entry_type = "Material Transfer (WORK ORDER)"
+		target.purpose = "Material Transfer"
+
+		target.set_missing_values()
+
+	doclist = get_mapped_doc(
+		"Parent Manufacturing Order",
+		source_name,
+		{
+			"Parent Manufacturing Order": {
+				"validation": {"docstatus": ["=", 1]},
+			},
+		},
+		target_doc,
+		set_missing_values,
+	)
+
+	return doclist

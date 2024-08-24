@@ -14,8 +14,8 @@ from jewellery_erpnext.jewellery_erpnext.doc_events.bom_utils import (
 
 def validate(self, method):
 	create_new_bom(self)
-	calculate_gst_rate(self)
-	if not self.get("__islocal"):
+	# calculate_gst_rate(self)
+	if not self.get("__islocal") and self.docstatus == 0:
 		set_bom_item_details(self)
 
 
@@ -88,14 +88,19 @@ def create_sales_order_bom(self, row):
 		self.total = doc.total_bom_amount
 	except Exception as e:
 		frappe.logger("utils").exception(e)
-		frappe.throw(_("{0}").format(e))
+		frappe.throw(_("Row {0} {1}").format(row.idx, e))
 
 
 def submit_bom(self):
 	for row in self.items:
 		if row.bom:
-			bom = frappe.get_doc("BOM", row.bom)
-			bom.submit()
+			frappe.enqueue(enqueue_submit_bom, job_name="Submitting SO BOM", bom=row.bom)
+
+
+def enqueue_submit_bom(bom):
+	bom_doc = frappe.get_doc("BOM", bom)
+	if bom_doc.docstatus == 0:
+		bom_doc.submit()
 
 
 def cancel_bom(self):

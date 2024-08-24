@@ -13,6 +13,9 @@ def create_branch_so(self):
 	if not self.branch or self.branch == central_branch:
 		return
 
+	if self.branch and not central_branch:
+		frappe.throw(_("Central branch is not mentioned in Company"))
+
 	branch_customer = frappe.db.get_value("Branch", self.branch, "custom_customer")
 
 	if not branch_customer:
@@ -20,7 +23,7 @@ def create_branch_so(self):
 
 	so = create_so(self, branch_customer, central_branch)
 
-	frappe.msgprint(_("{0} has been generated as Branch SO"), format(so))
+	frappe.msgprint(_("{0} has been generated as Branch SO").format(so))
 
 
 def create_so(self, branch_customer, central_branch):

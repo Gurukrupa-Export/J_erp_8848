@@ -56,6 +56,7 @@ class ManufacturingWorkOrder(Document):
 				"manufacturing_order": self.manufacturing_order,
 				"docstatus": ["!=", 2],
 				"department": ["!=", last_department],
+				"has_split_mwo": 0,
 			},
 			"name",
 		)
@@ -319,4 +320,5 @@ def create_split_work_order(docname, company, count=1):
 	)
 	if pending_operations:  # to prevent this workorder from showing in any IR doc
 		set_values_in_bulk("Manufacturing Operation", pending_operations, {"status": "Finished"})
-	frappe.db.set_value("Manufacturing Work Order", docname, "status", "Closed")
+	frappe.db.set_value("Manufacturing Work Order", docname, {"has_split_mwo": 1, "status": "Closed"})
+	# frappe.db.set_value("Manufacturing Work Order", docname, "status", "Closed")

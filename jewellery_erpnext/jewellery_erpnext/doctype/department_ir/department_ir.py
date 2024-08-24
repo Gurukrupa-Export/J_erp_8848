@@ -353,9 +353,10 @@ class DepartmentIR(Document):
 				stock_doc.inventory_type = None
 
 				for row in add_to_transit:
-					row["t_warehouse"] = department_wh
-					row["s_warehouse"] = in_transit_wh
-					stock_doc.append("items", row)
+					if row["qty"] > 0:
+						row["t_warehouse"] = department_wh
+						row["s_warehouse"] = in_transit_wh
+						stock_doc.append("items", row)
 				stock_doc.flags.ignore_permissions = True
 				stock_doc.save()
 				stock_doc.submit()
@@ -367,7 +368,8 @@ class DepartmentIR(Document):
 				stock_doc.department_ir = self.name
 				stock_doc.auto_created = True
 				for row in strat_transit:
-					stock_doc.append("items", row)
+					if row["qty"] > 0:
+						stock_doc.append("items", row)
 				stock_doc.flags.ignore_permissions = True
 				stock_doc.save()
 				stock_doc.submit()

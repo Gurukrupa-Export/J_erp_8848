@@ -1542,7 +1542,7 @@ let get_sales_type = (frm) => {
 			method: "jewellery_erpnext.utils.get_type_of_party",
 			freeze: true,
 			args: {
-				doc: "Sales Type",
+				doc: "Sales Type Multiselect",
 				parent: frm.doc.customer,
 				field: "sales_type",
 			},
