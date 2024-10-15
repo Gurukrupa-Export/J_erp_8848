@@ -1,14 +1,26 @@
 # Copyright (c) 2024, Nirali and contributors
 # For license information, please see license.txt
 
+import copy
+
 import frappe
 from erpnext.stock.doctype.batch.batch import get_batch_qty
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt
 
+from jewellery_erpnext.jewellery_erpnext.customization.stock_entry.doc_events.se_utils import (
+	get_fifo_batches,
+)
+from jewellery_erpnext.jewellery_erpnext.doctype.metal_conversions.doc_events.utils import (
+	update_batch_details,
+)
+
 
 class DiamondConversion(Document):
+	def before_validate(self):
+		update_batch_details(self)
+
 	def on_submit(self):
 		make_diamond_stock_entry(self)
 
@@ -26,7 +38,7 @@ class DiamondConversion(Document):
 		mnf = frappe.get_value("Department", dpt, "manufacturer")
 		if not mnf:
 			errors.append("Manufacturer Messing against <b>Department Master</b>")
-		s_wh = frappe.get_value("Warehouse", {"department": dpt}, "name")
+		s_wh = frappe.get_value("Warehouse", {"disabled": 0, "department": dpt}, "name")
 		if not mnf:
 			errors.append("Warehouse Missing Warehouse Master Department Not Set")
 		if errors:
@@ -48,9 +60,11 @@ class DiamondConversion(Document):
 		error = []
 		for row in self.sc_source_table:
 			bal_qty = get_batch_qty(batch_no=row.batch, warehouse=self.source_warehouse)
-			reference_doctype, reference_name = frappe.get_value(
-				"Batch", row.batch, ["reference_doctype", "reference_name"]
-			)
+			reference_doctype = None
+			if row.batch:
+				reference_doctype, reference_name = frappe.get_value(
+					"Batch", row.batch, ["reference_doctype", "reference_name"]
+				)
 			if not bal_qty:
 				error.append("Batch Qty zero")
 			if reference_doctype:

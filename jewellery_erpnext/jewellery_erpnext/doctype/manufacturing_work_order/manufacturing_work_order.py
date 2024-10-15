@@ -57,6 +57,7 @@ class ManufacturingWorkOrder(Document):
 				"docstatus": ["!=", 2],
 				"department": ["!=", last_department],
 				"has_split_mwo": 0,
+				"is_finding_mwo": 0,
 			},
 			"name",
 		)
@@ -117,7 +118,9 @@ class ManufacturingWorkOrder(Document):
 		wh_department = frappe.db.get_value("Warehouse", wh, "department")
 
 		target_wh = frappe.get_value(
-			"Warehouse", {"warehouse_type": "Manufacturing", "department": self.department}, "name"
+			"Warehouse",
+			{"disabled": 0, "warehouse_type": "Manufacturing", "department": self.department},
+			"name",
 		)
 		if wh_department != self.department:
 			frappe.throw(_("For Unpacking allwed warehouse is {0}").format(target_wh))

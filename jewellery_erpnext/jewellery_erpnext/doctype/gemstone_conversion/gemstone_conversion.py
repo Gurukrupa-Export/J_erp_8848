@@ -1,16 +1,21 @@
 # Copyright (c) 2024, Nirali and contributors
 # For license information, please see license.txt
-
 import frappe
 from erpnext.stock.doctype.batch.batch import get_batch_qty
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt
 
+from jewellery_erpnext.jewellery_erpnext.doctype.gemstone_conversion.doc_events.batch_utils import (
+	update_fifo_batch,
+)
 from jewellery_erpnext.jewellery_erpnext.doctype.main_slip.main_slip import get_item_loss_item
 
 
 class GemstoneConversion(Document):
+	def before_validate(self):
+		update_fifo_batch(self)
+
 	def on_submit(self):
 		make_gemstone_stock_entry(self)
 		if self.g_source_qty > self.batch_avail_qty:
@@ -61,7 +66,7 @@ class GemstoneConversion(Document):
 		mnf = frappe.get_value("Department", dpt, "manufacturer")
 		if not mnf:
 			errors.append("Manufacturer Messing against <b>Department Master</b>")
-		s_wh = frappe.get_value("Warehouse", {"department": dpt}, "name")
+		s_wh = frappe.get_value("Warehouse", {"disabled": 0, "department": dpt}, "name")
 		if not mnf:
 			errors.append("Warehouse Missing Warehouse Master Department Not Set")
 		if errors:
@@ -75,10 +80,10 @@ class GemstoneConversion(Document):
 
 	@frappe.whitelist()
 	def get_batch_detail(self):
-		bal_qty = ""
-		supplier = ""
-		customer = ""
-		inventory_type = ""
+		bal_qty = None
+		supplier = None
+		customer = None
+		inventory_type = None
 
 		error = []
 		if self.batch:
@@ -98,7 +103,7 @@ class GemstoneConversion(Document):
 						customer = frappe.get_value(reference_doctype, reference_name, "_customer")
 			if error:
 				frappe.throw(", ".join(error))
-		return bal_qty or None, supplier or None, customer or None, inventory_type or None
+		return bal_qty, supplier, customer, inventory_type
 
 
 def make_gemstone_stock_entry(self):

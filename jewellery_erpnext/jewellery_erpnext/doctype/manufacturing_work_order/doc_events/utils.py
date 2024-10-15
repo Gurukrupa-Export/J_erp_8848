@@ -11,15 +11,21 @@ def create_se_entry(self):
 	)
 	if employee:
 		target_wh = frappe.db.get_value(
-			"Warehouse", {"employee": employee, "warehouse_type": "Manufacturing"}
+			"Warehouse",
+			{
+				"disabled": 0,
+				"company": self.company,
+				"employee": employee,
+				"warehouse_type": "Manufacturing",
+			},
 		)
 	else:
 		target_wh = frappe.db.get_value(
-			"Warehouse", {"department": self.department, "warehouse_type": "Manufacturing"}
+			"Warehouse", {"disabled": 0, "department": self.department, "warehouse_type": "Manufacturing"}
 		)
 
 	raw_warehouse = frappe.db.get_value(
-		"Warehouse", {"department": self.department, "warehouse_type": "Raw Material"}
+		"Warehouse", {"disabled": 0, "department": self.department, "warehouse_type": "Raw Material"}
 	)
 
 	SED = frappe.qb.DocType("Stock Entry Detail")
@@ -110,29 +116,30 @@ def create_stock_transfer_entry(self):
 		"Manufacturing Work Order", self.transfer_mwo, ["manufacturing_operation", "department"]
 	)
 	target_warehouse = frappe.db.get_value(
-		"Warehouse", {"department": department, "warehouse_type": "Raw Material"}
-	)
-
-	mop_warehouse = frappe.db.get_value(
-		"Warehouse", {"department": self.department, "warehouse_type": "Manufacturing"}
+		"Warehouse", {"disabled": 0, "department": department, "warehouse_type": "Manufacturing"}
 	)
 
 	if not transfer_mop:
 		frappe.throw(_("Can not tranfer to Manufacturing Work Order"))
 
+	if (
+		frappe.db.get_value("Manufacturing Operation", transfer_mop, "department_ir_status")
+		== "In-Transit"
+	):
+		frappe.throw(_("{0} should be in state of Not Started").format(transfer_mop))
+
 	if not target_warehouse:
 		frappe.throw(_("Raw Material type Warehouse is not set for {0}").format(department))
 
+	frappe.get_doc("Manufacturing Operation", self.manufacturing_operation).save()
 	stock_entry_data = frappe.db.get_all(
-		"Stock Entry Detail",
+		"MOP Balance Table",
 		{
-			"manufacturing_operation": self.manufacturing_operation,
-			"t_warehouse": mop_warehouse,
-			"docstatus": 1,
+			"parent": self.manufacturing_operation,
 		},
 		[
 			"item_code",
-			"t_warehouse as warehouse",
+			"s_warehouse as warehouse",
 			"qty",
 			"basic_rate",
 			"inventory_type",
@@ -147,6 +154,7 @@ def create_stock_transfer_entry(self):
 	se_doc.manufacturing_order = self.manufacturing_order
 	se_doc.manufacturing_work_order = self.transfer_mwo
 	se_doc.manufacturing_operation = transfer_mop
+	se_doc.auto_created = 1
 	for row in stock_entry_data:
 		se_doc.append(
 			"items",
@@ -159,8 +167,11 @@ def create_stock_transfer_entry(self):
 				"batch_no": row.batch_no,
 				"inventory_type": row.inventory_type,
 				"customer": row.get("customer"),
+				"use_serial_batch_fields": 1,
+				"manufacturing_operation": transfer_mop,
 			},
 		)
 
 	se_doc.save()
 	se_doc.submit()
+	frappe.db.set_value("Manufacturing Operation", self.manufacturing_operation, "status", "Finished")

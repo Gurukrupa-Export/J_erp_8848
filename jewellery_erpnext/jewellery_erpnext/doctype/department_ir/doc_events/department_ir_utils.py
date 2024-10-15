@@ -50,3 +50,55 @@ def get_summary_data(self):
 				data[0][i] += flt(value, 3)
 
 	return data
+
+
+def update_gross_wt_from_mop(self):
+	if not self.department_ir_operation:
+		return
+
+	for row in self.department_ir_operation:
+		mop_data = frappe.db.get_value(
+			"Manufacturing Operation",
+			row.manufacturing_operation,
+			[
+				"gross_wt",
+				"diamond_wt",
+				"net_wt",
+				"finding_wt",
+				"diamond_pcs",
+				"gemstone_pcs",
+				"gemstone_wt",
+				"other_wt",
+			],
+			as_dict=1,
+		)
+		previous_mop = frappe.db.get_value(
+			"Manufacturing Operation", row.manufacturing_operation, "previous_mop"
+		)
+
+		previous_mop_data = frappe._dict()
+
+		if previous_mop:
+			previous_mop_data = frappe.db.get_value(
+				"Manufacturing Operation",
+				previous_mop,
+				[
+					"gross_wt",
+					"diamond_wt",
+					"net_wt",
+					"finding_wt",
+					"diamond_pcs",
+					"gemstone_pcs",
+					"gemstone_wt",
+					"other_wt",
+				],
+				as_dict=1,
+			)
+
+		row.net_wt = mop_data.get("net_wt") or previous_mop_data.get("net_wt")
+		row.diamond_wt = mop_data.get("diamond_wt") or previous_mop_data.get("diamond_wt")
+		row.finding_wt = mop_data.get("finding_wt") or previous_mop_data.get("finding_wt")
+		row.diamond_pcs = mop_data.get("diamond_pcs") or previous_mop_data.get("diamond_pcs")
+		row.gemstone_pcs = mop_data.get("gemstone_pcs") or previous_mop_data.get("gemstone_pcs")
+		row.gemstone_wt = mop_data.get("gemstone_wt") or previous_mop_data.get("gemstone_wt")
+		row.other_wt = mop_data.get("other_wt") or previous_mop_data.get("other_wt")

@@ -90,6 +90,39 @@ frappe.ui.form.on("Product Details", {
 			);
 		}
 	},
+	parent_manufacturing_order(frm, cdt, cdn) {
+		var row = locals[cdt][cdn];
+		if (!row.parent_manufacturing_order) {
+			return;
+		}
+		frappe.db.get_value(
+			"Parent Manufacturing Order",
+			row.parent_manufacturing_order,
+			"gross_weight as total_weight",
+			(r) => {
+				frappe.model.set_value(cdt, cdn, r);
+			}
+		);
+		if (row.serial_no) {
+			frappe.db.get_value(
+				"Serial No",
+				row.serial_no,
+				["item_code", "custom_bom_no as bom"],
+				(r) => {
+					frappe.model.set_value(cdt, cdn, r);
+				}
+			);
+		} else {
+			frappe.db.get_value(
+				"Parent Manufacturing Order",
+				row.parent_manufacturing_order,
+				["item_code", "master_bom as bom"],
+				(r) => {
+					frappe.model.set_value(cdt, cdn, r);
+				}
+			);
+		}
+	},
 	tree_no(frm, cdt, cdn) {
 		let d = locals[cdt][cdn];
 		if (!d.tree_no) {

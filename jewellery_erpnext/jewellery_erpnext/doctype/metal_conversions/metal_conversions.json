@@ -57,6 +57,7 @@
   "m_target_qty",
   "column_break_k32gx",
   "alloy",
+  "alloy_batch",
   "alloy_qty",
   "amended_from"
  ],
@@ -367,6 +368,12 @@
    "fieldtype": "Link",
    "label": "Branch",
    "options": "Branch"
+  },
+  {
+   "fieldname": "alloy_batch",
+   "fieldtype": "Link",
+   "label": "Alloy Batch",
+   "options": "Batch"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -377,7 +384,7 @@
    "link_fieldname": "custom_metal_conversion_reference"
   }
  ],
- "modified": "2024-08-20 17:24:54.728694",
+ "modified": "2024-08-28 14:24:40.310097",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Metal Conversions",

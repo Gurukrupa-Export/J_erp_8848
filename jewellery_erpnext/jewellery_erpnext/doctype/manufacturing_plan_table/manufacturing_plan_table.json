@@ -17,6 +17,7 @@
   "manufacturing_end_date",
   "customer",
   "customer_po",
+  "child_po",
   "column_break_p3gkl",
   "pending_qty",
   "manufacturing_order_qty",
@@ -312,12 +313,19 @@
    "fieldname": "customer_po",
    "fieldtype": "Data",
    "label": "Customer PO"
+  },
+  {
+   "fetch_from": "docname.custom_child_po_no",
+   "fieldname": "child_po",
+   "fieldtype": "Data",
+   "label": "Child PO",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-08-05 14:17:47.116716",
+ "modified": "2024-08-30 15:17:07.470355",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Plan Table",

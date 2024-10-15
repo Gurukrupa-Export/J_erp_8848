@@ -33,6 +33,53 @@ frappe.ui.form.on("Quotation", {
 			},
 			__("Get Items From")
 		);
+		if (frm.has_perm("submit")) {
+			if (frm.doc.docstatus == 1) {
+				if (frm.doc.status != "Closed") {
+					frm.add_custom_button(
+						__("Close"),
+						() => {
+							frappe.call({
+								method: "jewellery_erpnext.jewellery_erpnext.doc_events.quotation.update_status",
+								args: {
+									quotation_id: frm.doc.name,
+								},
+								callback: function (r) {
+									if (!r.exc) {
+										frm.reload_doc();
+										frappe.msgprint(
+											__("Status updated to closed for Quotation.")
+										);
+									}
+								},
+							});
+						},
+						__("Status")
+					);
+				} else if (frm.doc.status == "Closed") {
+					frm.add_custom_button(
+						__("Open"),
+						() => {
+							frappe.call({
+								method: "jewellery_erpnext.jewellery_erpnext.doc_events.quotation.update_status",
+								args: {
+									quotation_id: frm.doc.name,
+								},
+								callback: function (r) {
+									if (!r.exc) {
+										frm.reload_doc();
+										frappe.msgprint(
+											__("Status updated to Open for Quotation.")
+										);
+									}
+								},
+							});
+						},
+						__("Status")
+					);
+				}
+			}
+		}
 	},
 	// 	frm.add_custom_button(
 	// 		__("Serial No and Design Code Order"),
@@ -1319,10 +1366,10 @@ let edit_bom_documents = (
 	other_data
 ) => {
 	/*
-        function to get BOM doc from model or client
-        args using:
-            bom_no: Link of BOM
-    */
+		function to get BOM doc from model or client
+		args using:
+			bom_no: Link of BOM
+	*/
 	var doc = frappe.model.get_doc("BOM", bom_no);
 	if (!doc) {
 		frappe.call({
@@ -1369,11 +1416,11 @@ let set_edit_bom_details = (
 	other_data
 ) => {
 	/*
-        function to set fields and child tables values of dialog ui
-        args:
-            dialog: dialog form
-            metal_data, diamond_data, gemstone_data, finding_data, other_data => variables used to append table data
-    */
+		function to set fields and child tables values of dialog ui
+		args:
+			dialog: dialog form
+			metal_data, diamond_data, gemstone_data, finding_data, other_data => variables used to append table data
+	*/
 
 	// clearing all tables
 	dialog.fields_dict.metal_detail.df.data = [];
@@ -1576,12 +1623,12 @@ function update_dialog_values(dialog, scanned_item, r, row) {
 
 let add_row = (serial_no, frm, row) => {
 	/*
-        function to add row of Sales Invoice Item table using bom details
-        args:
-            serial_no: link of serail no( to fetch bom using serial)
-            frm: current form
-            row: current row
-    */
+		function to add row of Sales Invoice Item table using bom details
+		args:
+			serial_no: link of serail no( to fetch bom using serial)
+			frm: current form
+			row: current row
+	*/
 	return new Promise((resolve, reject) => {
 		let new_row;
 		frappe.call({

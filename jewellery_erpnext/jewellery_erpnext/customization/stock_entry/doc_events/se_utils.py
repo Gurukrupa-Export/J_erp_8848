@@ -72,19 +72,26 @@ def get_fifo_batches(self, row):
 	total_qty = row.qty
 	existing_updated = False
 
-	msl = self.main_slip or self.to_main_slip
+	msl = self.get("main_slip") or self.get("to_main_slip")
+	warehouse = row.get("s_warehouse") or self.get("source_warehouse")
 	if msl and frappe.db.get_value("Main Slip", msl, "raw_material_warehouse") == row.s_warehouse:
 		main_slip = self.main_slip or self.to_main_slip
 		batch_data = get_batch_data_from_msl(row.item_code, main_slip, row.s_warehouse)
 	else:
+		posting_date = self.get("posting_date") or self.get("date")
 		batch_data = get_auto_batch_nos(
 			frappe._dict(
-				{"posting_date": self.posting_date, "item_code": row.item_code, "warehouse": row.s_warehouse}
+				{
+					"posting_date": posting_date,
+					"item_code": row.item_code,
+					"warehouse": warehouse,
+					"qty": row.qty,
+				}
 			)
 		)
 
 	customer_item_data = frappe._dict({})
-	if row.custom_parent_manufacturing_order:
+	if row.get("custom_parent_manufacturing_order"):
 		customer_item_data = frappe.db.get_value(
 			"Parent Manufacturing Order",
 			row.custom_parent_manufacturing_order,
@@ -95,6 +102,7 @@ def get_fifo_batches(self, row):
 				"is_customer_material",
 				"customer",
 			],
+			as_dict=1,
 		)
 
 	variant_to_customer_key = {
@@ -105,11 +113,16 @@ def get_fifo_batches(self, row):
 		"O": "is_customer_material",
 	}
 
-	if row.custom_variant_of in variant_to_customer_key and customer_item_data.get(
-		variant_to_customer_key[row.custom_variant_of]
+	if (
+		row.get("custom_variant_of")
+		and row.custom_variant_of in variant_to_customer_key
+		and customer_item_data.get(variant_to_customer_key[row.custom_variant_of])
 	):
 		row.inventory_type = "Customer Goods"
 		row.customer = customer_item_data.customer
+
+	if not row.inventory_type:
+		row.inventory_type = "Regular Stock"
 
 	for batch in batch_data:
 		if (
@@ -120,8 +133,11 @@ def get_fifo_batches(self, row):
 			if total_qty > 0 and batch.qty > 0:
 				if not existing_updated:
 					row.db_set("qty", min(total_qty, batch.qty))
-					row.db_set("transfer_qty", row.qty)
-					row.db_set("batch_no", batch.batch_no)
+					if self.get("date"):
+						row.db_set("batch", batch.batch_no)
+					else:
+						row.db_set("transfer_qty", row.qty)
+						row.db_set("batch_no", batch.batch_no)
 					total_qty -= batch.qty
 					existing_updated = True
 					rows_to_append.append(row.__dict__)
@@ -135,11 +151,19 @@ def get_fifo_batches(self, row):
 					rows_to_append.append(temp_row)
 					total_qty -= batch.qty
 		elif row.inventory_type not in ["Customer Goods", "Customer Stock"]:
+			if self.flags.only_regular_stock_allowed and frappe.db.get_value(
+				"Batch", batch.batch_no, "custom_inventory_type"
+			) in ["Customer Goods", "Customer Stock"]:
+				continue
+
 			if total_qty > 0 and batch.qty > 0:
 				if not existing_updated:
 					row.db_set("qty", min(total_qty, batch.qty))
-					row.db_set("transfer_qty", row.qty)
-					row.db_set("batch_no", batch.batch_no)
+					if self.get("date"):
+						row.db_set("batch", batch.batch_no)
+					else:
+						row.db_set("transfer_qty", row.qty)
+						row.db_set("batch_no", batch.batch_no)
 					total_qty -= batch.qty
 					existing_updated = True
 					rows_to_append.append(row.__dict__)
@@ -155,9 +179,9 @@ def get_fifo_batches(self, row):
 
 	if total_qty > 0:
 		message = _("For <b>{0}</b> {1} is missing in <b>{2}</b>").format(
-			row.item_code, flt(total_qty, 2), row.s_warehouse
+			row.item_code, flt(total_qty, 2), warehouse
 		)
-		if row.manufacturing_operation:
+		if row.get("manufacturing_operation"):
 			message += _("<br><b>Ref : {0}</b>").format(row.manufacturing_operation)
 		if self.flags.throw_batch_error:
 			frappe.throw(message)
@@ -190,10 +214,22 @@ def create_repack_for_subcontracting(self, subcontractor, main_slip=None):
 		subcontractor = frappe.db.get_value("Main Slip", main_slip, "subcontractor")
 
 	raw_warehouse = frappe.db.get_value(
-		"Warehouse", {"subcontractor": subcontractor, "warehouse_type": "Raw Material"}
+		"Warehouse",
+		{
+			"disabled": 0,
+			"company": self.company,
+			"subcontractor": subcontractor,
+			"warehouse_type": "Raw Material",
+		},
 	)
 	mfg_warehouse = frappe.db.get_value(
-		"Warehouse", {"subcontractor": subcontractor, "warehouse_type": "Manufacturing"}
+		"Warehouse",
+		{
+			"disabled": 0,
+			"company": self.company,
+			"subcontractor": subcontractor,
+			"warehouse_type": "Manufacturing",
+		},
 	)
 	repack_raws = []
 	receive = False

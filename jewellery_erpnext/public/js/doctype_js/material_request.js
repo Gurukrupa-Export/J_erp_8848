@@ -66,6 +66,32 @@ frappe.ui.form.on("Material Request", {
 });
 
 frappe.ui.form.on("Material Request Item", {
+	custom_scan_alternate_item: function (frm, cdt, cdn) {
+		let d = locals[cdt][cdn];
+		if (d.custom_scan_alternate_item) {
+			frappe
+				.call({
+					method: "erpnext.stock.utils.scan_barcode",
+					args: {
+						search_value: d.custom_scan_alternate_item,
+					},
+				})
+				.then((r) => {
+					frappe.model.set_value(cdt, cdn, "custom_scan_alternate_item", null);
+					if (r.message.item_code) {
+						frappe.model.set_value(
+							cdt,
+							cdn,
+							"custom_alternative_item",
+							r.message.item_code
+						);
+						refresh_field("items");
+					} else {
+						frappe.msgprint(__("Not able to find Alternative item from Barcode"));
+					}
+				});
+		}
+	},
 	serial_no: function (frm, cdt, cdn) {
 		let child = locals[cdt][cdn];
 		if (child.serial_no) {

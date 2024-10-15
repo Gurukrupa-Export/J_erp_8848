@@ -16,6 +16,7 @@ from jewellery_erpnext.jewellery_erpnext.doc_events.stock_entry import (
 )
 from jewellery_erpnext.jewellery_erpnext.doctype.department_ir.doc_events.department_ir_utils import (
 	get_summary_data,
+	update_gross_wt_from_mop,
 	valid_reparing_or_next_operation,
 )
 from jewellery_erpnext.jewellery_erpnext.doctype.manufacturing_operation.manufacturing_operation import (
@@ -25,6 +26,9 @@ from jewellery_erpnext.utils import get_value, set_values_in_bulk
 
 
 class DepartmentIR(Document):
+	def before_validate(self):
+		update_gross_wt_from_mop(self)
+
 	@frappe.whitelist()
 	def get_operations(self):
 		dir_status = "In-Transit" if self.type == "Receive" else ["not in", ["In-Transit", "Received"]]
@@ -121,12 +125,13 @@ class DepartmentIR(Document):
 
 		in_transit_wh = frappe.db.get_value(
 			"Warehouse",
-			{"department": self.current_department, "warehouse_type": "Manufacturing"},
+			{"disabled": 0, "department": self.current_department, "warehouse_type": "Manufacturing"},
 			"default_in_transit_warehouse",
 		)
 
 		department_wh = frappe.get_value(
-			"Warehouse", {"department": self.current_department, "warehouse_type": "Manufacturing"}
+			"Warehouse",
+			{"disabled": 0, "department": self.current_department, "warehouse_type": "Manufacturing"},
 		)
 		for row in self.department_ir_operation:
 
@@ -312,14 +317,15 @@ class DepartmentIR(Document):
 			)
 
 			department_wh = frappe.get_value(
-				"Warehouse", {"department": self.current_department, "warehouse_type": "Manufacturing"}
+				"Warehouse",
+				{"disabled": 0, "department": self.current_department, "warehouse_type": "Manufacturing"},
 			)
 			if not department_wh:
 				frappe.throw(_("Please set warhouse for department {0}").format(self.current_department))
 
 			send_in_transit_wh = frappe.get_value(
 				"Warehouse",
-				{"department": self.current_department, "warehouse_type": "Manufacturing"},
+				{"disabled": 0, "department": self.current_department, "warehouse_type": "Manufacturing"},
 				"default_in_transit_warehouse",
 			)
 
@@ -461,12 +467,13 @@ def create_stock_entry_for_issue(doc, row, manufacturing_operation):
 
 	in_transit_wh = frappe.get_value(
 		"Warehouse",
-		{"department": doc.next_department, "warehouse_type": "Manufacturing"},
+		{"disabled": 0, "department": doc.next_department, "warehouse_type": "Manufacturing"},
 		"default_in_transit_warehouse",
 	)
 
 	department_wh = frappe.get_value(
-		"Warehouse", {"department": doc.current_department, "warehouse_type": "Manufacturing"}
+		"Warehouse",
+		{"disabled": 0, "department": doc.current_department, "warehouse_type": "Manufacturing"},
 	)
 	if not department_wh:
 		# frappe.throw(_(f"Please set warhouse for department {doc.current_department}"))
@@ -474,7 +481,7 @@ def create_stock_entry_for_issue(doc, row, manufacturing_operation):
 
 	send_in_transit_wh = frappe.get_value(
 		"Warehouse",
-		{"department": doc.current_department, "warehouse_type": "Manufacturing"},
+		{"disabled": 0, "department": doc.current_department, "warehouse_type": "Manufacturing"},
 		"default_in_transit_warehouse",
 	)
 
@@ -534,7 +541,7 @@ def create_stock_entry_for_issue(doc, row, manufacturing_operation):
 		prev_mfg_operation = get_previous_operation(row.manufacturing_operation)
 		in_transit_wh = frappe.get_value(
 			"Warehouse",
-			{"department": doc.next_department, "warehouse_type": "Manufacturing"},
+			{"disabled": 0, "department": doc.next_department, "warehouse_type": "Manufacturing"},
 			"default_in_transit_warehouse",
 		)
 		stock_entries = frappe.get_all(
@@ -680,7 +687,7 @@ def create_stock_entry(doc, row):
 
 	in_transit_wh = frappe.db.get_value(
 		"Warehouse",
-		{"department": doc.current_department, "warehouse_type": "Manufacturing"},
+		{"disabled": 0, "department": doc.current_department, "warehouse_type": "Manufacturing"},
 		"default_in_transit_warehouse",
 	)
 	if not in_transit_wh:
@@ -690,7 +697,8 @@ def create_stock_entry(doc, row):
 		)
 
 	department_wh = frappe.get_value(
-		"Warehouse", {"department": doc.current_department, "warehouse_type": "Manufacturing"}
+		"Warehouse",
+		{"disabled": 0, "department": doc.current_department, "warehouse_type": "Manufacturing"},
 	)
 	if not department_wh:
 		# frappe.throw(_(f"Please set warhouse for department {doc.current_department}"))

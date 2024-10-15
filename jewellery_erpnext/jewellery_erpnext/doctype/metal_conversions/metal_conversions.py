@@ -1,12 +1,18 @@
 # Copyright (c) 2024, Nirali and contributors
 # For license information, please see license.txt
 
+import copy
+
 import frappe
 from erpnext.controllers.queries import get_batch_no
 from erpnext.stock.doctype.batch.batch import get_batch_qty
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt
+
+from jewellery_erpnext.jewellery_erpnext.doctype.metal_conversions.doc_events.utils import (
+	update_batch_details,
+)
 
 
 class MetalConversions(Document):
@@ -27,6 +33,9 @@ class MetalConversions(Document):
 		if self.multiple_metal_converter == 0:
 			if self.target_qty <= 0 or self.source_qty <= 0:
 				frappe.throw(_("Source Qty or Target Qty not allowed Zero to post transaction"))
+
+	def before_validate(self):
+		update_batch_details(self)
 
 	def validate(self):
 		if not self.batch and self.multiple_metal_converter == 0:
@@ -120,7 +129,7 @@ class MetalConversions(Document):
 		mnf = frappe.get_value("Department", dpt, "manufacturer")
 		if not mnf:
 			errors.append("Manufacturer Messing against <b>Department Master</b>")
-		s_wh = frappe.get_value("Warehouse", {"department": dpt}, "name")
+		s_wh = frappe.get_value("Warehouse", {"disabled": 0, "department": dpt}, "name")
 		if not mnf:
 			errors.append("Warehouse Missing Warehouse Master Department Not Set")
 		if errors:
@@ -425,7 +434,7 @@ def make_multiple_metal_stock_entry(self):
 					"item_code": self.alloy,
 					"qty": self.alloy_qty,
 					"inventory_type": se.inventory_type,
-					"batch_no": None,
+					"batch_no": self.alloy_batch,
 					"department": self.department,
 					"employee": self.employee,
 					"manufacturer": self.manufacturer,

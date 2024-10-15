@@ -30,18 +30,42 @@ class MainSlip(Document):
 		if not self.for_subcontracting:
 			self.validate_metal_properties()
 			self.warehouse = frappe.db.get_value(
-				"Warehouse", {"employee": self.employee, "warehouse_type": "Manufacturing"}
+				"Warehouse",
+				{
+					"disabled": 0,
+					"company": self.company,
+					"employee": self.employee,
+					"warehouse_type": "Manufacturing",
+				},
 			)
 			self.raw_material_warehouse = frappe.db.get_value(
-				"Warehouse", {"employee": self.employee, "warehouse_type": "Raw Material"}
+				"Warehouse",
+				{
+					"disabled": 0,
+					"company": self.company,
+					"employee": self.employee,
+					"warehouse_type": "Raw Material",
+				},
 			)
 		else:
 			self.warehouse = frappe.db.get_value(
-				"Warehouse", {"subcontractor": self.subcontractor, "warehouse_type": "Manufacturing"}
+				"Warehouse",
+				{
+					"disabled": 0,
+					"company": self.company,
+					"subcontractor": self.subcontractor,
+					"warehouse_type": "Manufacturing",
+				},
 			)
 
 			self.raw_material_warehouse = frappe.db.get_value(
-				"Warehouse", {"subcontractor": self.subcontractor, "warehouse_type": "Raw Material"}
+				"Warehouse",
+				{
+					"disabled": 0,
+					"company": self.company,
+					"subcontractor": self.subcontractor,
+					"warehouse_type": "Raw Material",
+				},
 			)
 		if not self.warehouse:
 			# frappe.throw(
@@ -249,7 +273,9 @@ def create_material_request(doc):
 		{
 			"item_code": item,
 			"qty": doc.computed_gold_wt,
-			"warehouse": frappe.db.get_value("Warehouse", {"department": doc.department}, "name"),
+			"warehouse": frappe.db.get_value(
+				"Warehouse", {"disabled": 0, "department": doc.department}, "name"
+			),
 		},
 	)
 	mr.save()
@@ -432,7 +458,11 @@ def create_process_loss(
 		):
 			loss_warehouse = frappe.db.get_value(
 				"Warehouse",
-				{"department": doc.department, "warehouse_type": variant_loss_details.get("warehouse_type")},
+				{
+					"disabled": 0,
+					"department": doc.department,
+					"warehouse_type": variant_loss_details.get("warehouse_type"),
+				},
 			)
 
 	if not loss_warehouse:
@@ -509,7 +539,11 @@ def create_metal_loss(doc, item, variant_of, metal_loss, batch_data, mop=None):
 	):
 		loss_warehouse = frappe.db.get_value(
 			"Warehouse",
-			{"department": doc.department, "warehouse_type": variant_loss_details.get("warehouse_type")},
+			{
+				"disabled": 0,
+				"department": doc.department,
+				"warehouse_type": variant_loss_details.get("warehouse_type"),
+			},
 		)
 
 	if not loss_warehouse:
@@ -517,7 +551,7 @@ def create_metal_loss(doc, item, variant_of, metal_loss, batch_data, mop=None):
 
 	if metal_loss <= 0:
 		return
-	metal_loss_item = get_item_loss_item(doc.company, item, "M")
+	metal_loss_item = get_item_loss_item(doc.company, item, variant_of)
 
 	if not item:
 		frappe.msgprint(

@@ -45,6 +45,7 @@ frappe.ui.form.on("Manufacturing Plan", {
 			},
 			get_query_method:
 				"jewellery_erpnext.jewellery_erpnext.doctype.manufacturing_plan.doc_events.utils.get_mwo_details",
+			args: { company: frm.doc.company },
 			size: "extra-large",
 		});
 	},

@@ -13,12 +13,25 @@ from jewellery_erpnext.jewellery_erpnext.doctype.parent_manufacturing_order.doc_
 	create_finding_mwo,
 	create_stock_entry,
 )
+from jewellery_erpnext.jewellery_erpnext.doctype.parent_manufacturing_order.doc_events.utils import (
+	update_parent_details,
+)
 from jewellery_erpnext.utils import update_existing
 
 
 class ParentManufacturingOrder(Document):
 	def before_save(self):
+		if self.diamond_quality:
+			self.diamond_grade = frappe.db.get_value(
+				"Customer Diamond Grade",
+				{"parent": self.customer, "diamond_quality": self.diamond_quality},
+				"diamond_grade_1",
+			)
+
+		if not self.diamond_grade and not frappe.db.get_value("Item", self.item_code, "has_batch_no"):
+			frappe.throw(_("Diamond Grade is not mentioned in customer"))
 		self.metal_details()
+		update_parent_details(self)
 
 	def metal_details(self):
 		if self.master_bom:
@@ -99,7 +112,7 @@ class ParentManufacturingOrder(Document):
 			"Manufacturing Setting", {"company": self.company}, "default_department"
 		)
 		deafault_warehouse = frappe.db.get_value(
-			"Warehouse", {"department": deafault_department}, "name"
+			"Warehouse", {"disabled": 0, "department": deafault_department}, "name"
 		)
 
 		# Initialize separate lists for each item type
@@ -162,7 +175,9 @@ class ParentManufacturingOrder(Document):
 								"item_code": row.item_variant,
 								"qty": row.quantity,
 								"from_warehouse": frappe.db.get_value(
-									"Warehouse", {"department": department, "warehouse_type": "Raw Material"}, "name"
+									"Warehouse",
+									{"disabled": 0, "department": department, "warehouse_type": "Raw Material"},
+									"name",
 								),
 								"warehouse": to_warehouse,
 								"is_customer_item": row.is_customer_item,
@@ -180,7 +195,9 @@ class ParentManufacturingOrder(Document):
 								"item_code": row.item_variant,
 								"qty": row.quantity,
 								"from_warehouse": frappe.db.get_value(
-									"Warehouse", {"department": department, "warehouse_type": "Raw Material"}, "name"
+									"Warehouse",
+									{"disabled": 0, "department": department, "warehouse_type": "Raw Material"},
+									"name",
 								),
 								"warehouse": to_warehouse,
 								"is_customer_item": row.is_customer_item,
@@ -198,7 +215,9 @@ class ParentManufacturingOrder(Document):
 								"item_code": row.item_variant,
 								"qty": row.quantity,
 								"from_warehouse": frappe.db.get_value(
-									"Warehouse", {"department": department, "warehouse_type": "Raw Material"}, "name"
+									"Warehouse",
+									{"disabled": 0, "department": department, "warehouse_type": "Raw Material"},
+									"name",
 								),
 								"warehouse": to_warehouse,
 								"is_customer_item": row.is_customer_item,
@@ -216,7 +235,9 @@ class ParentManufacturingOrder(Document):
 								"item_code": row.item_variant,
 								"qty": row.quantity,
 								"from_warehouse": frappe.db.get_value(
-									"Warehouse", {"department": department, "warehouse_type": "Raw Material"}, "name"
+									"Warehouse",
+									{"disabled": 0, "department": department, "warehouse_type": "Raw Material"},
+									"name",
 								),
 								"warehouse": to_warehouse,
 								"is_customer_item": row.is_customer_item,
@@ -234,7 +255,9 @@ class ParentManufacturingOrder(Document):
 								"item_code": row.item_code,
 								"qty": row.quantity,
 								"from_warehouse": frappe.db.get_value(
-									"Warehouse", {"department": department, "warehouse_type": "Raw Material"}, "name"
+									"Warehouse",
+									{"disabled": 0, "department": department, "warehouse_type": "Raw Material"},
+									"name",
 								),
 								"warehouse": to_warehouse,
 								"is_customer_item": "0",
@@ -299,7 +322,7 @@ class ParentManufacturingOrder(Document):
 
 	@frappe.whitelist()
 	def get_stock_summary(self):
-		target_wh = frappe.db.get_value("Warehouse", {"department": self.department})
+		target_wh = frappe.db.get_value("Warehouse", {"disabled": 0, "department": self.department})
 		mwo = frappe.get_all(
 			"Manufacturing Work Order", {"manufacturing_order": self.name}, pluck="name"
 		)
@@ -449,6 +472,7 @@ def update_bom_based_on_diamond_quality(self):
 		for row in bom.diamond_detail:
 			row.diamond_grade = self.diamond_grade
 
+	if self.metal_purity:
 		for row in bom.metal_detail:
 			row.metal_purity = self.metal_purity
 
@@ -738,6 +762,10 @@ def create_manufacturing_work_order(self):
 			doc.department = frappe.db.get_value(
 				"Manufacturing Setting", {"company": doc.company}, "default_department"
 			)
+			doc.metal_touch = row.metal_touch
+			doc.metal_type = row.metal_type
+			doc.metal_purity = row.metal_purity
+			doc.metal_colour = row.metal_colour
 			doc.auto_created = 1
 			doc.save()
 
@@ -752,14 +780,14 @@ def create_manufacturing_work_order(self):
 				}
 			},
 		)
-		fg_doc.metal_touch = row.metal_touch
-		fg_doc.metal_type = row.metal_type
-		fg_doc.metal_purity = row.metal_purity
-		fg_doc.metal_colour = row.metal_colour
 		fg_doc.seq = int(self.name.split("-")[-1])
 		fg_doc.department = frappe.db.get_value(
 			"Manufacturing Setting", {"company": doc.company}, "default_fg_department"
 		)
+		fg_doc.metal_touch = row.metal_touch
+		fg_doc.metal_type = row.metal_type
+		fg_doc.metal_purity = row.metal_purity
+		fg_doc.metal_colour = row.metal_colour
 		fg_doc.for_fg = 1
 		fg_doc.auto_created = 1
 		fg_doc.save()

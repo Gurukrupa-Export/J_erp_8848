@@ -29,7 +29,9 @@
   "stock_uom",
   "item_variant",
   "gemstone_rate_for_specified_quantity",
-  "fg_purchase_amount"
+  "fg_purchase_amount",
+  "gemstone_pr",
+  "per_pc_or_per_carat"
  ],
  "fields": [
   {
@@ -193,12 +195,24 @@
    "fieldtype": "Currency",
    "label": "SE Rate",
    "read_only": 1
+  },
+  {
+   "fieldname": "gemstone_pr",
+   "fieldtype": "Link",
+   "label": "Gemstone PR",
+   "options": "Attribute Value"
+  },
+  {
+   "fieldname": "per_pc_or_per_carat",
+   "fieldtype": "Link",
+   "label": "Per Pc or Per Carat",
+   "options": "Attribute Value"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-07-09 17:27:45.022226",
+ "modified": "2024-09-09 14:25:42.855711",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "BOM Gemstone Detail",

@@ -92,7 +92,8 @@ def get_filters_cond(filters):
 
 	if filters["stock_entry_type"] == "Material Transfer (DEPARTMENT)" and filters.get("department"):
 		raw_department = frappe.db.get_value(
-			"Warehouse", {"warehouse_type": "Raw Material", "department": filters.get("department")}
+			"Warehouse",
+			{"disabled": 0, "warehouse_type": "Raw Material", "department": filters.get("department")},
 		)
 		if raw_department:
 			conditions.append((Warehouse.warehouse_type == "Transit") | (Warehouse.name == raw_department))
@@ -104,7 +105,8 @@ def get_filters_cond(filters):
 		"Material Transfer (Subcontracting Work Order)",
 	) and filters.get("department"):
 		raw_department = frappe.db.get_value(
-			"Warehouse", {"warehouse_type": "Raw Material", "department": filters.get("department")}
+			"Warehouse",
+			{"disabled": 0, "warehouse_type": "Raw Material", "department": filters.get("department")},
 		)
 
 		if filters["stock_entry_type"] == "Material Transfer (MAIN SLIP)":
@@ -131,7 +133,8 @@ def get_filters_cond(filters):
 		"department"
 	):
 		raw_department = frappe.db.get_value(
-			"Warehouse", {"warehouse_type": "Raw Material", "department": filters.get("department")}
+			"Warehouse",
+			{"disabled": 0, "warehouse_type": "Raw Material", "department": filters.get("department")},
 		)
 		condition = (Warehouse.warehouse_type == "Manufacturing") & (
 			((Warehouse.employee != "") | (Warehouse.employee.isnull().negate()))

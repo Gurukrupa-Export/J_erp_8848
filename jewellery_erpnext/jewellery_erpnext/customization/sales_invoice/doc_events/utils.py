@@ -19,7 +19,7 @@ def validate_item_category_for_customer(self):
 			frappe.qb.from_(ict).select(ict.item_category).distinct().where(ict.parent == self.customer)
 		).run(as_list=1, pluck=True)
 
-	invoice_category = list({row.item_category for row in self.items})
+	invoice_category = list({row.custom_item_sub_category for row in self.items})
 
 	if allowed_category == "Unique":
 		if len(invoice_category) != 1:

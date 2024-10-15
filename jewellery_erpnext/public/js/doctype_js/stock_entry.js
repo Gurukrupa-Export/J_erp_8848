@@ -4,9 +4,7 @@ frappe.ui.form.on("Stock Entry", {
 	refresh(frm) {
 		set_html(frm);
 		if (
-			["Material Transfer (DEPARTMENT)", "Material Transfer to Department"].includes(
-				frm.doc.stock_entry_type
-			) &&
+			frm.doc.stock_entry_type == "Material Transfer to Department" &&
 			frm.doc.docstatus == 1
 		) {
 			frm.remove_custom_button("End Transit");

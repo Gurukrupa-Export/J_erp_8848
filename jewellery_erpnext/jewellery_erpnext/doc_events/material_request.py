@@ -6,11 +6,18 @@ from frappe.model.mapper import get_mapped_doc
 from frappe.utils import nowdate
 from frappe.utils.data import flt
 
+from jewellery_erpnext.jewellery_erpnext.customization.material_request.utils.before_validate import (
+	update_pure_qty,
+)
+
 
 def before_validate(self, method):
 	if self.set_warehouse and self.set_from_warehouse:
 		source_branch = frappe.db.get_value("Warehouse", self.set_from_warehouse, "custom_branch")
 		target_branch = frappe.db.get_value("Warehouse", self.set_warehouse, "custom_branch")
+
+		if not source_branch and not target_branch:
+			return
 
 		if source_branch == target_branch:
 			self.custom_transfer_type = "Transfer To Department"
@@ -20,9 +27,7 @@ def before_validate(self, method):
 	elif self.material_request_type == "Manufacture":
 		self.custom_transfer_type = "Transfer to Reserve"
 
-	self.custom_total_quantity = 0
-	for row in self.items:
-		self.custom_total_quantity += row.qty
+	update_pure_qty(self)
 
 
 def on_submit(self, method=None):
@@ -282,7 +287,7 @@ def create_stock_entry(self, method):
 		for row in self.items:
 			department = frappe.db.get_value("Warehouse", row.from_warehouse, "department")
 			t_warehouse = frappe.db.get_value(
-				"Warehouse", {"department": department, "warehouse_type": "Reserve"}, "name"
+				"Warehouse", {"disabled": 0, "department": department, "warehouse_type": "Reserve"}, "name"
 			)
 			if not t_warehouse:
 				frappe.throw(_("Transit warehouse not found for {0}").format(department))

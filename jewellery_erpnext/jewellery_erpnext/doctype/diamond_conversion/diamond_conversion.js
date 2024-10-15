@@ -40,7 +40,10 @@ frappe.ui.form.on("SC Source Table", {
 		calculateSum(frm);
 	},
 	batch: function (frm, cdt, cdn) {
-		set_batch_value(frm, cdt, cdn);
+		let d = locals[cdt][cdn];
+		if (d.batch) {
+			set_batch_value(frm, cdt, cdn);
+		}
 	},
 });
 frappe.ui.form.on("SC Target Table", {

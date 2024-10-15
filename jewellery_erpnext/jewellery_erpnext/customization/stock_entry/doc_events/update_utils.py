@@ -10,10 +10,22 @@ def update_main_slip_se_details(doc, stock_entry_type, se_row, auto_created=0, i
 		based_on_value = doc.subcontractor
 
 	m_warehouse = frappe.db.get_value(
-		"Warehouse", {based_on: based_on_value, "warehouse_type": "Manufacturing"}
+		"Warehouse",
+		{
+			"disabled": 0,
+			"company": doc.company,
+			based_on: based_on_value,
+			"warehouse_type": "Manufacturing",
+		},
 	)
 	r_warehouse = frappe.db.get_value(
-		"Warehouse", {based_on: based_on_value, "warehouse_type": "Raw Material"}
+		"Warehouse",
+		{
+			"disabled": 0,
+			"company": doc.company,
+			based_on: based_on_value,
+			"warehouse_type": "Raw Material",
+		},
 	)
 
 	qty = "qty"

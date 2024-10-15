@@ -80,8 +80,6 @@ frappe.ui.form.on("Employee IR", {
 		});
 		var parent_fields = [["transfer_type", "Employee IR Reason"]];
 		set_filters_on_parent_table_fields(frm, parent_fields);
-
-		set_filters_on_manually_book_loss(frm);
 	},
 
 	type(frm) {
@@ -254,9 +252,6 @@ function set_filters_on_parent_table_fields(frm, fields) {
 			};
 		});
 	});
-}
-function set_filters_on_manually_book_loss(frm) {
-	console.log("his");
 }
 frappe.ui.form.on("Employee IR Operation", {
 	received_gross_wt: function (frm, cdt, cdn) {

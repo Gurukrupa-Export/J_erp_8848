@@ -17,6 +17,8 @@
   "gemstone_quality",
   "gemstone_size",
   "supplier_fg_purchase_rate",
+  "gemstone_pr",
+  "per_pc_or_per_carat",
   "column_break_8",
   "price_list_type",
   "from_weight",
@@ -202,11 +204,23 @@
    "fieldtype": "Table",
    "label": "Supplier FG Multiplier",
    "options": "Gemstone Multiplier"
+  },
+  {
+   "fieldname": "gemstone_pr",
+   "fieldtype": "Link",
+   "label": "Gemstone PR",
+   "options": "Attribute Value"
+  },
+  {
+   "fieldname": "per_pc_or_per_carat",
+   "fieldtype": "Link",
+   "label": "Per Pc or Per Carat",
+   "options": "Attribute Value"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-07-22 13:18:02.693583",
+ "modified": "2024-08-09 18:46:16.310533",
  "modified_by": "Administrator",
  "module": "Gurukrupa Exports",
  "name": "Gemstone Price List",

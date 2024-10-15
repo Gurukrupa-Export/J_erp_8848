@@ -187,8 +187,10 @@ def _calculate_diamond_amount(self, diamond, cust_diamond_price_list_type, range
 	elif price_list_type == "Sieve Size Range":
 		filters["sieve_size_range"] = sieve_size_range
 	elif price_list_type == "Size (in mm)":
-		filters["size_in_mm"] = size_in_mm
-		filters["diamond_size_in_mm"] = diamond.diamond_size_in_mm
+		if size_in_mm:
+			filters["size_in_mm"] = size_in_mm
+		if diamond.diamond_size_in_mm:
+			filters["diamond_size_in_mm"] = diamond.diamond_size_in_mm
 	else:
 		frappe.msgprint(_("Price List Type Not Specified"))
 		return 0
@@ -197,7 +199,15 @@ def _calculate_diamond_amount(self, diamond, cust_diamond_price_list_type, range
 	diamond_price_list = frappe.get_list(
 		"Diamond Price List",
 		filters=filters,
-		fields=["rate", "handling_rate", "supplier_fg_purchase_rate"],
+		fields=[
+			"rate",
+			"handling_rate",
+			"supplier_fg_purchase_rate",
+			"custom_outright_handling_charges_in_",
+			"custom_outright_handling_charges_rate",
+			"custom_outwork_handling_charges_in__",
+			"custom_outwork_handling_charges_rate_",
+		],
 		order_by="effective_from desc",
 		limit=1,
 	)
@@ -210,8 +220,18 @@ def _calculate_diamond_amount(self, diamond, cust_diamond_price_list_type, range
 	# Get Handling Rate of the Diamond if it is a cutomer provided Diamond
 	rate = (
 		diamond_price_list[0].get("handling_rate")
+		+ (
+			diamond_price_list[0].get("handling_rate")
+			* (diamond_price_list[0].get("custom_outwork_handling_charges_in__") or 0)
+		)
+		+ (diamond_price_list[0].get("custom_outwork_handling_charges_rate_") or 0)
 		if diamond.is_customer_item
 		else diamond_price_list[0].get("rate")
+		+ (
+			diamond_price_list[0].get("rate")
+			* (diamond_price_list[0].get("custom_outright_handling_charges_in_") or 0)
+		)
+		+ (diamond_price_list[0].get("custom_outright_handling_charges_rate") or 0)
 	)
 
 	# Set the rate and total rate for the diamond
@@ -247,6 +267,8 @@ def get_gemstone_rate(self):
 			"customer": self.customer,
 			"cut_or_cab": stone.cut_or_cab,
 			"gemstone_grade": stone.gemstone_grade,
+			"gemstone_pr": stone.gemstone_pr,
+			"per_pc_or_per_carat": stone.per_pc_or_per_carat,
 		}
 		if stone.price_list_type == "Weight (in cts)":
 			filters.update(
@@ -276,7 +298,16 @@ def get_gemstone_rate(self):
 		gemstone_price_list = frappe.get_list(
 			"Gemstone Price List",
 			filters=filters,
-			fields=["name", "rate", "handling_rate", "supplier_fg_purchase_rate"],
+			fields=[
+				"name",
+				"rate",
+				"handling_rate",
+				"supplier_fg_purchase_rate",
+				"custom_outright_handling_charges_in_",
+				"custom_outright_handling_charges_rate",
+				"custom_outwork_handling_charges_in__",
+				"custom_outwork_handling_charges_rate_",
+			],
 			order_by="effective_from desc",
 			limit=1,
 		)
@@ -319,8 +350,18 @@ def get_gemstone_rate(self):
 		else:
 			rate = (
 				gemstone_price_list[0].get("handling_rate")
+				+ (
+					gemstone_price_list[0].get("handling_rate")
+					+ gemstone_price_list[0].get("custom_outwork_handling_charges_in__")
+				)
+				+ gemstone_price_list[0].get("custom_outwork_handling_charges_rate_")
 				if stone.is_customer_item
 				else gemstone_price_list[0].get("rate")
+				+ (
+					gemstone_price_list[0].get("rate")
+					+ gemstone_price_list[0].get("custom_outright_handling_charges_in_")
+				)
+				+ gemstone_price_list[0].get("custom_outright_handling_charges_rate")
 			)
 		stone.total_gemstone_rate = rate
 		stone.gemstone_rate_for_specified_quantity = int(rate) * stone.quantity

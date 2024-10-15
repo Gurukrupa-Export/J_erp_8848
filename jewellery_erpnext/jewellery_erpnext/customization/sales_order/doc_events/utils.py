@@ -19,8 +19,15 @@ def update_delivery_date(self):
 
 
 def validate_duplicate_so(self):
+	to_remove = []
+
 	if self.status != "Closed" and self.docstatus == 0:
-		for row in self.items:
+		for idx, row in enumerate(self.items):
+			if self.po_no:
+				row.custom_child_po_no = f"{self.po_no}/{idx + 1}"
+			if row.qty == 0:
+				to_remove.append(row)
+
 			if row.serial_no:
 				so = DocType("Sales Order")
 				soi = DocType("Sales Order Item")
@@ -37,3 +44,6 @@ def validate_duplicate_so(self):
 
 				if values:
 					frappe.throw(_("Sales Order exists with same Serial Number"))
+
+	for row in to_remove:
+		self.remove(row)

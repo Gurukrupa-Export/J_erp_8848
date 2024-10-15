@@ -14,14 +14,14 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Item Category",
-   "link_filters": "[[\"is_category\", \"=\", \"1\"]]",
+   "link_filters": "[[\"Attribute Value\", \"is_subcategory\", \"=\", \"1\"]]",
    "options": "Attribute Value"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-07-02 16:09:21.483569",
+ "modified": "2024-09-06 16:37:23.958232",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Item Category Multiselect",

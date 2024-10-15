@@ -155,6 +155,7 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 			amount = i.se_rate * i.quantity
 		if not i.is_customer_item:
 			update_making_charges(row, bom_doc, i, self.gold_rate_with_gst)
+
 		filter_value = "is_for_making"
 		if i.is_customer_item:
 			filter_value = "is_for_labour"
@@ -320,7 +321,7 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 		if not einvoice_item:
 			einvoice_item, hsn_code, uom = frappe.db.get_value(
 				"E Invoice Item",
-				{"is_for_diamond": 1, "diamond_quality": i.diamond_quality},
+				{"is_for_diamond": 1, "diamond_quality": i.quality},
 				["name", "hsn_code", "uom"],
 			)
 
@@ -349,7 +350,7 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 	einvoice_item = None
 	for i in bom_doc.gemstone_detail:
 		actual_qty = i.quantity
-		i.quantity = flt(i.quantity, self.gemstone_pricision)
+		i.quantity = flt(i.quantity, bom_doc.gemstone_pricision)
 		i.difference = actual_qty - i.quantity
 		# Calculate the weight per piece
 		i.pcs = int(i.pcs) or 1
@@ -397,7 +398,7 @@ def update_bom_details(self, row, bom_doc, is_branch_customer, invoice_data):
 		)
 
 		multiplier = 0
-		item_category = frappe.db.get_value("Item", self.item, "item_category")
+		item_category = frappe.db.get_value("Item", bom_doc.item, "item_category")
 		if i.price_list_type == "Multiplier":
 			for row in gemstone_price_list:
 				multiplier = (

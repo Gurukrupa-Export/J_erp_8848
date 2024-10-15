@@ -39,8 +39,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Batch",
-   "options": "Batch",
-   "reqd": 1
+   "options": "Batch"
   },
   {
    "depends_on": "eval:doc.batch",
@@ -95,7 +94,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-05-01 19:35:35.986744",
+ "modified": "2024-09-02 17:48:09.579956",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "MC Source Table",

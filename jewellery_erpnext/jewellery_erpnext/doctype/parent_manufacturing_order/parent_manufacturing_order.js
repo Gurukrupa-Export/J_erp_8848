@@ -23,9 +23,9 @@ frappe.ui.form.on("Parent Manufacturing Order", {
 				filters: { customer: frm.doc.customer },
 			};
 		});
-		if (!frm.doc.__islocal) {
-			frm.set_df_property("diamond_grade", "reqd", 1);
-		}
+		// if (!frm.doc.__islocal) {
+		// 	frm.set_df_property("diamond_grade", "reqd", 1);
+		// }
 		set_html(frm);
 		if (!frm.doc.__islocal) {
 			frm.add_custom_button(__("Send For Customer Approval"), function () {

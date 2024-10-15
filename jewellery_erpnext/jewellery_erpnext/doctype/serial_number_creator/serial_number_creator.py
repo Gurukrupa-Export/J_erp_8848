@@ -122,7 +122,7 @@ def to_prepare_data_for_make_mnf_stock_entry(self):
 				if workstation:
 					workstation = workstation[0]
 				else:
-					frappe.throw(f"Please define Workstation for {row.employee}")
+					frappe.throw(_("Please define Workstation for {0}").format(row.employee))
 				hour_rate_labour = get_hourly_rate(row.employee)
 
 				total_expense = (

@@ -22,6 +22,7 @@
  ],
  "fields": [
   {
+   "fetch_from": "se_item.batch_no",
    "fieldname": "batch_no",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -111,7 +112,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-06-19 14:00:53.644162",
+ "modified": "2024-08-23 13:04:10.402665",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Main Slip SE Details",

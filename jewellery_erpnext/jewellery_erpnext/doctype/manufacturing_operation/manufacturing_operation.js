@@ -3,12 +3,17 @@
 
 frappe.ui.form.on("Manufacturing Operation", {
 	refresh: function (frm) {
+		if (!frm.doc.__islocal && !frappe.user.has_role("System Manager")) {
+			frm.set_df_property("department_target_table", "hidden", 1);
+			frm.set_df_property("department_source_table", "hidden", 1);
+			frm.set_df_property("employee_target_table", "hidden", 1);
+			frm.set_df_property("employee_source_table", "hidden", 1);
+		}
 		set_html(frm);
 		if (
 			frm.doc.is_last_operation &&
 			frm.doc.for_fg &&
 			["Not Started", "WIP"].includes(frm.doc.status)
-			// in_list(["Not Started", "WIP"], frm.doc.status) //"Finished"
 		) {
 			frm.add_custom_button(__("Finish"), async () => {
 				await frappe.call({

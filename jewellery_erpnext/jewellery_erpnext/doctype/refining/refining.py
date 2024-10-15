@@ -40,28 +40,25 @@ class Refining(Document):
 
 		if not self.multiple_operation:
 			Refining = frappe.qb.DocType("Refining")
-		
+
 			# Build the conditions
 			conditions = (
-				(Refining.docstatus != 2) &
-				(Refining.dustname == self.dustname) &
-				(Refining.multiple_operation == self.multiple_operation) &
-				(Refining.operation == self.operation) &
-				(Refining.employee == self.employee) &
-				(
-					((self.date_from > Refining.date_from) & (self.date_from < Refining.date_to)) |
-					((self.date_to > Refining.date_from) & (self.date_to < Refining.date_to)) |
-					((self.date_from <= Refining.date_from) & (self.date_to >= Refining.date_to))
+				(Refining.docstatus != 2)
+				& (Refining.dustname == self.dustname)
+				& (Refining.multiple_operation == self.multiple_operation)
+				& (Refining.operation == self.operation)
+				& (Refining.employee == self.employee)
+				& (
+					((self.date_from > Refining.date_from) & (self.date_from < Refining.date_to))
+					| ((self.date_to > Refining.date_from) & (self.date_to < Refining.date_to))
+					| ((self.date_from <= Refining.date_from) & (self.date_to >= Refining.date_to))
 				)
 			)
 			# query
 			query = (
 				frappe.qb.from_(Refining)
 				.select(Refining.name)
-				.where(
-					(Refining.name != name) &
-					conditions
-				)
+				.where((Refining.name != self.name) & conditions)
 			)
 			name = query.run()
 
@@ -72,36 +69,33 @@ class Refining(Document):
 		else:
 			if not self.refining_operation_detail:
 				return
-			
+
 			Refining = frappe.qb.DocType("Refining")
 			RefiningOperationDetail = frappe.qb.DocType("Refining Operation Detail")
 			operation_list = [frappe.db.escape(row.operation) for row in self.refining_operation_detail]
 
 			# Build the conditions
 			conditions = (
-				(Refining.docstatus != 2) &
-				(Refining.dustname == self.dustname) &
-				(Refining.multiple_operation == self.multiple_operation) &
-				(RefiningOperationDetail.operation.isin(operation_list)) &
-				(
-					((self.date_from >= Refining.date_from) & (self.date_from <= Refining.date_to)) |
-					((self.date_to >= Refining.date_from) & (self.date_to <= Refining.date_to)) |
-					((self.date_from <= Refining.date_from) & (self.date_to >= Refining.date_to))
+				(Refining.docstatus != 2)
+				& (Refining.dustname == self.dustname)
+				& (Refining.multiple_operation == self.multiple_operation)
+				& (RefiningOperationDetail.operation.isin(operation_list))
+				& (
+					((self.date_from >= Refining.date_from) & (self.date_from <= Refining.date_to))
+					| ((self.date_to >= Refining.date_from) & (self.date_to <= Refining.date_to))
+					| ((self.date_from <= Refining.date_from) & (self.date_to >= Refining.date_to))
 				)
-			)	
+			)
 			# query
 			query = (
 				frappe.qb.from_(Refining)
 				.join(RefiningOperationDetail)
 				.on(Refining.name == RefiningOperationDetail.parent)
 				.select(Refining.name)
-				.where(
-					(Refining.name != self.name) &
-					conditions
-				)
+				.where((Refining.name != self.name) & conditions)
 			)
 			name = query.run()
-			
+
 			if name:
 				frappe.throw(
 					f"Document is overlapping with <b><a href='/app/refining/{name[0][0]}'>{name[0][0]}</b>"
@@ -175,13 +169,13 @@ class Refining(Document):
 					StockEntryDetail.item_code,
 					StockEntryDetail.item_name,
 					StockEntryDetail.qty,
-					StockEntryDetail.uom
+					StockEntryDetail.uom,
 				)
 				.where(
-					(StockEntry.docstatus == 1) &
-					(StockEntryDetail.t_warehouse == target_wh) &
-					(StockEntry.manufacturing_operation == mop) &
-					(StockEntry.manufacturing_work_order == mwo)
+					(StockEntry.docstatus == 1)
+					& (StockEntryDetail.t_warehouse == target_wh)
+					& (StockEntry.manufacturing_operation == mop)
+					& (StockEntry.manufacturing_work_order == mwo)
 				)
 			)
 			data = query.run(as_dict=True)
@@ -223,9 +217,9 @@ def get_manufacturing_operations(source_name, target_doc=None):
 def get_stock_entries_against_mfg_operation(doc):
 	if isinstance(doc, str):
 		doc = frappe.get_doc("Manufacturing Operation", doc)
-	wh = frappe.db.get_value("Warehouse", {"department": doc.department}, "name")
+	wh = frappe.db.get_value("Warehouse", {"disabled": 0, "department": doc.department}, "name")
 	if doc.employee:
-		wh = frappe.db.get_value("Warehouse", {"employee": doc.employee}, "name")
+		wh = frappe.db.get_value("Warehouse", {"disabled": 0, "employee": doc.employee}, "name")
 
 	stock_entry_details = frappe.db.get_all(
 		"Stock Entry Detail",
@@ -236,7 +230,9 @@ def get_stock_entries_against_mfg_operation(doc):
 
 
 def create_refining_entry(self):
-	target_wh = frappe.db.get_value("Warehouse", {"department": self.refining_department})
+	target_wh = frappe.db.get_value(
+		"Warehouse", {"disabled": 0, "department": self.refining_department}
+	)
 
 	se = frappe.get_doc(
 		{
@@ -414,7 +410,9 @@ def test_create_transfer_entry(self, type, mr_se=None):
 
 def allocate_dust_department_wise(self, row, se, se_type):
 	for dust_row in self.refined_gold:
-		source_warehouse = frappe.db.get_value("Warehouse", {"department": row.department}, "name")
+		source_warehouse = frappe.db.get_value(
+			"Warehouse", {"disabled": 0, "department": row.department}, "name"
+		)
 		item_row = {
 			"item_code": dust_row.dust_item,
 			"qty": flt((dust_row.dust_weight * row.ratio) / 100),
@@ -450,7 +448,9 @@ def allocate_dust_employee_wise_operations(self, row, se, se_type):
 		dust_weight = flt((dust_row.dust_weight * row.ratio) / 100)
 		total_net_wt = sum([operation.get("net_wt") for operation in list_of_operation])
 		for operation in list_of_operation:
-			source_warehouse = frappe.db.get_value("Warehouse", {"employee": operation.employee}, "name")
+			source_warehouse = frappe.db.get_value(
+				"Warehouse", {"disabled": 0, "company": self.company, "employee": operation.employee}, "name"
+			)
 			if not source_warehouse:
 				frappe.throw(f"Employee Not assigned any WareHouse : {operation.employee}")
 

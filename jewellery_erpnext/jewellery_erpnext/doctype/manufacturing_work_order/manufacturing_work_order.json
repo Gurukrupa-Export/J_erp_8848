@@ -13,6 +13,7 @@
   "company",
   "posting_date",
   "has_split_mwo",
+  "child_po",
   "column_break_aaanu",
   "branch",
   "abbr",
@@ -584,6 +585,12 @@
    "fieldtype": "Check",
    "label": "Has Split MWO",
    "read_only": 1
+  },
+  {
+   "fieldname": "child_po",
+   "fieldtype": "Data",
+   "label": "Child PO",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -610,7 +617,7 @@
    "link_fieldname": "manufacturing_work_order"
   }
  ],
- "modified": "2024-08-07 16:50:33.149266",
+ "modified": "2024-08-30 15:19:57.488248",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Manufacturing Work Order",

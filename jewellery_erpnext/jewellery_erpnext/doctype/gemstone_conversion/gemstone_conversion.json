@@ -168,6 +168,7 @@
    "depends_on": "eval:doc.g_loss_item",
    "fieldname": "g_loss_qty",
    "fieldtype": "Float",
+   "hidden": 1,
    "label": "Loss Qty",
    "read_only": 1
   },
@@ -179,6 +180,7 @@
    "depends_on": "eval:doc.g_source_qty",
    "fieldname": "g_target_item",
    "fieldtype": "Link",
+   "hidden": 1,
    "label": "Target Item",
    "options": "Item"
   },
@@ -186,6 +188,7 @@
    "depends_on": "eval:doc.g_target_item",
    "fieldname": "g_target_qty",
    "fieldtype": "Float",
+   "hidden": 1,
    "label": "Target Qty"
   },
   {
@@ -203,8 +206,7 @@
    "fieldname": "batch",
    "fieldtype": "Link",
    "label": "Batch",
-   "options": "Batch",
-   "reqd": 1
+   "options": "Batch"
   },
   {
    "fieldname": "section_break_ciwv5",
@@ -277,7 +279,7 @@
    "link_fieldname": "custom_gemstone_conversion"
   }
  ],
- "modified": "2024-08-20 17:24:32.989502",
+ "modified": "2024-09-05 18:22:53.255134",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Gemstone Conversion",

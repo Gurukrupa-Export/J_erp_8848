@@ -58,7 +58,14 @@ class SwapMetal(Document):
 	@frappe.whitelist()
 	def get_warehouse(self):
 		emp_wh = frappe.get_value(
-			"Warehouse", {"employee": self.employee, "warehouse_type": "Manufacturing"}, "name"
+			"Warehouse",
+			{
+				"disabled": 0,
+				"company": self.company,
+				"employee": self.employee,
+				"warehouse_type": "Manufacturing",
+			},
+			"name",
 		)
 		dep_wh = frappe.get_value("Warehouse", {"department": self.department}, "name")
 		return [emp_wh, dep_wh]

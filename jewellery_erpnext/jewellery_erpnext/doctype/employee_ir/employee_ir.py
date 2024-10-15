@@ -31,6 +31,9 @@ from jewellery_erpnext.jewellery_erpnext.doctype.employee_ir.doc_events.mould_ut
 from jewellery_erpnext.jewellery_erpnext.doctype.employee_ir.doc_events.subcontracting_utils import (
 	create_so_for_subcontracting,
 )
+from jewellery_erpnext.jewellery_erpnext.doctype.employee_ir.doc_events.validation_utils import (
+	validate_duplication,
+)
 from jewellery_erpnext.jewellery_erpnext.doctype.main_slip.main_slip import get_main_slip_item
 
 # from jewellery_erpnext.jewellery_erpnext.doctype.qc.qc import create_qc_record
@@ -75,8 +78,7 @@ class EmployeeIR(Document):
 		):
 			self.main_slip = None
 
-		for row in self.employee_ir_operations:
-			save_mop(row.manufacturing_operation)
+		validate_duplication(self)
 
 	def validate(self):
 		self.validate_gross_wt()
@@ -477,7 +479,7 @@ class EmployeeIR(Document):
 			mwo_metal_property = frappe.db.get_value(
 				"Manufacturing Work Order",
 				mwo,
-				["metal_type", "metal_touch", "metal_purity"],
+				["metal_type", "metal_touch", "metal_purity", "master_bom", "is_finding_mwo"],
 				as_dict=1,
 			)
 			# To Check and pass thgrow Each ITEM metal or not function
@@ -489,9 +491,18 @@ class EmployeeIR(Document):
 				)
 			)
 			# To get Final Metal Item
-			flat_metal_item = [
-				item for sublist in metal_item for super_sub in sublist for item in super_sub
-			]
+			if mwo_metal_property.get("is_finding_mwo"):
+				bom_items = frappe.db.get_all(
+					"BOM Item", {"parent": mwo_metal_property.master_bom}, pluck="item_code"
+				)
+				bom_items += frappe.db.get_all(
+					"BOM Explosion Item", {"parent": mwo_metal_property.master_bom}, pluck="item_code"
+				)
+				flat_metal_item = list(set(bom_items))
+			else:
+				flat_metal_item = [
+					item for sublist in metal_item for super_sub in sublist for item in super_sub
+				]
 
 			# To prepare Final Data with all condition's
 			for child in mop_balance_table:
@@ -558,12 +569,15 @@ class EmployeeIR(Document):
 				total_qty += entry["qty"]
 			for entry in data:
 				if total_qty != 0 and loss > 0:
-					if loss <= entry["qty"]:
-						stock_loss = loss
-						loss = 0
+					if mwo_metal_property.get("is_finding_mwo"):
+						stock_loss = flt((entry["qty"] * loss) / total_qty, 3)
 					else:
-						stock_loss = entry["qty"]
-						loss -= entry["qty"]
+						if loss <= entry["qty"]:
+							stock_loss = loss
+							loss = 0
+						else:
+							stock_loss = entry["qty"]
+							loss -= entry["qty"]
 					if stock_loss > 0:
 						entry["received_gross_weight"] = entry["qty"] - stock_loss
 						entry["proportionally_loss"] = stock_loss
@@ -579,11 +593,6 @@ class EmployeeIR(Document):
 	@frappe.whitelist()
 	def get_summary_data(self):
 		return get_summary_data(self)
-
-
-def save_mop(mop_name):
-	doc = frappe.get_doc("Manufacturing Operation", mop_name)
-	doc.save()
 
 
 def create_operation_for_next_op(docname, target_doc=None, employee_ir=None):
@@ -670,15 +679,21 @@ def get_manufacturing_operations(source_name, target_doc=None):
 
 def create_stock_entry(doc, row, difference_wt=0):
 	department_wh = frappe.get_value(
-		"Warehouse", {"department": doc.department, "warehouse_type": "Manufacturing"}
+		"Warehouse", {"disabled": 0, "department": doc.department, "warehouse_type": "Manufacturing"}
 	)
 	if doc.subcontracting == "Yes":
 		employee_wh = frappe.get_value(
-			"Warehouse", {"subcontractor": doc.subcontractor, "warehouse_type": "Manufacturing"}
+			"Warehouse",
+			{
+				"disabled": 0,
+				"company": doc.company,
+				"subcontractor": doc.subcontractor,
+				"warehouse_type": "Manufacturing",
+			},
 		)
 	else:
 		employee_wh = frappe.get_value(
-			"Warehouse", {"employee": doc.employee, "warehouse_type": "Manufacturing"}
+			"Warehouse", {"disabled": 0, "employee": doc.employee, "warehouse_type": "Manufacturing"}
 		)
 	if not department_wh:
 		frappe.throw(_("Please set warhouse for department {0}").format(doc.department))
@@ -1586,7 +1601,11 @@ def process_loss_item(doc, row, se_doc, loss_item, employee_wh, department_wh):
 	):
 		loss_warehouse = frappe.db.get_value(
 			"Warehouse",
-			{"department": doc.department, "warehouse_type": variant_loss_details.get("warehouse_type")},
+			{
+				"disabled": 0,
+				"department": doc.department,
+				"warehouse_type": variant_loss_details.get("warehouse_type"),
+			},
 		)
 
 	if not loss_warehouse:
@@ -1654,15 +1673,21 @@ def process_loss_item(doc, row, se_doc, loss_item, employee_wh, department_wh):
 def create_single_se_entry(doc, mop_data):
 	rows_to_append = []
 	department_wh = frappe.get_value(
-		"Warehouse", {"department": doc.department, "warehouse_type": "Manufacturing"}
+		"Warehouse", {"disabled": 0, "department": doc.department, "warehouse_type": "Manufacturing"}
 	)
 	if doc.subcontracting == "Yes":
 		employee_wh = frappe.get_value(
-			"Warehouse", {"subcontractor": doc.subcontractor, "warehouse_type": "Manufacturing"}
+			"Warehouse",
+			{
+				"disabled": 0,
+				"company": doc.company,
+				"subcontractor": doc.subcontractor,
+				"warehouse_type": "Manufacturing",
+			},
 		)
 	else:
 		employee_wh = frappe.get_value(
-			"Warehouse", {"employee": doc.employee, "warehouse_type": "Manufacturing"}
+			"Warehouse", {"disabled": 0, "employee": doc.employee, "warehouse_type": "Manufacturing"}
 		)
 	if not department_wh:
 		frappe.throw(_("Please set warhouse for department {0}").format(doc.department))

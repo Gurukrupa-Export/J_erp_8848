@@ -227,11 +227,11 @@ class ManufacturingOperation(Document):
 		e_warehouse = None
 		if self.department:
 			d_warehouse = frappe.db.get_value(
-				"Warehouse", {"department": self.department, "warehouse_type": "Manufacturing"}
+				"Warehouse", {"disabled": 0, "department": self.department, "warehouse_type": "Manufacturing"}
 			)
 		if self.employee:
 			e_warehouse = frappe.db.get_value(
-				"Warehouse", {"employee": self.employee, "warehouse_type": "Manufacturing"}
+				"Warehouse", {"disabled": 0, "employee": self.employee, "warehouse_type": "Manufacturing"}
 			)
 
 		if self.previous_mop:
@@ -628,7 +628,7 @@ class ManufacturingOperation(Document):
 
 	@frappe.whitelist()
 	def get_linked_stock_entries(self):
-		target_wh = frappe.db.get_value("Warehouse", {"department": self.department})
+		target_wh = frappe.db.get_value("Warehouse", {"disabled": 0, "department": self.department})
 		pmo = frappe.db.get_value(
 			"Manufacturing Work Order", self.manufacturing_work_order, "manufacturing_order"
 		)
@@ -690,7 +690,7 @@ class ManufacturingOperation(Document):
 	@frappe.whitelist()
 	def get_linked_stock_entries_for_serial_number_creator(self):
 		target_wh = frappe.db.get_value(
-			"Warehouse", {"department": self.department, "warehouse_type": "Manufacturing"}
+			"Warehouse", {"disabled": 0, "department": self.department, "warehouse_type": "Manufacturing"}
 		)
 		pmo = frappe.db.get_value(
 			"Manufacturing Work Order", self.manufacturing_work_order, "manufacturing_order"
@@ -1018,7 +1018,7 @@ def create_manufacturing_entry(doc, row_data, mo_data=None):
 		mo_data = []
 
 	target_wh = frappe.db.get_value(
-		"Warehouse", {"department": doc.department, "warehouse_type": "Manufacturing"}
+		"Warehouse", {"disabled": 0, "department": doc.department, "warehouse_type": "Manufacturing"}
 	)
 	to_wh = frappe.db.get_value(
 		"Manufacturing Setting", {"company": doc.company}, "default_fg_warehouse"
@@ -1276,14 +1276,25 @@ def get_stock_entries_against_mfg_operation(doc):
 	if isinstance(doc, str):
 		doc = frappe.get_doc("Manufacturing Operation", doc)
 	wh = frappe.db.get_value(
-		"Warehouse", {"department": doc.department, "warehouse_type": "Manufacturing"}, "name"
+		"Warehouse",
+		{"disabled": 0, "department": doc.department, "warehouse_type": "Manufacturing"},
+		"name",
 	)
 	if doc.employee:
 		wh = frappe.db.get_value(
-			"Warehouse", {"employee": doc.employee, "warehouse_type": "Manufacturing"}, "name"
+			"Warehouse",
+			{
+				"disabled": 0,
+				"company": doc.company,
+				"employee": doc.employee,
+				"warehouse_type": "Manufacturing",
+			},
+			"name",
 		)
 	if doc.for_subcontracting and doc.subcontractor:
-		wh = frappe.db.get_value("Warehouse", {"subcontractor": doc.subcontractor}, "name")
+		wh = frappe.db.get_value(
+			"Warehouse", {"disabled": 0, "company": doc.company, "subcontractor": doc.subcontractor}, "name"
+		)
 	sed = frappe.db.get_all(
 		"Stock Entry Detail",
 		filters={"t_warehouse": wh, "manufacturing_operation": doc.name, "docstatus": 1},
@@ -1339,7 +1350,7 @@ def get_previous_operation(manufacturing_operation):
 
 
 def get_material_wt(doc):
-	filters = {}
+	filters = {"disabled": 0, "company": doc.company}
 	if doc.for_subcontracting:
 		if doc.subcontractor:
 			filters["subcontractor"] = doc.subcontractor
@@ -1527,6 +1538,8 @@ def create_finished_goods_bom(self, se_name, mo_data, total_time=0):
 			row["se_rate"] = item.get("rate")
 			for attribute in item_row.attributes:
 				atrribute_name = format_attrbute_name(attribute.attribute)
+				if atrribute_name == "finding_sub_category":
+					atrribute_name = "finding_type"
 				row[atrribute_name] = attribute.attribute_value
 				row["quantity"] = item["qty"]
 				if item.get("inventory_type") and item.get("inventory_type") == "Customer Goods":
@@ -1582,7 +1595,7 @@ def create_finished_goods_bom(self, se_name, mo_data, total_time=0):
 
 def get_stock_entry_data(self):
 	target_wh = frappe.db.get_value(
-		"Warehouse", {"department": self.department, "warehouse_type": "Manufacturing"}
+		"Warehouse", {"disabled": 0, "department": self.department, "warehouse_type": "Manufacturing"}
 	)
 	pmo = frappe.db.get_value(
 		"Manufacturing Work Order", self.manufacturing_work_order, "manufacturing_order"
@@ -1636,7 +1649,7 @@ def get_stock_entry_data(self):
 
 def format_attrbute_name(input_string):
 	# Replace spaces with underscores and convert to lowercase
-	formatted_string = input_string.replace(" ", "_").lower()
+	formatted_string = input_string.replace(" ", "_").replace("-", "_").lower()
 	return formatted_string
 
 
@@ -1691,11 +1704,17 @@ def update_new_mop(self, old_mop):
 	e_warehouse = None
 	if self.department:
 		d_warehouse = frappe.db.get_value(
-			"Warehouse", {"department": self.department, "warehouse_type": "Manufacturing"}
+			"Warehouse", {"disabled": 0, "department": self.department, "warehouse_type": "Manufacturing"}
 		)
 	if self.employee:
 		e_warehouse = frappe.db.get_value(
-			"Warehouse", {"employee": self.employee, "warehouse_type": "Manufacturing"}
+			"Warehouse",
+			{
+				"disabled": 0,
+				"company": self.company,
+				"employee": self.employee,
+				"warehouse_type": "Manufacturing",
+			},
 		)
 
 	if self.previous_mop:

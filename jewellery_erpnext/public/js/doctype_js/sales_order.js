@@ -876,7 +876,7 @@ frappe.ui.form.on("Sales Order Item", {
 					label: "BOM-No",
 					options: "BOM",
 					read_only: 1,
-					default: row.master_bom,
+					default: row.bom,
 					onchange: () => {
 						if (dialog.get_value("bom_no")) {
 							edit_bom_documents(
@@ -1184,7 +1184,7 @@ frappe.ui.form.on("Sales Order Item", {
 					freeze: true,
 					args: {
 						parent_doctype: "BOM",
-						parent_doctype_name: dialog.get_value("bom_no") || row.master_bom,
+						parent_doctype_name: dialog.get_value("bom_no") || row.bom,
 						metal_detail: metal_detail,
 						diamond_detail: diamond_detail,
 						gemstone_detail: gemstone_detail,
@@ -1200,10 +1200,10 @@ frappe.ui.form.on("Sales Order Item", {
 			primary_action_label: __("Update"),
 		});
 
-		if (row.master_bom) {
+		if (row.bom) {
 			edit_bom_documents(
 				dialog,
-				row.master_bom,
+				row.bom,
 				metal_data,
 				diamond_data,
 				gemstone_data,
@@ -1251,7 +1251,7 @@ frappe.ui.form.on("Sales Order Item", {
 					])
 					.then((r) => {
 						frappe.model.set_value(cdt, cdn, "item_code", r.message.item_code);
-						frappe.model.set_value(cdt, cdn, "master_bom", r.message.custom_bom_no);
+						frappe.model.set_value(cdt, cdn, "bom", r.message.custom_bom_no);
 						frappe.model.set_value(
 							cdt,
 							cdn,
@@ -1553,7 +1553,7 @@ let add_row = (serial_no, frm, row) => {
 					new_row.item_code = bom.item;
 					new_row.serial_no = bom.tag_no;
 					new_row.bom = bom.name;
-					frappe.model.set_value(new_row.doctype, new_row.name, "master_bom", bom.name);
+					frappe.model.set_value(new_row.doctype, new_row.name, "bom", bom.name);
 					refresh_field("items");
 					frm.trigger("item_code", new_row.doctype, new_row.name);
 					frm.script_manager.trigger("item_code", new_row.doctype, new_row.name);

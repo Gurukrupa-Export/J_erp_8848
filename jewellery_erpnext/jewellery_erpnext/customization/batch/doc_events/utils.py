@@ -1,5 +1,10 @@
 import frappe
 from frappe import _
+from frappe.utils import flt
+
+from jewellery_erpnext.jewellery_erpnext.customization.utils.metal_utils import (
+	get_purity_percentage,
+)
 
 
 def update_inventory_dimentions(self):
@@ -24,3 +29,31 @@ def update_inventory_dimentions(self):
 		self.custom_customer_voucher_type = frappe.db.get_value(
 			"Stock Entry", self.reference_name, "customer_voucher_type"
 		)
+
+
+def update_pure_qty(self):
+	if not self.batch_qty:
+		return
+
+	variant_of = frappe.db.get_value("Item", self.item, "variant_of")
+
+	if variant_of not in ["M", "F"]:
+		return
+
+	if not self.reference_doctype:
+		return
+
+	company = frappe.db.get_value(self.reference_doctype, self.reference_name, "company")
+
+	pure_item = frappe.db.get_value("Manufacturing Setting", company, "pure_gold_item")
+
+	if not pure_item:
+		return
+
+	batch_item_purity = get_purity_percentage(self.item)
+	pure_item_purity = get_purity_percentage(pure_item)
+
+	if not batch_item_purity:
+		return
+
+	self.custom_pure_metal_qty = flt((batch_item_purity * self.batch_qty) / pure_item_purity, 3)

@@ -3,7 +3,7 @@ import json
 import frappe
 from erpnext.setup.utils import get_exchange_rate
 
-from jewellery_erpnext.utils import update_existing
+# from jewellery_erpnext.utils import update_existing
 
 
 def validate(self, method):
@@ -44,18 +44,16 @@ def update_rate(self):
 def make_subcontracting_order(doc):
 	supplier_dict = {}
 	for row in doc.manufacturing_plan_table:
-		is_new = False
 		if supplier_dict.get(row.supplier):
 			po_doc = frappe.get_doc("Purchase Order", supplier_dict[row.supplier])
 		else:
 			po_doc = frappe.new_doc("Purchase Order")
-			is_new = True
-		if is_new:
 			po_doc.supplier = row.supplier
 			po_doc.company = doc.company
 			po_doc.schedule_date = po_doc.transaction_date
 			po_doc.purchase_type = row.purchase_type
 			po_doc.ref_customer = row.get("customer", None)
+			po_doc.manufacturing_plan = doc.name
 
 		po_doc.custom_customer_po = row.customer_po
 
@@ -67,6 +65,7 @@ def make_subcontracting_order(doc):
 					"qty": row.subcontracting_qty,
 					"manufacturing_bom": row.manufacturing_bom,
 					"diamond_quality": row.diamond_quality,
+					"child_po": row.child_po,
 				},
 			)
 		else:
@@ -80,12 +79,10 @@ def make_subcontracting_order(doc):
 					"fg_item": row.item_code,
 					"fg_item_qty": row.subcontracting_qty,
 					"schedule_date": row.estimated_delivery_date,
+					"custom_child_po_no": row.child_po,
 				},
 			)
 
-		if is_new:
-			po_doc.manufacturing_plan = doc.name
-			# po_doc.rowname = row.name
 		po_doc.save()
 		supplier_dict[row.supplier] = po_doc.name
 

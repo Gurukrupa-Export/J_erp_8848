@@ -9,6 +9,7 @@
  "field_order": [
   "serial_no",
   "item_code",
+  "parent_manufacturing_order",
   "manufacturing_work_order",
   "bom",
   "metal_touch",
@@ -235,12 +236,18 @@
    "fieldname": "receive_metal_purity",
    "fieldtype": "Data",
    "label": "Receive Metal Purity"
+  },
+  {
+   "fieldname": "parent_manufacturing_order",
+   "fieldtype": "Link",
+   "label": "Parent Manufacturing Order",
+   "options": "Parent Manufacturing Order"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-06-10 15:39:43.672297",
+ "modified": "2024-09-09 17:19:47.085096",
  "modified_by": "Administrator",
  "module": "Jewellery Erpnext",
  "name": "Exploded Product Details",
